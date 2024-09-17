@@ -1,0 +1,89 @@
+@import "variables";
+
+/* Global styles for WebKit browsers (Chrome, Safari) */
+::-webkit-scrollbar {
+  width: 20px; /* Width of the scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background-color: $background-color-dark; /* Dark background for the track */
+  border-radius: 20px; /* Rounded corners for the thumb */
+  border: 6px solid transparent; /* Transparent border to create spacing around the thumb */
+  background-clip: content-box; /* Ensures that the thumb background does not bleed into the border area */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: $scrollbar-thumb-color; /* Darker green color for the thumb */
+  border-radius: 20px; /* Rounded corners for the thumb */
+  border: 6px solid transparent; /* Transparent border to create spacing around the thumb */
+  background-clip: content-box; /* Ensures that the thumb background does not bleed into the border area */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: $scrollbar-thumb-hover-color; /* Brighter green color on hover for better visibility */
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: $font-family;
+  overflow: hidden;
+}
+
+a {
+  font-weight: $font-weight-bold;
+  color: $primary-color-dark;
+  text-decoration: none; /* Inherit removes underline */
+}
+
+a:hover {
+  color: $primary-color-light;
+}
+
+h1 {
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: $font-weight-bold;
+  font-family: inherit;
+  background-color: $background-color-dark;
+  color: $text-color-light; // Ensure text color is visible on dark background
+cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+button:hover {
+  border-color: $primary-color-dark;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+.card {
+  padding: 2em;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: $text-color-dark;
+    background-color: #ffffff;
+  }
+
+  a:hover {
+    color: #747bff;
+  }
+
+  button {
+    background-color: #f9f9f9;
+    color: $text-color-dark; // Dark text color for light background
+  }
+}

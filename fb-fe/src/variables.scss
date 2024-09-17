@@ -1,0 +1,58 @@
+// Define theme variables
+$font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+$font-weight-normal: 400;
+$font-weight-bold: 500;
+$line-height: 1.5; // Increased line-height for better readability
+$primary-color-dark: #00ff00; // Bright green
+$primary-color-light: #00cc00; // Darker green
+$background-color-dark: #1a1a1a; // Dark background
+$text-color-light: #e0e0e0; // Light text color for dark theme
+$text-color-dark: #dcdcdc; // Slightly lighter dark text for better readability
+$scrollbar-thumb-color: #00cc00; // Darker green for scrollbar thumb
+$scrollbar-thumb-hover-color: #00ff00; // Brighter green on hover
+$header-background-color: #00cc00; // Darker green for header background
+$header-text-color: #e0e0e0; // Light text color for better contrast on header
+$summary-background-color: #0056b3; // Darker blue color
+$card-background-color: #2d2d2d; // Darker background for cards
+$shadow-light: rgba(0, 0, 0, 0.2); // Slightly stronger shadow for better separation
+$border-radius: 8px;
+$border-color: #555; // Darker border color for better contrast
+$disabled-button-color: #606060; // Darker grey for disabled button
+$disabled-button-text-color: #a0a0a0; // Lighter grey text for disabled button
+$button-hover-color: #003d79; // Darker blue color for button hover
+$terminal-background-color: #2d2d2d; // Dark background for terminal box
+$terminal-text-color: #00ff00; // Bright green text for terminal box
+$terminal-header-color: #ffcc00; // Yellow color for terminal header
+$tooltip-background-color: #222; // Darker background for tooltips
+$tooltip-text-color: #e0e0e0; // Light text for tooltips
+$invalid-form-border-color: #f00; // Red border for invalid form
+
+:root {
+  --font-family: #{$font-family};
+  --font-weight-normal: #{$font-weight-normal};
+  --font-weight-bold: #{$font-weight-bold};
+  --line-height: #{$line-height};
+  --primary-color-dark: #{$primary-color-dark};
+  --primary-color-light: #{$primary-color-light};
+  --background-color-dark: #{$background-color-dark};
+  --text-color-light: #{$text-color-light};
+  --text-color-dark: #{$text-color-dark};
+  --scrollbar-thumb-color: #{$scrollbar-thumb-color};
+  --scrollbar-thumb-hover-color: #{$scrollbar-thumb-hover-color};
+  --header-background-color: #{$header-background-color};
+  --header-text-color: #{$header-text-color};
+  --summary-background-color: #{$summary-background-color};
+  --card-background-color: #{$card-background-color};
+  --shadow-light: #{$shadow-light};
+  --border-radius: #{$border-radius};
+  --border-color: #{$border-color};
+  --disabled-button-color: #{$disabled-button-color};
+  --disabled-button-text-color: #{$disabled-button-text-color};
+  --button-hover-color: #{$button-hover-color};
+  --terminal-background-color: #{$terminal-background-color};
+  --terminal-text-color: #{$terminal-text-color};
+  --terminal-header-color: #{$terminal-header-color};
+  --tooltip-background-color: #{$tooltip-background-color};
+  --tooltip-text-color: #{$tooltip-text-color};
+  --invalid-form-border-color: #{$invalid-form-border-color};
+}

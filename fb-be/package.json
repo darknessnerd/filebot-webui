@@ -1,0 +1,27 @@
+{
+  "name": "fb-be",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "imports": {
+    "#root/*": "./src/*.js",
+    "#configs/*": "./src/configs/*.js",
+    "#models/*": "./src/models/*.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "sequelize": "^6.37.3",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
