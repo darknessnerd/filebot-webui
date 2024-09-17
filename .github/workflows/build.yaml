@@ -46,17 +46,34 @@ jobs:
   push_to_Docker_Hub:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [ 22.x ]
     # build docker image and push to docker hub
     # only if the app build and test successfully
     needs: [build_test]
 
     steps:
+
+      - name: checkout repo
+        uses: actions/checkout@v3
+
+      - name: setup node
+        uses: actions/setup-node@master
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # FE BUILD
+      - name: Install dependencies
+        working-directory: ./fb-fe
+        run: |
+          npm install
+          npm ci
+      
       - name: build
         working-directory: ./fb-fe
         run: |
           npm run build
-      - name: checkout repo
-        uses: actions/checkout@v3
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
