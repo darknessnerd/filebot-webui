@@ -48,7 +48,7 @@ jobs:
       runs-on: ubuntu-latest
       # Build Docker image and push to Docker Hub only if the app build and test successfully
       needs: [build_test]
-      
+
       steps:
         # Step 1: Checkout the repository
         - name: Checkout repository
@@ -73,17 +73,15 @@ jobs:
         - name: Build and push Docker image
           id: docker_build
           uses: docker/build-push-action@v6
-          working-directory: ./fb-be
           with:
-            context: ./  # Adjust context if needed to reduce build size
-            file: ./Dockerfile
+            context: ./fb-be  # Adjust context if needed to reduce build size
+            file: ./fb-be/Dockerfile
             push: true  # Push image to Docker Hub
             tags: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
 
         # Step 6: Run the image in a container and test it
         - name: Run the Docker image and test endpoints
           uses: addnab/docker-run-action@v3
-          working-directory: ./fb-be
           with:
             image: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
             run: |
