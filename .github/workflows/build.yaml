@@ -43,48 +43,42 @@ jobs:
         run: |
           npm run build
 #          npm run test
-    push_to_Docker_Hub:
-      # The type of runner that the job will run on
-      runs-on: ubuntu-latest
-      # Build Docker image and push to Docker Hub only if the app build and test successfully
-      needs: [build_test]
+  push_to_Docker_Hub:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    # build docker image and push to docker hub
+    # only if the app build and test successfully
+    needs: [build_test]
 
-      steps:
-        # Step 1: Checkout the repository
-        - name: Checkout repository
-          uses: actions/checkout@v3
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
 
-        # Step 2: Set up QEMU for multi-platform builds
-        - name: Set up QEMU
-          uses: docker/setup-qemu-action@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
 
-        # Step 3: Set up Docker Buildx for building images
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
-        # Step 4: Log in to Docker Hub
-        - name: Log in to Docker Hub
-          uses: docker/login-action@v2
-          with:
-            username: ${{ secrets.DOCKERHUB_USERNAME }}
-            password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-        # Step 5: Build and push Docker image to Docker Hub
-        - name: Build and push Docker image
-          id: docker_build
-          uses: docker/build-push-action@v6
-          with:
-            context: ./fb-be  # Adjust context if needed to reduce build size
-            file: ./fb-be/Dockerfile
-            push: true  # Push image to Docker Hub
-            tags: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: ./fb-be
+          file: ./fb-be/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
 
-        # Step 6: Run the image in a container and test it
-        - name: Run the Docker image and test endpoints
-          uses: addnab/docker-run-action@v3
-          with:
-            image: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
-            run: |
-              echo "Running the Docker image"
-              echo "Testing the Node.js app endpoints"
-              echo "Image digest: ${{ steps.docker_build.outputs.digest }}" 
+      - name: Run the image in a container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
+          run: |
+            echo "runing the docker image"
+            echo "Testing the nodejs  app endpoints"
+            echo ${{ steps.docker_build.outputs.digest }}
