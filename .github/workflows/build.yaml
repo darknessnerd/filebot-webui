@@ -33,12 +33,13 @@ jobs:
 
       # FE BUILD
       - name: Install dependencies
+        working-directory: ./fb-fe
         run: |
-          working-directory: ./fb-fe
           npm install
           npm ci
       # build and test the apps
       - name: build
+        working-directory: ./fb-fe
         run: |
           npm run build
           npm run test
