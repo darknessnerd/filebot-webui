@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # Check if FileBot license file exists and copy it to the correct location
 if [ -f "$FILEBOT_LICENSE_PATH" ]; then
     echo "Copying FileBot license file from $FILEBOT_LICENSE_PATH to /opt/filebot/.license/license.psm"
