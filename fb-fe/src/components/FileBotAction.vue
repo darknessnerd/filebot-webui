@@ -189,7 +189,7 @@ const createFilesWithParameters = async () => {
   display: flex;
   flex-direction: row; /* By default, keep a row layout for larger screens */
   padding: 4px;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   flex-grow: 1;
 
