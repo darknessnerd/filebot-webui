@@ -12,7 +12,7 @@ ENV FILEBOT_URL=https://get.filebot.net/filebot/FileBot_${FILEBOT_VERSION}/FileB
 RUN apk --no-cache add openjdk11 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 RUN \
         mkdir /opt/filebot && \
-        mkdir /config/filebot && \
+        mkdir -p /config/filebot && \
         echo "**** Fetch filebot package ****" && \
         wget -O /tmp/filebot.tar.xz "$FILEBOT_URL" && \
         echo "**** Extract application files ****" && \
