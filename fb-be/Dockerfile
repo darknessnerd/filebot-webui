@@ -9,6 +9,10 @@ ENV HOME="$CONFIG/filebot"
 ENV FILEBOT_OPTS="-Dapplication.deployment=docker -Duser.home=$HOME"
 ENV FILEBOT_VERSION=5.1.5
 ENV FILEBOT_URL=https://get.filebot.net/filebot/FileBot_${FILEBOT_VERSION}/FileBot_${FILEBOT_VERSION}-portable.tar.xz
+# Add an environment variable for the license file path
+ENV FILEBOT_LICENSE_PATH="/config/filebot/license.psm"
+
+
 RUN apk --no-cache add openjdk11 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 RUN \
         mkdir /opt/filebot && \
