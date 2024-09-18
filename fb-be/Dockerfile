@@ -24,7 +24,15 @@ RUN \
                 /tmp/* && \
         echo "**** Create filebot config and binary symlinks ****" && \
         ln -s /config/filebot /opt/filebot/data && \
-        ln -s /opt/filebot/filebot.sh /usr/bin/filebot
+        ln -s /opt/filebot/filebot.sh /usr/bin/filebot \
+# New Step: Copy FileBot license during runtime from the specified ENV path
+RUN mkdir -p /opt/filebot/.license
+RUN if [ -f "$FILEBOT_LICENSE_PATH" ]; then \
+        echo "**** Copying FileBot license file ****" && \
+        cp $FILEBOT_LICENSE_PATH /opt/filebot/.license/license.psm; \
+    else \
+        echo "**** No FileBot license file found, skipping ****"; \
+    fi
 #REPPLACE NGINX DEFAULT WITH YOUR CODE
 RUN rm -f /etc/nginx/http.d/default.conf
 ADD ./docker/nginx/http.d/default.conf /etc/nginx/http.d/default.conf
