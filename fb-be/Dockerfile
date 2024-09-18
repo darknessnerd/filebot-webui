@@ -5,8 +5,7 @@ RUN apk add nginx
 RUN apk add supervisor
 #FILE BOT CLI SETUP
 ENV CONFIG="/config"
-ENV HOME="$CONFIG/filebot"
-ENV FILEBOT_OPTS="-Dapplication.deployment=docker -Duser.home=$HOME"
+ENV FILEBOT_OPTS="-Dapplication.deployment=docker -Duser.home=$CONFIG"
 ENV FILEBOT_VERSION=5.1.5
 ENV FILEBOT_URL=https://get.filebot.net/filebot/FileBot_${FILEBOT_VERSION}/FileBot_${FILEBOT_VERSION}-portable.tar.xz
 # Add an environment variable for the license file path
@@ -16,7 +15,6 @@ ENV FILEBOT_LICENSE_PATH="/config/filebot/license.psm"
 RUN apk --no-cache add openjdk11 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 RUN \
         mkdir /opt/filebot && \
-        mkdir -p /config/filebot && \
         echo "**** Fetch filebot package ****" && \
         wget -O /tmp/filebot.tar.xz "$FILEBOT_URL" && \
         echo "**** Extract application files ****" && \
@@ -27,9 +25,10 @@ RUN \
                 $HOME/.cache \
                 /tmp/* && \
         echo "**** Create filebot config and binary symlinks ****" && \
-        ln -s /config/filebot /opt/filebot/data && \
-        ln -s /opt/filebot/filebot.sh /usr/bin/filebot \
-
+        ln -s $CONFIG /opt/filebot/data
+# Ensure the symlink is created
+RUN ln -sf /opt/filebot/filebot.sh /usr/bin/filebot && \
+    chmod +x /usr/bin/filebot
 #REPPLACE NGINX DEFAULT WITH YOUR CODE
 RUN rm -f /etc/nginx/http.d/default.conf
 ADD ./docker/nginx/http.d/default.conf /etc/nginx/http.d/default.conf
