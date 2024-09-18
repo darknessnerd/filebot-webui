@@ -20,17 +20,14 @@ jobs:
     strategy:
       matrix:
         node-version: [22.x]
-
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-
       - name: setup node
         uses: actions/setup-node@master
         with:
           node-version: ${{ matrix.node-version }}
-
       # FE BUILD
       - name: Install dependencies
         working-directory: ./fb-fe
@@ -69,7 +66,7 @@ jobs:
         run: |
           npm install
           npm ci
-      
+
       - name: build
         working-directory: ./fb-fe
         run: |
