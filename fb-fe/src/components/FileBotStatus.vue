@@ -1,7 +1,7 @@
 <template>
   <div v-if="statusMessage" class="terminal-box">
     <p class="terminal-header">🚀 FileBot Status</p>
-    <pre class="terminal-output">{{ statusMessage }}</pre>
+    <pre class="terminal-output">{{ statusMessage.status }} {{ statusMessage.message }} </pre>
   </div>
 </template>
 
