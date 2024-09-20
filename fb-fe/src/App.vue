@@ -65,7 +65,7 @@ const handleFormError = (message) => {
         <div class="browser-content">
           <DirectoryBrowser
               :availableDirectories="inputDirectories"
-              selection-mode="files"
+              selection-mode="both"
               @update:selectedItems="handleSelectedFiles"
           />
         </div>
