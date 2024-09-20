@@ -29,6 +29,7 @@ html, body {
   height: 100%;
   font-family: $font-family;
   overflow: hidden;
+
 }
 
 a {
@@ -55,7 +56,7 @@ button {
   font-family: inherit;
   background-color: $background-color-dark;
   color: $text-color-light; // Ensure text color is visible on dark background
-cursor: pointer;
+  cursor: pointer;
   transition: border-color 0.25s;
 }
 

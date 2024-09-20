@@ -1,6 +1,7 @@
 <script setup>
 import DirectoryBrowser from "./components/DirectoryBrowser.vue";
-import FileBotAction from "./components/FileBotAction.vue";
+import FileBotStatus from "./components/FileBotStatus.vue";
+import FileBotForm from "./components/FileBotForm.vue";
 import { ref } from 'vue';
 
 // State for selected files and output directory
@@ -14,6 +15,16 @@ const handleSelectedFiles = (items) => {
 
 const handleSelectedDirectories = (items) => {
   outputDir.value = items.length ? items[0] : null; // Ensure null if no directory is selected
+};
+
+const statusMessage = ref({ status: '', message: '' });
+
+const handleFormSuccess = (message) => {
+  statusMessage.value = message;
+};
+
+const handleFormError = (message) => {
+  statusMessage.value = message;
 };
 </script>
 
@@ -47,7 +58,13 @@ const handleSelectedDirectories = (items) => {
 
       <!-- Right Column for FileBotAction -->
       <div class="right-column">
-        <FileBotAction :files="selectedFiles" :output-directory="outputDir" />
+        <FileBotForm
+            :files="selectedFiles"
+            :outputDirectory="outputDir"
+            @formSuccess="handleFormSuccess"
+            @formError="handleFormError"
+        />
+        <FileBotStatus :statusMessage="statusMessage" />
       </div>
     </div>
   </div>
@@ -55,11 +72,18 @@ const handleSelectedDirectories = (items) => {
 
 <style scoped lang="scss">
 @import "./variables.scss";
+
+
+
 .app-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
   background-color: $background-color-dark;
+  @media (max-width: 768px) {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 }
 
 .app-header {
@@ -72,6 +96,9 @@ const handleSelectedDirectories = (items) => {
   font-size: 18px;
   font-weight: $font-weight-bold;
   box-shadow: 0 2px 4px $shadow-light;
+  @media (max-width: 768px) {
+    padding: 2px;
+  }
 }
 
 .summary {
@@ -81,44 +108,62 @@ const handleSelectedDirectories = (items) => {
   background-color: $summary-background-color;
   padding: 6px 12px;
   border-radius: $border-radius;
+  @media (max-width: 768px) {
+    padding: 2px;
+    gap: 2px;
+    font-size: 8px;
+  }
 }
 
 .main-content {
   display: flex;
+  flex-direction: row;
   flex-grow: 1;
   padding: 20px;
   gap: 20px;
   overflow-y: hidden;
   overflow-x: hidden;
+  @media (max-width: 768px) {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-direction: column;
+  }
 }
 
 .left-column {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex-grow: 1;
   gap: 15px;
   flex-basis: 30%;
 }
 
 .right-column {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   background-color: $card-background-color;
   border-radius: $border-radius;
   padding: 20px;
   box-shadow: 0 4px 8px $shadow-light;
-  overflow-y: hidden;
   flex-basis: 70%;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  @media (max-width: 768px) {
+    flex-direction: column; /* Switch to column layout for smaller screens like tablets and mobiles */
+    flex-grow: 1;
+    overflow-y: hidden;
+    overflow-x: auto;
+  }
 }
 
 .browser-content {
-  overflow-y: auto;
-  max-height: 300px;
+  overflow-y: hidden;
   padding-top: 0;
-  flex-grow: 1;
   background-color: $card-background-color;
   border-radius: $border-radius;
   box-shadow: 0 2px 4px $shadow-light;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Responsive Design */
@@ -126,11 +171,6 @@ const handleSelectedDirectories = (items) => {
   .main-content {
     flex-direction: column;
   }
-
-  .left-column, .right-column {
-    width: 100%;
-  }
-
   .summary {
     flex-direction: column;
   }

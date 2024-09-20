@@ -1,7 +1,6 @@
 <template>
-  <div class="filebot-action-container">
-    <!-- Form for configuring FileBot parameters -->
-    <form @submit.prevent="createFilesWithParameters" class="filebot-form" :class="{ 'invalid-form': !isFormValid }">
+     <!-- Form for configuring FileBot parameters -->
+    <form @submit.prevent="handleSubmit" class="filebot-form" :class="{ 'invalid-form': !isFormValid }">
 
       <!-- Mandatory Fields -->
       <div class="form-group">
@@ -98,18 +97,10 @@
         <button type="submit" :class="{ 'disabled-button': !isFormValid }">Submit 🚀</button>
       </div>
     </form>
-
-    <!-- Fancy Error/Success Message Box Styled Like a Terminal -->
-    <div v-if="statusMessage" class="terminal-box">
-      <p class="terminal-header">🚀 FileBot Status</p>
-      <pre class="terminal-output">{{ statusMessage }}</pre>
-    </div>
-  </div>
 </template>
 
-
 <script setup>
-import { defineProps, ref, watch } from 'vue';
+import { defineProps, ref, computed } from 'vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -124,42 +115,31 @@ const props = defineProps({
 });
 
 const commonOptions = ref({
-  db: 'TheMovieDB', // Default database value
+  db: 'TheMovieDB',
   format: '',
-  action: 'test', // Default action value
+  action: 'test',
   filter: '',
-  conflict_resolution: 'skip', // Default conflict resolution value
-  log_level: 'all' // Default log level value
+  conflict_resolution: 'skip',
+  log_level: 'all'
 });
-
+const emit = defineEmits(['formError']); // Define the emit event
 const optionalOptions = ref({
   query: '',
   recursive: false,
   check: false
 });
 
-const statusMessage = ref('');
+const isFormValid = computed(() => {
+  const { db, action, conflict_resolution, log_level } = commonOptions.value;
+  return db && action && conflict_resolution && log_level && props.files.length > 0;
+});
 
-
-const validateForm = (options) => {
-  return options.db && options.action && options.conflict_resolution && options.log_level;
-};
-const isFormValid = ref(true);
-// Watch for changes in commonOptions to validate form
-watch(commonOptions, (newValue) => {
-  isFormValid.value = validateForm(newValue);
-}, { deep: true });
-
-
-
-// Function to create files and parameters
-const createFilesWithParameters = async () => {
+const handleSubmit = async () => {
   if (!isFormValid.value) {
     return; // Prevent form submission if invalid
   }
 
   try {
-    // Prepare data for API call
     const requestBody = {
       files: props.files,
       outputDirectory: props.outputDirectory,
@@ -167,17 +147,24 @@ const createFilesWithParameters = async () => {
       ...optionalOptions.value
     };
 
-    // Send data to the server
     const response = await axios.post('execute-filebot', requestBody, {
       headers: {
         'Content-Type': 'application/json'
       }
     });
 
-    statusMessage.value = '✅ ' + (response.data.message + response.data.output  || 'Operation successful!');
+    // Emit success event with status message
+    emit('formSuccess', {
+      status: '✅',
+      message: response.data.message + response.data.successes.join('\n') || 'Operation successful!'
+    });
   } catch (error) {
     console.error('Error creating files and parameters:', error);
-    statusMessage.value = '❌ ' + (error.response?.data?.errors?.join('\n') || 'Error executing FileBot.');
+    // Emit error event with status message
+    emit('formError', {
+      status: '❌',
+      message: error.response?.data?.errors?.join('\n') || 'Error executing FileBot.'
+    });
   }
 };
 </script>
@@ -185,19 +172,9 @@ const createFilesWithParameters = async () => {
 <style scoped lang="scss">
 @import "../variables";
 
-.filebot-action-container {
-  display: flex;
-  flex-direction: row; /* By default, keep a row layout for larger screens */
-  padding: 4px;
-  overflow-y: hidden;
-  overflow-x: hidden;
-  flex-grow: 1;
-
-  @media (max-width: 768px) {
-    flex-direction: column; /* Switch to column layout for smaller screens like tablets and mobiles */
-  }
+.invalid-form {
+  border: 1px solid $invalid-form-border-color;
 }
-
 .filebot-form {
   display: flex;
   flex-direction: column;
@@ -205,6 +182,8 @@ const createFilesWithParameters = async () => {
   flex-basis: 25%;
   position: relative;
   min-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
   @media (max-width: 1024px) {
     flex-basis: 25%; /* Take full width on smaller screens */
   }
@@ -268,43 +247,6 @@ button.disabled-button {
 button:hover:not(.disabled-button) {
   background-color: $button-hover-color;
 }
-
-/* Terminal box styling for status message */
-.terminal-box {
-  background-color: $terminal-background-color;
-  color: $terminal-text-color;
-  font-family: 'Courier New', Courier, monospace;
-  border-radius: $border-radius;
-  padding: 8px;
-  margin-left: 8px;
-  flex-basis: 75%;
-
-  @media (max-width: 1024px) {
-    flex-basis: 100%; /* Terminal box takes full width on tablets */
-    margin-left: 0;
-  }
-  @media (max-width: 768px) {
-    flex-basis: 25%; /* Take full width on smaller screens */
-  }
-}
-
-.terminal-header {
-  font-weight: $font-weight-bold;
-  color: $terminal-header-color;
-  font-size: 12px;
-  margin-bottom: 5px;
-}
-
-.terminal-output {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12px;
-}
-
-.invalid-form {
-  border: 1px solid $invalid-form-border-color;
-}
-
 /* Tooltip styling */
 .tooltip {
   display: none;

@@ -194,7 +194,6 @@ const toggleCurrentDirectorySelection = (event) => {
 .directory-browser {
   display: flex;
   flex-direction: column;
-  height: 100%;
   background-color: var(--card-background-color);
   border-radius: var(--border-radius);
   box-shadow: 0 2px 4px var(--shadow-light);
@@ -203,6 +202,7 @@ const toggleCurrentDirectorySelection = (event) => {
 }
 
 .header {
+  flex-basis: 10%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -308,6 +308,7 @@ const toggleCurrentDirectorySelection = (event) => {
 }
 
 .content {
+  display: flex;
   padding: 5px;
   overflow-x: hidden;
   overflow-y: auto;
@@ -317,9 +318,6 @@ ul {
   list-style-type: none;
   padding: 0;
   margin: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 250px;
 }
 
 li {
