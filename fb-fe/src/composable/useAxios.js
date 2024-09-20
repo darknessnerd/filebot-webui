@@ -17,6 +17,7 @@ export function useAxios(url, options = {}) {
             // Make the request using Axios
             const response = await axios({
                 url: baseApiUrl + url,
+                timeout: 600000, // 600 seconds = 10 minutes
                 method: options.method || 'GET', // Default method is GET
                 ...options, // Spread other axios options like headers, data, params, etc.
             });
