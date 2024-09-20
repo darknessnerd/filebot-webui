@@ -1,12 +1,27 @@
 <script setup>
+import {ref, onMounted, watch} from 'vue';
 import DirectoryBrowser from "./components/DirectoryBrowser.vue";
 import FileBotStatus from "./components/FileBotStatus.vue";
 import FileBotForm from "./components/FileBotForm.vue";
-import { ref } from 'vue';
+import { useAxios } from "./composable/useAxios.js";
 
 // State for selected files and output directory
 const selectedFiles = ref([]);
 const outputDir = ref(null); // Set initial state to null for better handling
+const inputDirectories = ref([]);
+const outputDirectories = ref([]);
+
+// Fetch directories from the endpoint on component mount
+// Fetch directories using useAxios
+const { data, loading, error, fetchData } = useAxios('directories'); // Adjust endpoint as necessary
+
+// Watch for changes in the data
+watch(data, (newData) => {
+  if (newData) {
+    inputDirectories.value = newData.inputDirectories || [];
+    outputDirectories.value = newData.outputDirectories || [];
+  }
+});
 
 // Handle file and directory selections
 const handleSelectedFiles = (items) => {
@@ -26,6 +41,7 @@ const handleFormSuccess = (message) => {
 const handleFormError = (message) => {
   statusMessage.value = message;
 };
+
 </script>
 
 <template>
@@ -45,14 +61,22 @@ const handleFormError = (message) => {
     <div class="main-content">
       <!-- Two-column layout -->
       <div class="left-column">
-        <!-- File Browser -->
+        <!-- Input Directory Browser -->
         <div class="browser-content">
-          <DirectoryBrowser selection-mode="files" @update:selectedItems="handleSelectedFiles" />
+          <DirectoryBrowser
+              :availableDirectories="inputDirectories"
+              selection-mode="files"
+              @update:selectedItems="handleSelectedFiles"
+          />
         </div>
 
-        <!-- Directory Browser -->
+        <!-- Output Directory Browser -->
         <div class="browser-content">
-          <DirectoryBrowser selection-mode="directories" @update:selectedItems="handleSelectedDirectories" />
+          <DirectoryBrowser
+              :availableDirectories="outputDirectories"
+              selection-mode="directories"
+              @update:selectedItems="handleSelectedDirectories"
+          />
         </div>
       </div>
 
@@ -72,8 +96,6 @@ const handleFormError = (message) => {
 
 <style scoped lang="scss">
 @import "./variables.scss";
-
-
 
 .app-container {
   display: flex;
@@ -175,6 +197,4 @@ const handleFormError = (message) => {
     flex-direction: column;
   }
 }
-
 </style>
-

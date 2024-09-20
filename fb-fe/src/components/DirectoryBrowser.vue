@@ -3,19 +3,16 @@
     <!-- Enhanced Header -->
     <div class="header">
       <div class="header-title">
-        <span>📁 {{ currentPath }}</span>
-        <!-- Checkbox to select the current directory with icon and tooltip -->
-        <div v-if="props.selectionMode === 'both' || props.selectionMode === 'directories'" class="current-directory-select">
-          <label class="checkbox-label">
-            <span class="icon">📦</span> <!-- Icon for the checkbox -->
-            <span class="tooltip">Select Current Directory</span>
-          </label>
-          <input type="checkbox"
-                 :checked="isSelectedDirectory"
-                 @change="toggleCurrentDirectorySelection" />
-        </div>
+        <span class="ellipsized-text">📁 {{ currentPath }}</span>
       </div>
       <div class="header-buttons">
+        <!-- Combo box for selecting the root directory -->
+        <select v-model="currentPath" @change="browseDirectory('')" class="header-button" aria-label="Select Directory">
+          <option v-for="dir in availableDirectories" :key="dir" :value="dir">
+            {{ dir }}
+          </option>
+        </select>
+
         <button @click="goUp" :disabled="currentPath === rootPath" class="header-button" aria-label="Go Up">
           <span class="icon">⬆️</span>
           <span class="tooltip">Go Up</span>
@@ -28,6 +25,14 @@
           <span class="icon">{{ isCollapsed ? '▶' : '▼' }}</span>
           <span class="tooltip">{{ isCollapsed ? 'Expand' : 'Collapse' }}</span>
         </button>
+
+        <div v-if="props.selectionMode === 'both' || props.selectionMode === 'directories'" class="header-button current-directory-select">
+          <label class="checkbox-label">
+            <span class="icon">📦</span> <!-- Icon for the checkbox -->
+            <input type="checkbox" :checked="isSelectedDirectory" @change="toggleCurrentDirectorySelection" />
+            <span class="tooltip">Select Current Directory</span>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -46,7 +51,6 @@
           <div class="item-row"
                @click.prevent.stop="item.type === 'directory' ? browseDirectory(item.name) : null"
                :style="{ cursor: item.type === 'directory' ? 'pointer' : 'default' }">
-            <!-- Emojis for folder or file -->
             <strong class="item-icon">{{ item.type === 'directory' ? '📂' : '📄' }}</strong>
             <div class="item-name">{{ item.name }}</div>
             <div class="item-checkbox-wrapper">
@@ -57,7 +61,6 @@
                      class="item-checkbox"
                      @click.stop="toggleSelection(item)" />
             </div>
-            <!-- Tooltip for full path -->
             <div class="item-tooltip">{{ item.path }}</div>
           </div>
         </li>
@@ -67,11 +70,24 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
-import { useAxios } from "../composable/useAxios.js";
+import {ref, watch, computed} from 'vue';
+import {useAxios} from "../composable/useAxios.js";
 
-const rootPath = '.'; // Starting directory
-const currentPath = ref(rootPath); // Track current directory
+// Define props including availableDirectories for combo box
+const props = defineProps({
+  availableDirectories: {
+    type: Array,
+    default: () => ['.']
+  },
+  selectionMode: {
+    type: String,
+    default: 'both',
+    validator: value => ['both', 'files', 'directories'].includes(value)
+  }
+});
+
+const rootPath = ref(props.availableDirectories[0]); // Starting directory from the prop
+const currentPath = ref(rootPath.value); // Track current directory
 const currentDirectory = ref({}); // Track current directory
 const selectedItems = ref([]); // Store selected directories/files
 const emit = defineEmits(['update:selectedItems']); // Define the emit event
@@ -79,15 +95,6 @@ const isCollapsed = ref(false); // Track if the component is collapsed
 
 // Data from API
 const files = ref([]);
-
-// Define props
-const props = defineProps({
-  selectionMode: {
-    type: String,
-    default: 'both',
-    validator: value => ['both', 'files', 'directories'].includes(value)
-  }
-});
 
 // Check if checkbox should be available
 const isCheckboxAvailable = (item) => {
@@ -104,15 +111,15 @@ const isSelected = (item) => {
 };
 
 // Fetch the directory data and update the state
-const { data, loading, error, fetchData } = useAxios('explore', {
-  params: { path: currentPath.value },
+const {data, loading, error, fetchData} = useAxios('explore', {
+  params: {path: currentPath.value},
 });
 
 // Watch for changes in the data and update files & currentPath
 watch(data, (newData) => {
   if (newData) {
     currentPath.value = newData.currentPath; // Update current path
-    currentDirectory.value = { name: newData.name, path: newData.path }
+    currentDirectory.value = {name: newData.name, path: newData.path}
     files.value = newData.files; // Update file list
   }
 });
@@ -120,7 +127,7 @@ watch(data, (newData) => {
 // Watch for changes in selectedItems and handle them (if needed)
 watch(selectedItems, (newSelected) => {
   emit('update:selectedItems', newSelected); // Emit the selectedItems
-}, { deep: true });
+}, {deep: true});
 
 watch(currentPath, () => {
   selectedItems.value = []; // Clear selection on path change
@@ -128,18 +135,18 @@ watch(currentPath, () => {
 
 // Navigate into a directory
 const browseDirectory = (folder) => {
-  const newPath = `${currentPath.value}/${folder}`;
+  const newPath = folder ? `${currentPath.value}/${folder}` : currentPath.value;
   fetchData({
-    params: { path: newPath },
+    params: {path: newPath},
   });
 };
 
 // Go up one directory level
 const goUp = () => {
   const parentPath = currentPath.value.split('/').slice(0, -1).join('/');
-  const newPath = parentPath || rootPath; // Prevent going above the root path
+  const newPath = parentPath || rootPath.value; // Prevent going above the root path
   fetchData({
-    params: { path: newPath },
+    params: {path: newPath},
   });
 };
 
@@ -161,7 +168,7 @@ const toggleCollapse = () => {
 // Refresh the current directory
 const refreshDirectory = () => {
   fetchData({
-    params: { path: currentPath.value },
+    params: {path: currentPath.value},
   });
 };
 
@@ -174,8 +181,7 @@ const isSelectedDirectory = computed(() => {
 const toggleCurrentDirectorySelection = (event) => {
   const isChecked = event.target.checked;
   const currentDirName = currentDirectory.value.name;
-  const currentDirItem = { name: currentDirName, path: currentDirectory.value.path,type: 'directory' };
-  console.log(currentDirItem)
+  const currentDirItem = {name: currentDirName, path: currentDirectory.value.path, type: 'directory'};
   if (isChecked) {
     selectedItems.value = [currentDirItem]; // Select only the current directory
   } else {
@@ -183,10 +189,6 @@ const toggleCurrentDirectorySelection = (event) => {
   }
 };
 </script>
-
-<style scoped lang="scss">
-/* Your existing styles */
-</style>
 
 <style scoped lang="scss">
 @import "../variables";
@@ -206,7 +208,7 @@ const toggleCurrentDirectorySelection = (event) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 8px; // Reduced padding
+  padding: 4px 8px;
   background-color: var(--header-background-color);
   border-bottom: 1px solid var(--border-color);
 }
@@ -215,37 +217,15 @@ const toggleCurrentDirectorySelection = (event) => {
   display: flex;
   align-items: center;
   font-weight: var(--font-weight-bold);
-  font-size: 12px; // Reduced font size
+  font-size: 12px;
   color: var(--header-text-color);
   flex-grow: 1;
 }
 
-.current-directory-select {
-  display: flex;
-  align-items: center;
-  margin-right: 16px;
-}
-
-.current-directory-select input {
-  margin-right: 6px;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  font-size: 12px;
-}
-
-.checkbox-label .icon {
-  font-size: 16px;
-}
-
-.checkbox-label .tooltip {
-  display: none;
-}
-
-.checkbox-label:hover .tooltip {
-  display: block;
+.ellipsized-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-buttons {
@@ -265,7 +245,7 @@ const toggleCurrentDirectorySelection = (event) => {
 }
 
 .header-button .icon {
-  font-size: 12px; // Icon size
+  font-size: 12px;
 }
 
 .header-button .tooltip {
@@ -289,22 +269,25 @@ const toggleCurrentDirectorySelection = (event) => {
   visibility: visible;
 }
 
+.checkbox-label {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label input {
+  margin-right: 6px;
+}
+
+.current-directory-select {
+  display: flex;
+  align-items: center;
+}
+
 .directory-info {
   font-size: 10px;
-  padding: 4px 8px; // Reduced padding
+  padding: 4px 8px;
   background-color: var(--background-color-dark);
   color: var(--text-color-light);
-}
-
-.status {
-  font-size: 12px;
-  margin: 5px 0;
-  padding: 5px;
-  color: var(--text-color-light);
-}
-
-.error {
-  color: red; // You might want to define an error color variable
 }
 
 .content {
@@ -332,15 +315,10 @@ li {
   transition: background-color 0.2s ease;
   font-size: 12px;
   color: var(--text-color-dark);
-  position: relative; // For tooltip positioning
 }
 
 .item-row:hover {
   background-color: var(--summary-background-color);
-}
-
-.item-row.selected {
-  background-color: var(--primary-color-light);
 }
 
 .item-icon {
@@ -373,8 +351,5 @@ li {
 
 .item-row:hover .item-tooltip {
   display: block;
-}
-
-.item-checkbox {
 }
 </style>

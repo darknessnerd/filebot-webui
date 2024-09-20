@@ -12,6 +12,12 @@ const User = require('#models/user')
 const Associations = require('#configs/associations')
 
 const cors = require('cors')
+
+// Define input/output directories from environment variables
+const inputDirectories = process.env.INPUT_DIRS ? process.env.INPUT_DIRS.split(',') : ['.'];
+const outputDirectories = process.env.OUTPUT_DIRS ? process.env.OUTPUT_DIRS.split(',') : ['.', './src'];
+
+
 // THIS FUNCTION WILL CREATE DUMMY DATA IN DATABASE TABLE
 const syncDatabase = async () => {
     try {
@@ -43,6 +49,13 @@ async function startServer() {
 
         app.get('/', function (req,res) {
             res.sendFile(publicPath + "index.html");
+        });
+        // Endpoint to return predefined input/output directories
+        app.get('/directories', (req, res) => {
+            res.json({
+                inputDirectories,
+                outputDirectories
+            });
         });
         // List files and directories
         app.get('/explore', (req, res) => {

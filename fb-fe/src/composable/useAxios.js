@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import axios from 'axios';
 
 const baseApiUrl = import.meta.env.VITE_API_BASE_URL;
+
 export function useAxios(url, options = {}) {
     const data = ref(null); // Data will be stored here
     const loading = ref(false); // Loading state
@@ -12,6 +13,7 @@ export function useAxios(url, options = {}) {
         error.value = null; // Reset the error
         options = { ...options, ...optionsHook};
         try {
+            console.log(baseApiUrl + "####################")
             // Make the request using Axios
             const response = await axios({
                 url: baseApiUrl + url,
