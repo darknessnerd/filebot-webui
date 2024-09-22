@@ -52,7 +52,8 @@
                @click.prevent.stop="item.type === 'directory' ? browseDirectory(item.name) : null"
                :style="{ cursor: item.type === 'directory' ? 'pointer' : 'default' }">
             <strong class="item-icon">{{ item.type === 'directory' ? '📂' : '📄' }}</strong>
-            <div class="item-name">{{ item.name }}</div>
+            <!-- Added ellipsized-text class -->
+            <div class="item-name ellipsized-text">{{ item.name }}</div>
             <div class="item-checkbox-wrapper">
               <input type="checkbox"
                      :disabled="!isCheckboxAvailable(item)"
@@ -70,7 +71,7 @@
 </template>
 
 <script setup>
-import {ref, watch, computed} from 'vue';
+import {ref, watch, computed, onMounted} from 'vue';
 import {useAxios} from "../composable/useAxios.js";
 
 // Define props including availableDirectories for combo box
@@ -95,7 +96,9 @@ const isCollapsed = ref(false); // Track if the component is collapsed
 
 // Data from API
 const files = ref([]);
-
+onMounted(() => {
+  currentPath.value = props.availableDirectories[0]; // Set the first element as the default selected
+});
 // Check if checkbox should be available
 const isCheckboxAvailable = (item) => {
   return props.selectionMode === 'both' ||
@@ -301,6 +304,9 @@ ul {
   list-style-type: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 
 li {

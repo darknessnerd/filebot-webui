@@ -1,7 +1,6 @@
 <template>
      <!-- Form for configuring FileBot parameters -->
     <form @submit.prevent="handleSubmit" class="filebot-form" :class="{ 'invalid-form': !isFormValid }">
-
       <!-- Mandatory Fields -->
       <div class="form-group">
         <select v-model="commonOptions.db" required>
@@ -100,8 +99,8 @@
 </template>
 
 <script setup>
-import { defineProps, ref, computed } from 'vue';
-import axios from 'axios';
+import {defineProps, ref, computed, watch} from 'vue';
+import {useAxios} from "../composable/useAxios.js";
 
 const props = defineProps({
   files: {
@@ -109,8 +108,8 @@ const props = defineProps({
     default: () => []
   },
   outputDirectory: {
-    type: String,
-    default: ''
+    type: Object,
+    default: {}
   }
 });
 
@@ -122,7 +121,7 @@ const commonOptions = ref({
   conflict_resolution: 'skip',
   log_level: 'all'
 });
-const emit = defineEmits(['formError']); // Define the emit event
+const emit = defineEmits(['formSuccess', 'formError']); // Define the emit event
 const optionalOptions = ref({
   query: '',
   recursive: false,
@@ -134,40 +133,55 @@ const isFormValid = computed(() => {
   return db && action && conflict_resolution && log_level && props.files.length > 0;
 });
 
+const { data, loading, error, fetchData } = useAxios('execute-filebot', {
+  method: 'POST',
+}, {
+  immediate: false // Delay the execution until form is submitted
+});
+
+watch(data, () => {
+  emit('formSuccess', {
+    status: '✅',
+    message: data.value.message + (data.value.successes || []).join('\n') || 'Operation successful!'
+  });
+})
+watch(error, () => {
+  if (error.value) {
+    emit('formError', {
+      status: '❌',
+      message: (error.value.errors || []).join('\n') || 'Error executing FileBot.'
+    });
+  }
+})
 const handleSubmit = async () => {
   if (!isFormValid.value) {
     return; // Prevent form submission if invalid
   }
 
-  try {
-    const requestBody = {
-      files: props.files,
-      outputDirectory: props.outputDirectory,
-      ...commonOptions.value,
-      ...optionalOptions.value
-    };
+  emit('formSuccess', { status: '', message: '' });
 
-    const response = await axios.post('execute-filebot', requestBody, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+  const requestBody = {
+    files: props.files,
+    outputDirectory: props.outputDirectory,
+    ...commonOptions.value,
+    ...optionalOptions.value
+  };
 
-    // Emit success event with status message
-    emit('formSuccess', {
-      status: '✅',
-      message: response.data.message + response.data.successes.join('\n') || 'Operation successful!'
-    });
-  } catch (error) {
-    console.error('Error creating files and parameters:', error);
-    // Emit error event with status message
-    emit('formError', {
-      status: '❌',
-      message: error.response?.data?.errors?.join('\n') || 'Error executing FileBot.'
-    });
-  }
+
+
+      // Trigger the request by setting the URL and data for useAxios
+      fetchData({
+        data: requestBody,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+
+
 };
 </script>
+
 
 <style scoped lang="scss">
 @import "../variables";

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="statusMessage" class="terminal-box">
+  <div v-if="statusMessage.status && statusMessage.message" class="terminal-box">
     <p class="terminal-header">🚀 FileBot Status</p>
     <pre class="terminal-output">{{ statusMessage.status }} {{ statusMessage.message }} </pre>
   </div>
@@ -15,7 +15,6 @@ const props = defineProps({
   }
 });
 </script>
-
 
 <style scoped lang="scss">
 @import "../variables";
@@ -53,6 +52,4 @@ const props = defineProps({
   word-break: break-word;
   font-size: 12px;
 }
-
-
 </style>
