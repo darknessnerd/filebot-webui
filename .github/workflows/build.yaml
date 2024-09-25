@@ -76,20 +76,29 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Extract the version from the Git tag or fallback to the commit SHA
+      - name: Get the version
+        id: get_version
+        run: |
+          TAG=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+          # Remove "v" from the tag (e.g., v1.0.0 -> 1.0.0)
+          VERSION=${TAG#"v"}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version is $VERSION"
 
-      - name: Build and push
+      - name: Build and push Docker image with SemVer
         uses: docker/build-push-action@v6
         with:
           context: ./fb-be
           file: ./fb-be/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:${{ env.VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
 
       - name: Run the image in a container
         uses: addnab/docker-run-action@v3
         with:
-          image: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:${{ env.VERSION }}
           run: |
-            echo "runing the docker image"
-            echo "Testing the nodejs  app endpoints"
-            echo ${{ steps.docker_build.outputs.digest }}
+            echo "Running the Docker image with version ${{ env.VERSION }}"

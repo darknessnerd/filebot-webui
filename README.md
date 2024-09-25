@@ -73,3 +73,13 @@ Think of it like a personal assistant for your media files, but with way fewer c
 ## 😎 Want to Contribute?
 
 Feel free to fork the repo (we promise, it won’t fork you back 🍴) or open a pull request. Contributions, bug fixes, and fun suggestions are always welcome!
+
+### tag 
+Example of Git Tagging:
+To trigger a build with SemVer, you would tag your commit:
+
+bash
+Copia codice
+git tag v1.0.0
+git push origin v1.0.0
+This will ensure the Docker image gets tagged as 1.0.0 when pushed to Docker Hub.
