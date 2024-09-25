@@ -1,5 +1,3 @@
-Here's a playful and funny README for the **FileBot WebUI** repository, along with documentation and emojis for extra fun!
-
 ---
 
 # 📂 FileBot-WebUI 🖥️
