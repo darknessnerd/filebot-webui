@@ -13,22 +13,14 @@ Copia codice
 docker run  \
 -e FILEBOT_LICENSE_PATH="/config/fileb.psm" \
 -e INPUT_DIRS="/downloads" \
--e OUTPUT_DIRS="/movies, /tv_shows" \
+-e OUTPUT_DIRS="/media" \
 -v /media/media4/home/filebot:/config \
 -v /media/media0/deluge/donwloads:/downloads \
--v /media/media4/movies:/movies \
--v /media/media4/tv_shows:/tv_shows \
+-v /media/media4/movies:/media/movies \
+-v /media/media4/tv_shows:/media/tv_shows \
 -p 8088:80 \
 darknessnerd/filebot-webui
-Ensure that /path/on/host/to/filebot/config/license.psm on your host machine actually contains the license file.
+Ensure that path in the host /media/media4/home/filebot contain the file fileb.psm declared in this env FILEBOT_LICENSE_PATH  on your host machine actually contains the license file.
 
 -
-Replace your-image-name with the name or tag of your Docker image. This command will start the container with 
-the FileBot license file applied at runtime.
-docker run -d \
--p 5800:5800 \
--v /host/input1:/input1 \
--v /host/input2:/input2 \
--v /host/output1:/output1 \
--v /host/output2:/output2 \
-darknessnerd/filebot-webui
+

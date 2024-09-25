@@ -3,7 +3,7 @@
     <!-- Enhanced Header -->
     <div class="header">
       <div class="header-title">
-        <span class="ellipsized-text">📁 {{ currentPath }}</span>
+        <div class="ellipsized-text">📁 {{ currentPath }}</div>
       </div>
       <div class="header-buttons">
         <!-- Combo box for selecting the root directory -->
@@ -197,43 +197,57 @@ const toggleCurrentDirectorySelection = (event) => {
 @import "../variables";
 
 .directory-browser {
+  flex-grow: 0;
+  flex-shrink: 1;
   display: flex;
   flex-direction: column;
-  background-color: var(--card-background-color);
-  border-radius: var(--border-radius);
-  box-shadow: 0 2px 4px var(--shadow-light);
   overflow-y: hidden;
   overflow-x: hidden;
+  background-color: $card-background-color;
+  border-radius: $border-radius;
+  box-shadow: 0 2px 4px $shadow-light;
 }
 
 .header {
   flex-basis: 10%;
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
   padding: 4px 8px;
   background-color: var(--header-background-color);
   border-bottom: 1px solid var(--border-color);
+
 }
 
 .header-title {
   display: flex;
+  flex-direction: row;
   align-items: center;
   font-weight: var(--font-weight-bold);
   font-size: 12px;
   color: var(--header-text-color);
+  min-width: 0;
   flex-grow: 1;
+  flex-shrink: 1;
 }
 
 .ellipsized-text {
-  white-space: nowrap;
+
+  display: block;/* Change it as per your requirement. */
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
 }
 
 .header-buttons {
   display: flex;
-  gap: 8px;
+  flex-direction: row;
+  gap: 4px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  justify-content: flex-end;
 }
 
 .header-button {
@@ -295,9 +309,10 @@ const toggleCurrentDirectorySelection = (event) => {
 
 .content {
   display: flex;
+  flex-direction: row;
   padding: 5px;
-  overflow-x: hidden;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 ul {

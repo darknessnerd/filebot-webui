@@ -45,7 +45,6 @@ const handleFormError = (message) => {
 </script>
 
 <template>
-  <div class="app-container">
     <!-- Enhanced App Header with better UX -->
     <header class="app-header">
       <h1>🗃️ FileBot</h1>
@@ -61,23 +60,17 @@ const handleFormError = (message) => {
     <div class="main-content">
       <!-- Two-column layout -->
       <div class="left-column">
-        <!-- Input Directory Browser -->
-        <div class="browser-content">
-          <DirectoryBrowser
-              :availableDirectories="inputDirectories"
-              selection-mode="both"
-              @update:selectedItems="handleSelectedFiles"
-          />
-        </div>
+        <DirectoryBrowser class="browser-content"
+            :availableDirectories="inputDirectories"
+            selection-mode="both"
+            @update:selectedItems="handleSelectedFiles"
+        />
 
-        <!-- Output Directory Browser -->
-        <div class="browser-content">
-          <DirectoryBrowser
-              :availableDirectories="outputDirectories"
-              selection-mode="directories"
-              @update:selectedItems="handleSelectedDirectories"
-          />
-        </div>
+        <DirectoryBrowser class="browser-content"
+            :availableDirectories="outputDirectories"
+            selection-mode="directories"
+            @update:selectedItems="handleSelectedDirectories"
+        />
       </div>
 
       <!-- Right Column for FileBotAction -->
@@ -91,25 +84,15 @@ const handleFormError = (message) => {
         <FileBotStatus :statusMessage="statusMessage" />
       </div>
     </div>
-  </div>
 </template>
 
 <style scoped lang="scss">
 @import "./variables.scss";
 
-.app-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: $background-color-dark;
-  @media (max-width: 768px) {
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-}
 
 .app-header {
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
   padding: 10px 15px;
@@ -125,6 +108,7 @@ const handleFormError = (message) => {
 
 .summary {
   display: flex;
+  flex-direction: row;
   gap: 16px;
   font-size: 14px;
   background-color: $summary-background-color;
@@ -141,8 +125,9 @@ const handleFormError = (message) => {
   display: flex;
   flex-direction: row;
   flex-grow: 1;
-  padding: 20px;
-  gap: 20px;
+  flex-shrink: 1;
+  padding: 8px;
+  gap: 8px;
   overflow-y: hidden;
   overflow-x: hidden;
   @media (max-width: 768px) {
@@ -155,7 +140,6 @@ const handleFormError = (message) => {
 .left-column {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
   gap: 15px;
   flex-basis: 30%;
 }
@@ -172,29 +156,36 @@ const handleFormError = (message) => {
   overflow-x: hidden;
   @media (max-width: 768px) {
     flex-direction: column; /* Switch to column layout for smaller screens like tablets and mobiles */
-    flex-grow: 1;
     overflow-y: hidden;
     overflow-x: auto;
+    padding: 5px; /* Add padding for mobile */
   }
 }
 
-.browser-content {
-  overflow-y: hidden;
-  padding-top: 0;
-  background-color: $card-background-color;
-  border-radius: $border-radius;
-  box-shadow: 0 2px 4px $shadow-light;
-  display: flex;
-  flex-direction: column;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .main-content {
+    display: flex;
     flex-direction: column;
   }
+  .browser-content {
+    display: flex;
+    flex-basis: 50%;
+  }
   .summary {
+    display: flex;
     flex-direction: column;
+  }
+  .left-column {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    flex-basis: 20%;
+    height: 50%;
+  }
+  .right-column {
+    flex-basis: 80%;
   }
 }
 </style>

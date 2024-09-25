@@ -166,9 +166,6 @@ const handleSubmit = async () => {
     ...commonOptions.value,
     ...optionalOptions.value
   };
-
-
-
       // Trigger the request by setting the URL and data for useAxios
       fetchData({
         data: requestBody,
@@ -176,9 +173,6 @@ const handleSubmit = async () => {
           'Content-Type': 'application/json'
         }
       })
-
-
-
 };
 </script>
 
