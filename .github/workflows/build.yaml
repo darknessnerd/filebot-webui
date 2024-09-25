@@ -80,9 +80,15 @@ jobs:
       - name: Get the version
         id: get_version
         run: |
-          TAG=$(git describe --tags --abbrev=0 || echo "v0.0.0")
-          # Remove "v" from the tag (e.g., v1.0.0 -> 1.0.0)
-          VERSION=${TAG#"v"}
+          # Try to get the latest tag, fallback to 0.0.0 if no tag found
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          # If on an untagged commit, append a commit hash to the version (optional)
+          if [ "$TAG" = "v0.0.0" ]; then
+            HASH=$(git rev-parse --short HEAD)
+            VERSION="${TAG#v}-$HASH"
+          else
+            VERSION=${TAG#"v"}
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Version is $VERSION"
 
