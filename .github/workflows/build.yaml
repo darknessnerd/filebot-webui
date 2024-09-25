@@ -5,6 +5,9 @@ on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
     branches: [ main ]
+    # Include pushes to tags
+    tags:
+      - 'v*'        # Match version tags like v1.0.0, v2.1.0, etc.
   pull_request:
     branches: [ main ]
   # Allows you to run this workflow manually from the Actions tab
