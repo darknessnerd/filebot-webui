@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -77,8 +78,10 @@ func (s *Server) SetupEngine() {
 // setupTemplates configures HTML template rendering
 func (s *Server) setupTemplates() {
 	funcMap := map[string]interface{}{
-		"sub": func(a, b int) int { return a - b },
-		"add": func(a, b int) int { return a + b },
+		"sub":       func(a, b int) int { return a - b },
+		"add":       func(a, b int) int { return a + b },
+		"splitPath": func(p string) []string { return strings.Split(p, "/") },
+		"joinPath":  func(parts []string) string { return strings.Join(parts, "/") },
 	}
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(s.templateFS,

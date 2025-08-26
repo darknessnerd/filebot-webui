@@ -1,63 +1,77 @@
-{{  define "directory_browser.html" }}
-<div id="directory-browser" class="directory-browser">
+{{ define "directory_browser.html" }}
+<div id="directory-browser" class="directory-browser compact">
   <header class="directory-browser-header">
-    <div class="directory-browser-title">
-      <div class="ellipsized-text">📁 {{.CurrentPath}}</div>
-    </div>
+    <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+      <ul class="breadcrumb-list">
+        {{ $parts := splitPath .CurrentPath }}
+        {{ range $i, $part := $parts }}
+          <li>
+            <a href="/directory-browser?path={{ joinPath (slice $parts 0 (add $i 1)) }}" class="breadcrumb-link">{{$part}}</a>
+            {{ if lt (add $i 1) (len $parts) }}<span class="breadcrumb-sep">/</span>{{ end }}
+          </li>
+        {{ end }}
+      </ul>
+    </nav>
     <div class="directory-browser-buttons">
-      <form hx-get="/directory-browser" hx-target="#directory-browser" hx-swap="outerHTML" style="display:inline;">
-        <select name="path" class="header-button" aria-label="Select Directory" onchange="this.form.submit()">
+      <form>
+        <select name="path" class="btn btn--small" aria-label="Select Directory" onchange="this.form.submit()">
           {{range .AvailableDirectories}}
             <option value="{{.}}" {{if eq . $.CurrentPath}}selected{{end}}>{{.}}</option>
           {{end}}
         </select>
       </form>
-      <button hx-get="/directory-browser?path={{.ParentPath}}" hx-target="#directory-browser" hx-swap="outerHTML" class="header-button" aria-label="Go Up" {{if eq .CurrentPath .RootPath}}disabled{{end}}>
-        <span class="icon">⬆️</span>
-        <span class="tooltip">Go Up</span>
+      <button class="btn btn--icon btn--small" aria-label="Go Up"
+        {{if eq .CurrentPath .RootPath}}disabled{{end}}
+        hx-get="/directory-browser?path={{.ParentPath}}"
+        hx-target="#directory-browser"
+        hx-swap="outerHTML"
+        hx-push-url="false">
+        ⬆️
       </button>
-      <button hx-get="/directory-browser?path={{.CurrentPath}}" hx-target="#directory-browser" hx-swap="outerHTML" class="header-button" aria-label="Refresh Directory">
-        <span class="icon">🔄</span>
-        <span class="tooltip">Refresh</span>
+      <button class="btn btn--icon btn--small" aria-label="Refresh Directory"
+        hx-get="/directory-browser?path={{.CurrentPath}}"
+        hx-target="#directory-browser"
+        hx-swap="outerHTML"
+        hx-push-url="false">
+        🔄
       </button>
-      <form hx-post="/directory-browser/toggle" hx-target="#directory-browser" hx-swap="outerHTML" style="display:inline;">
-        <input type="hidden" name="collapsed" value="{{not .IsCollapsed}}" />
-        <button type="submit" class="header-button" aria-label="Toggle Collapse">
-          <span class="icon">{{if .IsCollapsed}}▶{{else}}▼{{end}}</span>
-          <span class="tooltip">{{if .IsCollapsed}}Expand{{else}}Collapse{{end}}</span>
-        </button>
-      </form>
-      {{if or (eq .SelectionMode "both") (eq .SelectionMode "directories")}}
-      <form hx-post="/directory-browser/select-current" hx-target="#directory-browser" hx-swap="outerHTML" style="display:inline;">
-        <label class="checkbox-label">
-          <span class="icon">📦</span>
-          <input type="checkbox" name="selectCurrentDir" value="1" {{if .IsSelectedDirectory}}checked{{end}} onchange="this.form.submit()" />
-          <span class="tooltip">Select Current Directory</span>
-        </label>
-      </form>
-      {{end}}
     </div>
   </header>
   <div class="directory-info">
     <span>{{len .Files}} items ({{.DirectoryCount}} directories, {{.FileCount}} files)</span>
   </div>
   {{if not .IsCollapsed}}
-  <div class="content">
-    {{if .Loading}}<div class="status">⏳ Loading...</div>{{end}}
-    {{if .Error}}<div class="status error">❌ Error: {{.Error}}</div>{{end}}
+  <div class="content compact-list">
+    {{if .Loading}}<div class="status" aria-live="polite">⏳ Loading...</div>{{end}}
+    {{if .Error}}<div class="status error" aria-live="assertive">❌ Error: {{.Error}}</div>{{end}}
     <ul>
       {{range .Files}}
       <li>
-        <div class="item-row" {{if eq .Type "directory"}}hx-get="/directory-browser?path={{.Path}}" hx-target="#directory-browser" hx-swap="outerHTML" style="cursor:pointer;"{{end}}>
-          <strong class="item-icon">{{if eq .Type "directory"}}📂{{else}}📄{{end}}</strong>
-          <div class="item-name ellipsized-text">{{.Name}}</div>
-          <form hx-post="/directory-browser/select-item" hx-target="#directory-browser" hx-swap="outerHTML" style="display:inline;">
-            <input type="hidden" name="itemName" value="{{.Name}}" />
-            <input type="hidden" name="itemType" value="{{.Type}}" />
-            <input type="checkbox" name="selectItem" value="1" {{if not $.IsCheckboxAvailable .}}disabled{{end}} {{if $.IsSelected .}}checked{{end}} onchange="this.form.submit()" />
-          </form>
-          <div class="item-tooltip">{{.Path}}</div>
-        </div>
+        {{if eq .Type "directory"}}
+          <div class="item-row compact-item{{if .IsSelected}} selected-item{{end}}" tabindex="0" aria-label="Directory: {{.Name}}" aria-selected="{{if .IsSelected}}true{{else}}false{{end}}">
+            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select directory: {{.Name}}" onclick="event.stopPropagation();" />
+            <a href="/directory-browser?path={{.Path}}"
+               hx-get="/directory-browser?path={{.Path}}"
+               hx-target="#directory-browser"
+               hx-swap="outerHTML"
+               hx-push-url="false"
+               class="item-link"
+               tabindex="0"
+               aria-label="Open directory: {{.Name}}">
+              <strong class="item-icon">📂</strong>
+              <div class="item-name ellipsized-text">{{.Name}}</div>
+            </a>
+          </div>
+        {{else}}
+          <div class="item-row compact-item{{if .IsSelected}} selected-item{{end}}"
+               tabindex="0"
+               aria-label="File: {{.Name}}"
+               aria-selected="{{if .IsSelected}}true{{else}}false{{end}}">
+            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select file: {{.Name}}" />
+            <strong class="item-icon">📄</strong>
+            <div class="item-name ellipsized-text">{{.Name}}</div>
+          </div>
+        {{end}}
       </li>
       {{end}}
     </ul>

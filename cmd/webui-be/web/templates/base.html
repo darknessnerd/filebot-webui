@@ -6,48 +6,51 @@
     <title>{{.title}}</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
-<body>
-    <header class="header">
-        <div class="container header-container">
-            <div class="header-flex">
-                <div class="logo">FileBOT</div>
-                <span class="header-title">-</span>
-                <nav class="header-nav">
-                    <ul class="nav-links">
-                        {{if .authenticated}}
-                            <li><a href="/" hx-get="/" hx-target="#main-content" hx-push-url="false" hx-swap="innerHTML" aria-label="Home"><span class="icon">🏠</span>Home</a></li>
-                        {{end}}
-                    </ul>
-                </nav>
-                {{if .authenticated}}
-                <div class="user-info compact-user-info dropdown" x-data="{ open: false }" style="position: relative;">
-                    <button class="dropdown-toggle user-avatar-btn" aria-label="Profile Menu" @click="open = !open; console.log('Dropdown toggle clicked, open:', open)">
-                        <span class="icon" aria-label="User">👤</span>
-                        {{if .picture}}
-                            <img src="{{.picture}}" alt="Profile Picture" class="user-avatar" />
-                        {{else}}
-                            <span class="icon" aria-label="Nerd Avatar">🤖</span>
-                        {{end}}
-                        <span class="user-name">{{.name}}</span>
-                    </button>
-                    <ul class="dropdown-menu" x-show="open" @click.away="open = false; console.log('Dropdown closed by click away')">
-                        <li><span class="icon">📧</span><span class="user-email">{{.email}}</span></li>
-                        <li><span class="icon">🛠️</span><a href="/plex/configure" hx-get="/plex/configure" hx-target="#main-content" hx-swap="innerHTML">Plex</a></li>
-                        <li><span class="icon">🚪</span><button class="btn btn-secondary" onclick="logout()">Logout</button></li>
-                    </ul>
-                </div>
-                {{end}}
+<body class="fullpage-app">
+    <header class="header" role="banner">
+        <div class="header-flex">
+            <a href="/" class="logo" aria-label="FileBOT Home">FileBOT</a>
+            <span class="header-title">~:</span>
+            <nav class="header-nav" role="navigation" aria-label="Main Navigation">
+                <ul class="nav-links">
+                    {{if .authenticated}}
+                        <li><a href="/" hx-get="/" hx-target="#main-content" hx-push-url="false" hx-swap="innerHTML" aria-label="Home"><span class="icon">🏠</span>Home</a></li>
+                    {{end}}
+                </ul>
+            </nav>
+            {{if .authenticated}}
+            <div class="user-info compact-user-info dropdown" x-data="{ open: false }">
+                <button class="dropdown-toggle user-avatar-btn" aria-label="Profile Menu" aria-haspopup="true" :aria-expanded="open" @click="open = !open" @keydown.escape="open = false">
+                    <span class="icon" aria-label="User">👤</span>
+                    {{if .picture}}
+                        <img src="{{.picture}}" alt="Profile Picture" class="user-avatar" />
+                    {{else}}
+                        <span class="icon" aria-label="Nerd Avatar">🤖</span>
+                    {{end}}
+                    <span class="user-name">{{.name}}</span>
+                    <span class="icon" aria-label="Dropdown Arrow">▼</span>
+                </button>
+                <ul class="dropdown-menu" x-show="open" @click.away="open = false" tabindex="-1" role="menu">
+                    <li role="menuitem"><span class="icon">📧</span><span class="user-email">{{.email}}</span></li>
+                    <li role="menuitem"><span class="icon">🛠️</span><a href="/plex/configure" hx-get="/plex/configure" hx-target="#main-content" hx-swap="innerHTML">Plex</a></li>
+                    <li role="menuitem"><span class="icon">🚪</span><button class="btn btn-secondary" onclick="logout()">Logout</button></li>
+                </ul>
             </div>
+            {{end}}
         </div>
     </header>
 
-    <main>
-        <div class="container main-content" id="main-content">
-            {{if .authenticated}}
-                {{template "home.html" .}}
-            {{else}}
-                {{template "login.html" .}}
-            {{end}}
+    <main class="main-content" id="main-content">
+        {{if .authenticated}}
+            {{template "home.html" .}}
+        {{else}}
+            {{template "login.html" .}}
+        {{end}}
+        <div id="status-bar" class="status-bar" aria-live="polite" x-data="statusBar">
+            <div x-show="statusMessage" :class="`status-message ${statusType}`">
+                <span x-text="statusIcon"></span>
+                <span x-text="statusMessage"></span>
+            </div>
         </div>
     </main>
 
@@ -58,13 +61,46 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <script>
-        document.addEventListener('alpine:init', () => {
-            console.log('Alpine.js initialized');
+               // Ensure Alpine is loaded before rendering the view
+         document.addEventListener('alpine:init', () => {
+            console.log('🟢 [Alpine.js] Initialized');
+            Alpine.data('statusBar', () => ({
+                statusMessage: '',
+                statusType: '', // success, error, info
+                statusIcon: '',
+                setStatus(msg, type = 'info') {
+                    console.log(`🔔 [StatusBar] setStatus called with: ${msg}, type: ${type}`);
+                    this.statusMessage = msg;
+                    this.statusType = type;
+                    this.statusIcon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+                    setTimeout(() => { this.statusMessage = ''; }, 4000);
+                }
+            }));
         });
-
+        // Global htmx:afterSwap debug log
+        document.body.addEventListener('htmx:afterSwap', function(e) {
+            console.log('🔄 [HTMX] afterSwap event fired:', e);
+            if (e.target) {
+                console.log('🟦 [HTMX] afterSwap target id:', e.target.id);
+            }
+            // Only run after main-content is swapped (home page loaded)
+            if (e.target && e.target.id === 'main-content') {
+                setTimeout(function() {
+                    var statusBar = document.querySelector('#status-bar');
+                    if (statusBar && statusBar.__x && statusBar.__x.$data && typeof statusBar.__x.$data.setStatus === 'function') {
+                        console.log('📦 [HTMX] Home page loaded, triggering statusBar.setStatus');
+                        statusBar.__x.$data.setStatus('init    !', 'success');
+                        console.log('🟩 [HTMX] setStatus after swap complete');
+                    } else {
+                        console.log('🟥 [HTMX] statusBar/setStatus not available after swap');
+                    }
+                }, 50); // slight delay to ensure Alpine is initialized
+            }
+        });
         function logout() {
+            console.log('🚪 [Logout] Logout triggered');
             fetch('/auth/logout', {
                 method: 'POST',
                 headers: {
@@ -75,7 +111,7 @@
                 window.location.href = "/login";
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('❌ [Logout] Error:', error);
                 document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
                 window.location.href = "/login";
             });

@@ -1,36 +1,37 @@
 {{define "home.html"}}
-<div class="card mt-4 home-grid" style="display: flex; flex-direction: column; align-items: center; gap: 2em; background: var(--bg-primary); box-shadow: 0 4px 24px #228B2233; padding: 2em 1em;">
-    <div style="width: 100%; max-width: 900px; margin-bottom: 1em;">
-        <h1 style="font-size: 2rem; color: var(--accent-primary); margin-bottom: 0.5em; text-align: center;">File Browser</h1>
-        <p style="text-align: center; color: var(--text-muted); margin-bottom: 1.5em; font-size: 1.1rem;">Browse, select, and manage your files and directories with ease.</p>
+<div class="card home-grid">
+    <div class="home-main">
         <div id="directory-browser-widget"
              class="main-browser"
-             style="background: var(--bg-secondary); border-radius: 12px; box-shadow: 0 2px 12px #00ff0022; padding: 1.5em; min-height: 340px;"
              hx-get="/directory-browser"
              hx-trigger="load"
              hx-target="#directory-browser-widget"
-             hx-swap="innerHTML">
+             hx-swap="innerHTML"
+             aria-label="Directory Browser">
             <span>Loading file browser...</span>
         </div>
     </div>
-    <div class="side-widgets" style="width: 100%; max-width: 900px; display: flex; gap: 2em; justify-content: center;">
+    <div class="side-widgets">
         <div id="plex-recently-added-widget"
              class="recently-added-mini"
-             style="flex: 1; background: var(--bg-secondary); border-radius: 8px; box-shadow: 0 1px 6px #228B2233; padding: 1em; min-width: 220px; max-width: 320px;"
              hx-get="/plex/recently-added/htmx"
              hx-trigger="load"
              hx-target="#plex-recently-added-widget"
-             hx-swap="innerHTML">
+             hx-swap="innerHTML"
+             aria-label="Recently Added to Plex">
             <span>Loading recently added...</span>
         </div>
         <div id="plex-libraries-widget"
-             style="flex: 1; background: var(--bg-secondary); border-radius: 8px; box-shadow: 0 1px 6px #228B2233; padding: 1em; min-width: 220px; max-width: 320px;"
              hx-get="/plex/libraries/htmx"
              hx-trigger="load"
              hx-target="#plex-libraries-widget"
-             hx-swap="innerHTML">
+             hx-swap="innerHTML"
+             aria-label="Plex Libraries">
             <span>Loading libraries...</span>
         </div>
     </div>
 </div>
+<script>
+    console.log('🏠 [Home] home.html rendered');
+</script>
 {{end}}
