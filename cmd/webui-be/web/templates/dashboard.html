@@ -1,0 +1,49 @@
+{{define "dashboard.html"}}
+<div class="card">
+    dashboard
+    <h1>Dashboard</h1>
+    {{if .userID}}
+        <p>Welcome back, <strong>{{.name}}</strong>!</p>
+        <p>Email: {{.email}}</p>
+
+        <div style="margin-top: 2rem;">
+            <h2>Your Account</h2>
+            <p>This is your personal dashboard where you can manage your account and access application features.</p>
+
+            <div style="margin-top: 1rem;">
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <div id="profile-data" style="margin-top: 2rem;">
+            <h3>Profile Information</h3>
+            <div id="profile-content">
+                <p><strong>ID:</strong> {{.userID}}</p>
+                <p><strong>Name:</strong> {{.name}}</p>
+                <p><strong>Email:</strong> {{.email}}</p>
+                {{if .picture}}
+                    <img src="{{.picture}}" alt="Profile Picture" style="width: 64px; height: 64px; border-radius: 50%;">
+                {{end}}
+            </div>
+        </div>
+
+        {{if .plex}}
+        <div class="card" style="margin-top:2rem;">
+            <h2>Plex Info</h2>
+            <p><strong>{{.plex.username}}</strong> ({{.plex.email}})</p>
+            {{if .plex.avatar}}
+                <img src="{{.plex.avatar}}" alt="Plex Avatar" style="width:48px;height:48px;border-radius:50%;margin-bottom:8px;">
+            {{end}}
+            <h3 style="margin-top:1rem;">Libraries</h3>
+            <div id="plex-libraries" style="margin-top:1rem;"
+                hx-get="/plex/libraries/htmx"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+        </div>
+        {{end}}
+    {{else}}
+        <p>Please <a href="/auth/login">login</a> to access your dashboard.</p>
+    {{end}}
+</div>
+{{end}}

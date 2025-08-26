@@ -1,0 +1,19 @@
+{{define "home.html"}}
+<div class=" card mt-4">
+        <div id="plex-libraries-widget"
+                 hx-get="/plex/libraries/htmx"
+                 hx-trigger="load"
+                 hx-target="#plex-libraries-widget"
+                 hx-swap="innerHTML">
+                <span>Loading libraries...</span>
+            </div>
+        <div x-ref="dragHandle" @mousedown="startDrag($event)" style="width: 8px; cursor: ew-resize; background: var(--accent-primary); border-radius: 4px; margin: 0 4px; user-select: none;"></div>
+         <div id="plex-recently-added-widget"
+                 hx-get="/plex/recently-added/htmx"
+                 hx-trigger="load"
+                 hx-target="#plex-recently-added-widget"
+                 hx-swap="innerHTML">
+                <span>Loading recently added...</span>
+            </div>
+</div>
+{{end}}

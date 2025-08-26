@@ -1,0 +1,18 @@
+{{define "plex_libraries.html"}}
+<ul class="plex-libraries-list">
+    {{range .libraries}}
+    <li>
+        <strong>{{.Title}}</strong> ({{.Type}})
+        <button class="btn btn-sm btn-warning"
+            hx-post="/api/v1/plex/libraries/{{.Key}}/refresh"
+            hx-trigger="click"
+            hx-swap="none">
+            Refresh
+        </button>
+    </li>
+    {{else}}
+    <li>No libraries found.</li>
+    {{end}}
+</ul>
+{{end}}
+

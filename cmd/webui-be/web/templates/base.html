@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}}</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container header-container">
+            <div class="header-flex">
+                <div class="logo">FileBOT</div>
+                <span class="header-title">-</span>
+                <nav class="header-nav">
+                    <ul class="nav-links">
+                        {{if .authenticated}}
+                            <li><a href="/" hx-get="/" hx-target="#main-content" hx-push-url="false" hx-swap="innerHTML" aria-label="Home"><span class="icon">🏠</span>Home</a></li>
+                        {{end}}
+                    </ul>
+                </nav>
+                {{if .authenticated}}
+                <div class="user-info compact-user-info dropdown" x-data="{ open: false }" style="position: relative;">
+                    <button class="dropdown-toggle user-avatar-btn" aria-label="Profile Menu" @click="open = !open; console.log('Dropdown toggle clicked, open:', open)">
+                        <span class="icon" aria-label="User">👤</span>
+                        {{if .picture}}
+                            <img src="{{.picture}}" alt="Profile Picture" class="user-avatar" />
+                        {{else}}
+                            <span class="icon" aria-label="Nerd Avatar">🤖</span>
+                        {{end}}
+                        <span class="user-name">{{.name}}</span>
+                    </button>
+                    <ul class="dropdown-menu" x-show="open" @click.away="open = false; console.log('Dropdown closed by click away')">
+                        <li><span class="icon">📧</span><span class="user-email">{{.email}}</span></li>
+                        <li><span class="icon">🛠️</span><a href="/plex/configure" hx-get="/plex/configure" hx-target="#main-content" hx-swap="innerHTML">Plex</a></li>
+                        <li><span class="icon">🚪</span><button class="btn btn-secondary" onclick="logout()">Logout</button></li>
+                    </ul>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container main-content" id="main-content">
+            {{if .authenticated}}
+                {{template "home.html" .}}
+            {{else}}
+                {{template "login.html" .}}
+            {{end}}
+        </div>
+    </main>
+
+    <footer class="footer small-footer">
+        <div class="container">
+            <p class="footer-text">&copy; 2025 WebUI Skeleton. Built with Go and authentication ready.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        document.addEventListener('alpine:init', () => {
+            console.log('Alpine.js initialized');
+        });
+
+        function logout() {
+            fetch('/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(() => {
+                window.location.href = "/login";
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "/login";
+            });
+        }
+    </script>
+</body>
+</html>

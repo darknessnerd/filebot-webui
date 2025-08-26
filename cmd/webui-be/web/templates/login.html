@@ -1,0 +1,36 @@
+{{define "login.html"}}
+<div class="text-center">
+    <div class="card" style="max-width: 400px; margin: 2rem auto;">
+        <h1>Login</h1>
+        <p class="mb-2">Sign in to access your account</p>
+        <ul style="list-style: none; padding: 0;">
+            <li><a href="/auth/login" hx-get="/auth/login" hx-target="#main-content" hx-push-url="true" class="btn">Login</a></li>
+            <li><a href="/auth/plex/start" id="plex-login-btn" class="btn" style="background: #282c34; color: #fff;">🎬 Login with Plex</a></li>
+        </ul>
+        <!-- Plex login status -->
+        <div id="plex-error-container" style="margin-top: 1rem; color: #c00;"></div>
+        <script>
+        // Plex Forward Flow: Redirect to Plex Auth App for authentication
+        document.getElementById('plex-login-btn').onclick = function(e) {
+            e.preventDefault();
+            fetch('/auth/plex/start', { credentials: 'same-origin' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.authAppUrl) {
+                        window.location.href = data.authAppUrl;
+                    } else {
+                        document.getElementById('plex-error-container').innerText = 'Failed to start Plex login.';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('plex-error-container').innerText = 'Plex login failed. Please try again.';
+                });
+        };
+        </script>
+
+        <p style="margin-top: 2rem; font-size: 0.9rem; color: #666;">
+            By logging in, you agree to our terms of service and privacy policy.
+        </p>
+    </div>
+</div>
+{{end}}
