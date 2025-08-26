@@ -58,8 +58,10 @@
                class="item-link"
                tabindex="0"
                aria-label="Open directory: {{.Name}}">
-              <strong class="item-icon">📂</strong>
-              <div class="item-name ellipsized-text">{{.Name}}</div>
+              <span style="display: flex; align-items: center;">
+                <strong class="item-icon">📂</strong>
+                <div class="item-name ellipsized-text">{{.Name}}</div>
+              </span>
             </a>
           </div>
         {{else}}

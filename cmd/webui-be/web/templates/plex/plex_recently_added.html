@@ -1,20 +1,20 @@
 {{define "plex_recently_added.html"}}
 {{/* Render each library section from GroupedRecentlyAdded */}}
 {{range $lib, $items := .GroupedRecentlyAdded}}
-    <div x-data="{ open: true, width: 680 }" class="library-section">
+    <div x-data="{ open: true, width: 400 }" class="library-section">
         <h2 @click="open = !open" style="color: var(--accent-primary); margin-top: 2em; margin-bottom: 0.5em; cursor: pointer; user-select: none;">
             {{$lib}}
             <span x-text="open ? '▼' : '►'" style="font-size: 1.2em; margin-left: 8px;"></span>
         </h2>
         <div x-show="open" style="transition: max-height 0.3s; overflow: hidden;">
             <div x-data="recentlyAddedScroller()" x-init="startScroll()" class="recently-added-scroll-container" :style="'overflow-x: auto; white-space: nowrap; position: relative; max-width: 100vw; width: ' + width + 'px;'">
-                <ul class="plex-recently-added-list" style="display: flex; gap: 16px; padding: 0; margin: 0; list-style: none;">
+                <ul class="plex-recently-added-list" style="display: flex; gap: 12px; padding: 0; margin: 0; list-style: none;">
                     {{range $items}}
-                    <li style="display: inline-block; vertical-align: top; min-width: 160px; max-width: 180px; background: var(--bg-secondary); border-radius: 8px; box-shadow: 0 2px 8px #00ff0022; padding: 8px; text-align: center;">
-                        <img src="{{$.PlexBaseURL}}{{.Thumb}}?X-Plex-Token={{$.PlexToken}}" alt="{{.Title}}" style="width: 80px; height: 120px; object-fit: cover; border-radius: 4px; box-shadow: 0 0 8px #228B2233; margin-bottom: 8px;" />
-                        <div style="font-weight: bold; font-size: 1rem; color: var(--accent-primary);">{{.Title}}</div>
-                        <div style="font-size: 0.9rem; color: var(--text-muted);">{{.Year}}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">{{.LibrarySectionTitle}}</div>
+                    <li style="display: inline-block; vertical-align: top; min-width: 120px; max-width: 140px; background: var(--bg-secondary); border-radius: 8px; box-shadow: 0 2px 8px #00ff0022; padding: 8px; text-align: center;">
+                        <img src="{{$.PlexBaseURL}}{{.Thumb}}?X-Plex-Token={{$.PlexToken}}" alt="{{.Title}}" style="width: 60px; height: 90px; object-fit: cover; border-radius: 4px; box-shadow: 0 0 8px #228B2233; margin-bottom: 8px;" />
+                        <div style="font-weight: bold; font-size: 0.95rem; color: var(--accent-primary);">{{.Title}}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">{{.Year}}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{.LibrarySectionTitle}}</div>
                         <button class="btn btn-sm btn-info"
                             hx-get="/api/v1/plex/recently-added/{{.RatingKey}}"
                             hx-trigger="click"
