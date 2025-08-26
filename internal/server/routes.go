@@ -64,6 +64,10 @@ func (s *Server) setupWebRoutes() {
 		webGroup.POST("/plex/set-preferred-server", s.handlers.Plex.SetPreferredPlexServer)
 		webGroup.GET("/plex/configure", s.handlers.Plex.RenderPlexConfigurePage)
 
+		// Directory browser routes
+		webGroup.GET("/directory-browser", s.handlers.DirectoryBrowser)
+		// You can add POST endpoints for selection/collapse if needed
+
 		// Add other web routes here
 	}
 }

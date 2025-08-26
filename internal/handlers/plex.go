@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"webui-skeleton/internal/auth"
 	"webui-skeleton/internal/config"
 	"webui-skeleton/internal/database"
@@ -47,13 +48,13 @@ func (h *PlexHandler) GetPlexLibraries(c *gin.Context) {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "Invalid user object"})
 		return
 	}
-	dto, err := h.fetchPlexLibraries(user)
+	dto, err := h.fetchPlexLibraries(c, user)
 	if err != nil {
 		logger.Log.Error().Msgf("[GetPlexLibraries] Failed to fetch Plex libraries: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch Plex libraries"})
 		return
 	}
-	logger.Log.Debug().Msgf("[GetPlexLibraries] Parsed libraries DTO: %+v", dto)
+	logger.Log.Trace().Msgf("[GetPlexLibraries] Parsed libraries DTO: %+v", dto)
 	if c.GetHeader("HX-Request") != "" {
 		c.HTML(http.StatusOK, "plex_libraries.html", gin.H{
 			"libraries": dto.MediaContainer.Directory,
@@ -67,7 +68,7 @@ func (h *PlexHandler) RenderPlexRecentlyAddedHTMX(c *gin.Context) {
 	userObj, _ := c.Get("user_obj")
 	user, _ := userObj.(*models.User)
 
-	workingURL, err := h.getWorkingURLServer(user)
+	workingURL, err := h.getWorkingURLServer(user, c.ClientIP())
 	if err != nil || workingURL == "" {
 		logger.Log.Error().Msgf("[HTMX][RenderPlexRecentlyAddedHTMX] No working connection for user %s", user.PlexUsername)
 		c.String(http.StatusBadGateway, "No working Plex server connection found")
@@ -111,7 +112,6 @@ func (h *PlexHandler) RenderPlexRecentlyAddedHTMX(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "Failed to read Plex response body")
 		return
 	}
-	logger.Log.Debug().Msgf("[HTMX][RenderPlexRecentlyAddedHTMX] Raw Plex JSON response for user %s: %s", user.PlexUsername, string(rawBody))
 
 	// Parse JSON response into DTO
 	var dto models.PlexRecentlyAddedDTO
@@ -121,7 +121,7 @@ func (h *PlexHandler) RenderPlexRecentlyAddedHTMX(c *gin.Context) {
 		return
 	}
 
-	logger.Log.Debug().Msgf("[HTMX][RenderPlexRecentlyAddedHTMX] Parsed recently added for user %s: %+v", user.PlexUsername, dto.MediaContainer.Metadata)
+	logger.Log.Trace().Msgf("[HTMX][RenderPlexRecentlyAddedHTMX] Parsed recently added for user %s: %+v", user.PlexUsername, dto.MediaContainer.Metadata)
 
 	// Group and sort Metadata by LibrarySectionTitle
 	grouped := make(map[string][]models.PlexMetadata)
@@ -215,7 +215,7 @@ func (h *PlexHandler) RenderPlexServersHTMX(c *gin.Context) {
 		logger.Log.Error().Msgf("[HTMX][RenderPlexServersHTMX] Failed to upsert servers for user %s: %v", user.PlexUsername, err)
 	}
 
-	logger.Log.Debug().Msgf("[HTMX][RenderPlexServersHTMX] Parsed and upserted servers for user %s: %+v", user.PlexUsername, servers)
+	logger.Log.Trace().Msgf("[HTMX][RenderPlexServersHTMX] Parsed and upserted servers for user %s: %+v", user.PlexUsername, servers)
 
 	preferredServer, err := h.repo.GetPreferredPlexServer(user.ID)
 	var preferredServerID = -1
@@ -318,9 +318,9 @@ func (h *PlexHandler) RenderPlexConfigurePage(c *gin.Context) {
 }
 
 // fetchPlexLibraries fetches and parses Plex libraries for a user
-func (h *PlexHandler) fetchPlexLibraries(user *models.User) (*models.PlexLibrariesDTO, error) {
+func (h *PlexHandler) fetchPlexLibraries(c *gin.Context, user *models.User) (*models.PlexLibrariesDTO, error) {
 	plexToken := user.PlexToken
-	workingURI, err := h.getWorkingURLServer(user)
+	workingURI, err := h.getWorkingURLServer(user, c.ClientIP())
 	if err != nil || workingURI == "" {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ func (h *PlexHandler) fetchPlexLibraries(user *models.User) (*models.PlexLibrari
 }
 
 // Returns the first working Plex server connection URL for the user
-func (h *PlexHandler) getWorkingURLServer(user *models.User) (string, error) {
+func (h *PlexHandler) getWorkingURLServer(user *models.User, clientIP string) (string, error) {
 	logger.Log.Debug().Msgf("[getWorkingURLServer] Called for user: %s (ID: %d)", user.PlexUsername, user.ID)
 	preferredServer, err := h.repo.GetPreferredPlexServer(user.ID)
 	if err != nil {
@@ -359,36 +359,42 @@ func (h *PlexHandler) getWorkingURLServer(user *models.User) (string, error) {
 		logger.Log.Error().Msgf("[getWorkingURLServer] No preferred server found for user %s", user.PlexUsername)
 		return "", nil
 	}
-	plexToken := user.PlexToken
-	logger.Log.Debug().Msgf("[getWorkingURLServer] Trying connections for server: %s (ID: %d)", preferredServer.Name, preferredServer.ID)
-	logger.Log.Debug().Msgf("[getWorkingURLServer] preferredServer: %+v\n", preferredServer)
-	logger.Log.Debug().Msgf("[getWorkingURLServer] preferredServer.Connections: %+v\n", preferredServer.Connections)
+	logger.Log.Trace().Msgf("[getWorkingURLServer] preferredServer: %+v\n", preferredServer)
+	logger.Log.Trace().Msgf("[getWorkingURLServer] preferredServer.Connections: %+v\n", preferredServer.Connections)
+
+	isSameNetwork := func(clientIP, connURI string) bool {
+		// Extract host from connURI
+		// Example: http://192.168.1.10:32400
+		uri := strings.TrimPrefix(connURI, "http://")
+		uri = strings.TrimPrefix(uri, "https://")
+		parts := strings.Split(uri, ":")
+		host := parts[0]
+		// Compare first 2 or 3 octets for local network (e.g., 192.168.1.x)
+		clientParts := strings.Split(clientIP, ".")
+		hostParts := strings.Split(host, ".")
+		if len(clientParts) >= 2 && len(hostParts) >= 2 && clientParts[0] == hostParts[0] && clientParts[1] == hostParts[1] {
+			return true
+		}
+		return false
+	}
+
+	var localConn, externalConn string
 	for _, conn := range preferredServer.Connections {
-		tryURL := conn.URI + "/home"
-		logger.Log.Debug().Msgf("[getWorkingURLServer] Testing connection URI: %s", tryURL)
-		client := &http.Client{}
-		req, err := http.NewRequest("GET", tryURL, nil)
-		if err != nil {
-			logger.Log.Error().Msgf("[getWorkingURLServer] Error creating request for URI %s: %v", tryURL, err)
-			continue
+		if isSameNetwork(clientIP, conn.URI) {
+			localConn = conn.URI
+			break // Prefer first matching local connection
+		} else if !conn.Local && externalConn == "" {
+			externalConn = conn.URI // First external connection
 		}
-		req.Header.Set("X-Plex-Token", plexToken)
-		req.Header.Set("Accept", "application/json")
-		resp, err := client.Do(req)
-		if resp != nil {
-			if resp.StatusCode == http.StatusOK {
-				logger.Log.Debug().Msgf("[getWorkingURLServer] Connection successful: %s", conn.URI)
-				resp.Body.Close()
-				return conn.URI, nil
-			} else {
-				logger.Log.Error().Msgf("[getWorkingURLServer] Connection failed for URI %s: status %d", tryURL, resp.StatusCode)
-				if err := resp.Body.Close(); err != nil {
-					logger.Log.Error().Msgf("[getWorkingURLServer] Error closing response body for URI %s: %v", tryURL, err)
-				}
-			}
-		} else if err != nil {
-			logger.Log.Error().Msgf("[getWorkingURLServer] Connection failed for URI %s: %v", tryURL, err)
-		}
+	}
+
+	if localConn != "" {
+		logger.Log.Debug().Msgf("[getWorkingURLServer] Selected local connection: %s", localConn)
+		return localConn, nil
+	}
+	if externalConn != "" {
+		logger.Log.Debug().Msgf("[getWorkingURLServer] Selected external connection: %s", externalConn)
+		return externalConn, nil
 	}
 	logger.Log.Error().Msgf("[getWorkingURLServer] No working connection found for user %s", user.PlexUsername)
 	return "", nil

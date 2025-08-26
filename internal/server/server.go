@@ -90,6 +90,7 @@ func (s *Server) setupTemplates() {
 		"web/templates/plex/plex_servers.html",
 		"web/templates/plex/plex_recently_added.html",
 		"web/templates/plex/plex_configure.html",
+		"web/templates/directory_browser.html",
 	))
 
 	s.engine.SetHTMLTemplate(tmpl)

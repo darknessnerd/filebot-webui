@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
+	"os"
+	"path/filepath"
 	"webui-skeleton/internal/auth"
 	"webui-skeleton/internal/config"
 	"webui-skeleton/internal/database"
@@ -107,4 +109,85 @@ func extractUserInfo(user *models.User, nameCtx, emailCtx string) (name, email, 
 		plex = nil
 	}
 	return
+}
+
+// DirectoryBrowserHandler handles directory browsing and selection
+// Add to Handlers struct if needed
+func (h *Handlers) DirectoryBrowser(c *gin.Context) {
+	// Get path from query or default
+	rootDirs := []string{"."} // You can customize this
+	rootPath := rootDirs[0]
+	currentPath := c.Query("path")
+	if currentPath == "" {
+		currentPath = rootPath
+	}
+	parentPath := filepath.Dir(currentPath)
+	if parentPath == "." || parentPath == "/" {
+		parentPath = rootPath
+	}
+
+	// Collapse state (simple query param for demo)
+	isCollapsed := c.DefaultQuery("collapsed", "false") == "true"
+
+	// Selection state (simple query param for demo)
+	selectedItems := map[string]bool{}
+	if sel := c.QueryArray("selected"); len(sel) > 0 {
+		for _, s := range sel {
+			selectedItems[s] = true
+		}
+	}
+
+	// List files and directories
+	entries, err := os.ReadDir(currentPath)
+	files := []map[string]string{}
+	fileCount := 0
+	dirCount := 0
+	for _, entry := range entries {
+		itemType := "file"
+		if entry.IsDir() {
+			itemType = "directory"
+			dirCount++
+		} else {
+			fileCount++
+		}
+		files = append(files, map[string]string{
+			"Name": entry.Name(),
+			"Type": itemType,
+			"Path": filepath.Join(currentPath, entry.Name()),
+		})
+	}
+
+	// Selection mode (for demo, can be from query)
+	selectionMode := c.DefaultQuery("selectionMode", "both")
+
+	// Is current directory selected
+	isSelectedDirectory := selectedItems[filepath.Base(currentPath)]
+
+	// Helper for template
+	isCheckboxAvailable := func(item map[string]string) bool {
+		return selectionMode == "both" ||
+			(selectionMode == "files" && item["Type"] == "file") ||
+			(selectionMode == "directories" && item["Type"] == "directory")
+	}
+	isSelected := func(item map[string]string) bool {
+		return selectedItems[item["Name"]]
+	}
+
+	// Render template
+	RenderWithHTMX(c, "directory_browser.html", gin.H{
+		"CurrentPath":          currentPath,
+		"RootPath":             rootPath,
+		"ParentPath":           parentPath,
+		"AvailableDirectories": rootDirs,
+		"Files":                files,
+		"FileCount":            fileCount,
+		"DirectoryCount":       dirCount,
+		"SelectionMode":        selectionMode,
+		"IsCollapsed":          isCollapsed,
+		"IsSelectedDirectory":  isSelectedDirectory,
+		"IsCheckboxAvailable":  isCheckboxAvailable,
+		"IsSelected":           isSelected,
+		"Loading":              false,
+		"Error":                err,
+	}, true)
 }
