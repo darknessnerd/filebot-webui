@@ -31,11 +31,11 @@ RUN ln -sf /opt/filebot/filebot.sh /usr/bin/filebot && \
     chmod +x /usr/bin/filebot
 #REPPLACE NGINX DEFAULT WITH YOUR CODE
 RUN rm -f /etc/nginx/http.d/default.conf
-ADD ./docker/nginx/http.d/default.conf /etc/nginx/http.d/default.conf
+ADD docker/nginx/http.d/default.conf /etc/nginx/http.d/default.conf
 
 #COPY YOUR SUPERVISOR CONFIG FILES INSIDE SUPERVISOR FOLDER
-COPY ./docker/supervisord.conf /etc/supervisor/supervisord.conf
-COPY ./docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 
 #MAKE WORKING DIRECTORY AND LOGS DIRECTORY
 RUN mkdir -p /home/www/node/node_modules && chown -R node:node /home/www/node
@@ -46,10 +46,10 @@ WORKDIR /home/www/node
 COPY package*.json ./
 RUN npm install
 RUN npm ci --only=production
-COPY --chown=node:node . ./
+COPY --chown=node:node fb-be ./
 
 # Create entrypoint script to handle FileBot license setup
-COPY ./docker/start.sh  /start.sh
+COPY docker/start.sh  /start.sh
 RUN chmod +x /start.sh
 
 EXPOSE "3001"
