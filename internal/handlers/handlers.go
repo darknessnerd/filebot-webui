@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"webui-skeleton/internal/auth"
 	"webui-skeleton/internal/config"
 	"webui-skeleton/internal/database"
@@ -173,6 +176,9 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 		return selectedItems[item["Name"]]
 	}
 
+	// Get action from query param (default to "files")
+	action := c.DefaultQuery("action", "none")
+
 	// Render template
 	RenderWithHTMX(c, "directory_browser.html", gin.H{
 		"CurrentPath":          currentPath,
@@ -189,5 +195,133 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 		"IsSelected":           isSelected,
 		"Loading":              false,
 		"Error":                err,
+		"Action":               action, // <-- pass action to template
 	}, true)
+}
+
+// FileBotHandler serves the FileBot form and handles execution
+func (h *Handlers) FileBotForm(c *gin.Context) {
+	// For initial load, no files or output directory selected
+	data := gin.H{
+		"FilesJSON":           "",
+		"FilesList":           nil,
+		"OutputDirectoryJSON": "",
+		"OutputDirectory":     "",
+		"Status":              "",
+		"Errors":              nil,
+		"Successes":           nil,
+	}
+	RenderWithHTMX(c, "filebot_form.html", data, true)
+}
+
+// FileBotSelection handles updates from the directory browser to the FileBot form
+func (h *Handlers) FileBotSelection(c *gin.Context) {
+	filesJSON := c.PostForm("files")
+	outputDirectoryJSON := c.PostForm("outputDirectory")
+
+	filesList := []string{}
+	outputDirectory := ""
+	if filesJSON != "" {
+		filesList = strings.Split(filesJSON, ",")
+	}
+	if outputDirectoryJSON != "" {
+		outputDirectory = outputDirectoryJSON
+	}
+
+	data := gin.H{
+		"FilesJSON":           filesJSON,
+		"FilesList":           filesList,
+		"OutputDirectoryJSON": outputDirectoryJSON,
+		"OutputDirectory":     outputDirectory,
+		"Status":              "",
+		"Errors":              nil,
+		"Successes":           nil,
+	}
+	RenderWithHTMX(c, "filebot_form.html", data, true)
+}
+
+// FileBotExecute runs the FileBot command for selected files and output directory
+func (h *Handlers) FileBotExecute(c *gin.Context) {
+	// Parse form values
+	db := c.PostForm("db")
+	format := c.PostForm("format")
+	action := c.PostForm("action")
+	filter := c.PostForm("filter")
+	conflictResolution := c.PostForm("conflict_resolution")
+	logLevel := c.PostForm("log_level")
+	query := c.PostForm("query")
+	recursive := c.PostForm("recursive") == "true"
+	filesJSON := c.PostForm("files")
+	outputDirectoryJSON := c.PostForm("outputDirectory")
+
+	// Multi-file selection logic: parse filesJSON as CSV or JSON array
+	var filesList []string
+	if filesJSON != "" {
+		if strings.HasPrefix(filesJSON, "[") {
+			_ = json.Unmarshal([]byte(filesJSON), &filesList)
+		} else {
+			filesList = strings.Split(filesJSON, ",")
+		}
+	}
+	outputDirectory := outputDirectoryJSON
+
+	successMessages := []string{}
+	errorMessages := []string{}
+	progress := []string{}
+	total := len(filesList)
+	processed := 0
+
+	if total == 0 {
+		errorMessages = append(errorMessages, "No files selected.")
+	}
+	if outputDirectory == "" {
+		errorMessages = append(errorMessages, "No output directory selected.")
+	}
+
+	if len(errorMessages) == 0 {
+		for i, file := range filesList {
+			progress = append(progress, "Processing file "+file+" ("+string(i+1)+"/"+string(total)+")...")
+			args := []string{"-rename", file, "--db", db, "--action", action, "--conflict", conflictResolution, "--log", logLevel, "--output", outputDirectory, "-non-strict"}
+			if format != "" {
+				args = append(args, "--format", format)
+			}
+			if filter != "" {
+				args = append(args, "--filter", filter)
+			}
+			if query != "" {
+				args = append(args, "--q", query)
+			}
+			if recursive {
+				args = append(args, "-r")
+			}
+
+			cmd := exec.Command("filebot", args...)
+			output, err := cmd.CombinedOutput()
+			processed++
+			if err != nil {
+				errorMessages = append(errorMessages, "Error processing file '"+file+"': "+err.Error()+" Output: "+string(output))
+				progress = append(progress, "❌ Error for "+file)
+				continue
+			}
+			successMessages = append(successMessages, "Successfully processed file '"+file+"': "+string(output))
+			progress = append(progress, "✅ Success for "+file)
+		}
+	}
+
+	status := ""
+	if processed > 0 {
+		status = "Processed " + string(processed) + " of " + string(total) + " files."
+	}
+
+	data := gin.H{
+		"FilesJSON":           filesJSON,
+		"FilesList":           filesList,
+		"OutputDirectoryJSON": outputDirectoryJSON,
+		"OutputDirectory":     outputDirectory,
+		"Status":              status,
+		"Progress":            progress,
+		"Errors":              errorMessages,
+		"Successes":           successMessages,
+	}
+	RenderWithHTMX(c, "filebot_form.html", data, true)
 }

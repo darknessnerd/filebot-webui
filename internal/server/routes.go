@@ -63,7 +63,9 @@ func (s *Server) setupWebRoutes() {
 		webGroup.GET("/plex/servers/htmx", s.handlers.Plex.RenderPlexServersHTMX)
 		webGroup.POST("/plex/set-preferred-server", s.handlers.Plex.SetPreferredPlexServer)
 		webGroup.GET("/plex/configure", s.handlers.Plex.RenderPlexConfigurePage)
-
+		webGroup.GET("/filebot/form", s.handlers.FileBotForm)
+		webGroup.POST("/filebot/execute-filebot", s.handlers.FileBotExecute)
+		webGroup.POST("/filebot/selection", s.handlers.FileBotSelection)
 		// Directory browser routes
 		webGroup.GET("/directory-browser", s.handlers.DirectoryBrowser)
 		// You can add POST endpoints for selection/collapse if needed

@@ -10,17 +10,17 @@
              aria-label="Directory Browser">
             <span>Loading file browser...</span>
         </div>
-        <div id="directory-browser-widget-output"
-             class="main-browser"
-             hx-get="/directory-browser"
-             hx-trigger="load"
-             hx-target="#directory-browser-widget-output"
-             hx-swap="innerHTML"
-             aria-label="Directory Browser">
-            <span>Loading file browser...</span>
-        </div>
     </div>
     <div class="side-widgets">
+        <div id="filebot-form-widget"
+             class="filebot-form-mini"
+             hx-get="/filebot/form"
+             hx-trigger="load"
+             hx-target="#filebot-form-widget"
+             hx-swap="innerHTML"
+             aria-label="FileBot Form">
+            <span>Loading FileBot form...</span>
+        </div>
         <div id="plex-recently-added-widget"
              class="recently-added-mini"
              hx-get="/plex/recently-added/htmx"

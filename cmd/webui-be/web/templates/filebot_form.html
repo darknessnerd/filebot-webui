@@ -1,0 +1,121 @@
+{{define "filebot_form.html"}}
+<form id="filebot-form"
+      hx-post="/filebot/execute"
+      hx-target="#filebot-form-widget"
+      hx-swap="outerHTML"
+      class="filebot-form">
+  <h3>FileBot Execute</h3>
+  <div class="form-group">
+    <label for="db">Database</label>
+    <select name="db" id="db" required>
+      <option value="TheMovieDB::TV">TheMovieDB::TV</option>
+      <option value="TheTVDB">TheTVDB</option>
+      <option value="AniDB">AniDB</option>
+      <option value="TheMovieDB">TheMovieDB</option>
+      <option value="OMDb">OMDb</option>
+      <option value="AcoustID">AcoustID</option>
+      <option value="ID3">ID3</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="action">Action</label>
+    <select name="action" id="action" required>
+      <option value="move">Move</option>
+      <option value="copy">Copy</option>
+      <option value="symlink">Symlink</option>
+      <option value="test">Test</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="conflict_resolution">Conflict Resolution</label>
+    <select name="conflict_resolution" id="conflict_resolution" required>
+      <option value="skip">Skip</option>
+      <option value="override">Override</option>
+      <option value="auto">Auto</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="log_level">Log Level</label>
+    <select name="log_level" id="log_level" required>
+      <option value="info">Info</option>
+      <option value="debug">Debug</option>
+      <option value="quiet">Quiet</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="format">Format</label>
+    <input type="text" name="format" id="format" placeholder="{n} ({y})/{fn}" />
+  </div>
+  <div class="form-group">
+    <label for="filter">Filter</label>
+    <input type="text" name="filter" id="filter" placeholder="e.g. age < 7" />
+  </div>
+  <div class="form-group">
+    <label for="query">Query</label>
+    <input type="text" name="query" id="query" placeholder="e.g. Dune" />
+  </div>
+  <div class="form-group">
+    <label for="recursive">Recursive</label>
+    <input type="checkbox" name="recursive" id="recursive" value="true" />
+  </div>
+  <div class="form-group">
+    <label for="files">Files</label>
+    <input type="hidden" name="files" id="selected-files" value="{{.FilesJSON}}" />
+    <div id="selected-files-list">
+      {{if .FilesList}}
+        <ul>
+        {{range .FilesList}}
+          <li>{{.}}</li>
+        {{end}}
+        </ul>
+      {{else}}
+        <span>No files selected.</span>
+      {{end}}
+    </div>
+  </div>
+  <div class="form-group">
+    <label for="outputDirectory">Output Directory</label>
+    <input type="hidden" name="outputDirectory" id="output-directory" value="{{.OutputDirectoryJSON}}" />
+    <div id="output-directory-display">
+      {{if .OutputDirectory}}
+        <span>{{.OutputDirectory}}</span>
+      {{else}}
+        <span>No output directory selected.</span>
+      {{end}}
+    </div>
+  </div>
+  <button type="submit">Execute FileBot</button>
+  <div id="filebot-form-status">
+    {{if .Status}}
+      <div class="status">{{.Status}}</div>
+    {{end}}
+    {{if .Progress}}
+      <div class="progress">
+        <ul>
+        {{range .Progress}}
+          <li>{{.}}</li>
+        {{end}}
+        </ul>
+      </div>
+    {{end}}
+    {{if .Errors}}
+      <div class="errors">
+        <ul>
+        {{range .Errors}}
+          <li>{{.}}</li>
+        {{end}}
+        </ul>
+      </div>
+    {{end}}
+    {{if .Successes}}
+      <div class="successes">
+        <ul>
+        {{range .Successes}}
+          <li>{{.}}</li>
+        {{end}}
+        </ul>
+      </div>
+    {{end}}
+  </div>
+</form>
+{{end}}

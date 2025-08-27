@@ -1,5 +1,5 @@
 {{ define "directory_browser.html" }}
-<div id="directory-browser" class="directory-browser compact">
+<div id="directory-browser" class="directory-browser compact" data-current-path="{{.CurrentPath}}">
   <header class="directory-browser-header">
     <nav class="breadcrumb-nav" aria-label="Breadcrumb">
       <ul class="breadcrumb-list">
@@ -37,6 +37,10 @@
       </button>
     </div>
   </header>
+  <div class="selection-mode-group" style="margin: 1em 0;">
+    <label><input type="radio" name="selectionMode" value="files" checked onchange="setSelectionMode('files')"> Select files</label>
+    <label style="margin-left:1em;"><input type="radio" name="selectionMode" value="output" onchange="setSelectionMode('output')"> Select output directory</label>
+  </div>
   <div class="directory-info">
     <span>{{len .Files}} items ({{.DirectoryCount}} directories, {{.FileCount}} files)</span>
   </div>
@@ -49,7 +53,7 @@
       <li>
         {{if eq .Type "directory"}}
           <div class="item-row compact-item{{if .IsSelected}} selected-item{{end}}" tabindex="0" aria-label="Directory: {{.Name}}" aria-selected="{{if .IsSelected}}true{{else}}false{{end}}">
-            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select directory: {{.Name}}" onclick="event.stopPropagation();" />
+            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select directory: {{.Name}}" onclick="sendCheckboxSelection(this)" />
             <a href="/directory-browser?path={{.Path}}"
                hx-get="/directory-browser?path={{.Path}}"
                hx-target="#directory-browser"
@@ -69,7 +73,7 @@
                tabindex="0"
                aria-label="File: {{.Name}}"
                aria-selected="{{if .IsSelected}}true{{else}}false{{end}}">
-            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select file: {{.Name}}" />
+            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select file: {{.Name}}" onclick="sendCheckboxSelection(this)" />
             <strong class="item-icon">📄</strong>
             <div class="item-name ellipsized-text">{{.Name}}</div>
           </div>
@@ -79,5 +83,78 @@
     </ul>
   </div>
   {{end}}
+  <div class="directory-browser-actions">
+    <script>
+      var selectionMode = 'files';
+      var selectedFiles = [];
+      var selectedOutput = '';
+      function setSelectionMode(mode) {
+        selectionMode = mode;
+        // Keep selected files when switching modes
+        var checkboxes = document.querySelectorAll('.item-checkbox');
+        if (mode === 'files') {
+          // Restore file selections (files and folders)
+          checkboxes.forEach(function(cb) {
+            cb.checked = selectedFiles.includes(cb.value);
+          });
+        } else if (mode === 'output') {
+          // Restore output directory selection
+          checkboxes.forEach(function(cb) {
+            var itemRow = cb.closest('.item-row');
+            var isDirectory = itemRow && itemRow.querySelector('.item-icon') && itemRow.querySelector('.item-icon').textContent.trim() === '📂';
+            cb.checked = isDirectory && cb.value === selectedOutput;
+          });
+        }
+      }
+      function sendCheckboxSelection(checkbox) {
+        var browser = checkbox.closest('.directory-browser');
+        var checkboxes = browser.querySelectorAll('.item-checkbox:checked');
+        if (selectionMode === 'files') {
+          selectedFiles = [];
+          checkboxes.forEach(function(cb) {
+            selectedFiles.push(cb.value);
+          });
+        } else if (selectionMode === 'output') {
+          checkboxes.forEach(function(cb) {
+            if (cb !== checkbox) cb.checked = false;
+          });
+          var itemRow = checkbox.closest('.item-row');
+          var isDirectory = itemRow && itemRow.querySelector('.item-icon') && itemRow.querySelector('.item-icon').textContent.trim() === '📂';
+          if (!isDirectory) {
+            var statusDiv = document.getElementById('filebot-form-status');
+            if (statusDiv) {
+              statusDiv.innerHTML = '<div class="status error">Please select only a folder as output directory.</div>';
+            }
+            checkbox.checked = false;
+            return;
+          }
+          selectedOutput = checkbox.value;
+        }
+        var payload = {
+          files: selectedFiles.join(','),
+          outputDirectory: selectedOutput
+        };
+        fetch('/filebot/selection', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'HX-Request': 'true'
+          },
+          body: new URLSearchParams(payload)
+        }).then(response => response.text())
+          .then(html => {
+            var widget = document.getElementById('filebot-form-widget');
+            if (widget) widget.innerHTML = html;
+          });
+      }
+      // Reset selections if directory changes
+      document.addEventListener('htmx:afterSwap', function(e) {
+        if (e.target && e.target.id === 'directory-browser-widget') {
+          selectedFiles = [];
+          selectedOutput = '';
+        }
+      });
+    </script>
+  </div>
 </div>
 {{end}}

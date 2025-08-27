@@ -36,6 +36,17 @@ func New(config *config.Config, templateFS embed.FS, db *database.DB) *Server {
 	}
 }
 
+// JoinSelectedFiles joins selected file paths for template usage
+func joinSelectedFiles(files []map[string]string) string {
+	paths := []string{}
+	for _, f := range files {
+		if path, ok := f["Path"]; ok {
+			paths = append(paths, path)
+		}
+	}
+	return strings.Join(paths, ",")
+}
+
 // SetupEngine configures the Gin engine with routes and middleware
 func (s *Server) SetupEngine() {
 	// Set Gin mode based on debug flag
@@ -78,10 +89,12 @@ func (s *Server) SetupEngine() {
 // setupTemplates configures HTML template rendering
 func (s *Server) setupTemplates() {
 	funcMap := map[string]interface{}{
-		"sub":       func(a, b int) int { return a - b },
-		"add":       func(a, b int) int { return a + b },
-		"splitPath": func(p string) []string { return strings.Split(p, "/") },
-		"joinPath":  func(parts []string) string { return strings.Join(parts, "/") },
+		"joinSelectedFiles": joinSelectedFiles,
+		"split":             strings.Split,
+		"sub":               func(a, b int) int { return a - b },
+		"add":               func(a, b int) int { return a + b },
+		"splitPath":         func(p string) []string { return strings.Split(p, "/") },
+		"joinPath":          func(parts []string) string { return strings.Join(parts, "/") },
 	}
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(s.templateFS,
@@ -94,6 +107,7 @@ func (s *Server) setupTemplates() {
 		"web/templates/plex/plex_recently_added.html",
 		"web/templates/plex/plex_configure.html",
 		"web/templates/directory_browser.html",
+		"web/templates/filebot_form.html",
 	))
 
 	s.engine.SetHTMLTemplate(tmpl)
