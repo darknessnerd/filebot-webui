@@ -52,18 +52,25 @@
     <script>
       function resetPresetPath() {
         var preset = document.getElementById('preset-select').value;
-        var browser = document.getElementById('directory-browser');
-        var currentPath = browser ? browser.getAttribute('data-current-path') : '';
+        // Get the root path for the selected preset from a JS object (must be rendered server-side)
+        var presetRoots = window.presetRoots || {};
+        var rootPath = presetRoots[preset] || '';
         // Get selected files and output directory from JS state
         var files = (window.selectedFiles || []).join(',');
         var outputDirectory = window.selectedOutput || '';
         var params = new URLSearchParams({preset: preset});
-        // Keep current path if available
-        if (currentPath) params.set('path', currentPath);
+        // Set current path to the root of the selected preset
+        if (rootPath) params.set('path', rootPath);
         if (files) params.set('files', files);
         if (outputDirectory) params.set('outputDirectory', outputDirectory);
         htmx.ajax('GET', '/directory-browser?' + params.toString(), {target: '#directory-browser', swap: 'outerHTML'});
       }
+      // Render presetRoots JS object from server-side data
+      window.presetRoots = {
+        {{range $i, $name := .PresetNames}}
+          '{{ $name }}': '{{ index $.PresetRoots $name }}'{{if lt (add $i 1) (len $.PresetNames)}},{{end}}
+        {{end}}
+      };
     </script>
   </div>
   <div class="selection-mode-group" style="margin: 1em 0;">
