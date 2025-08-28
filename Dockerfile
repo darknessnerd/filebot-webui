@@ -42,6 +42,9 @@ RUN chmod +x /app/main
 # Copy start script
 COPY docker/start.sh /start.sh
 
+# Copy static assets for web UI
+COPY cmd/webui-be/web/static /app/web/static
+
 # Server Configuration
 ENV SERVER_HOST=0.0.0.0
 ENV SERVER_PORT=8080
