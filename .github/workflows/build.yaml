@@ -30,6 +30,14 @@ jobs:
       - name: Install Go dependencies
         working-directory: ./cmd/webui-be
         run: go mod tidy
+      - name: Ensure static asset directories are not empty
+        working-directory: ./cmd/webui-be/web/static/css
+        run: |
+          for dir in abstracts base components layout pages themes vendors; do
+            if [ -d "$dir" ] && [ -z "$(ls -A "$dir")" ]; then
+              touch "$dir/.keep"
+            fi
+          done
       - name: Build Go backend
         working-directory: ./cmd/webui-be
         run: go build -v ./...
