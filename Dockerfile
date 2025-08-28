@@ -1,4 +1,4 @@
-FROM golang:tip-alpine3.22
+FROM golang:1.25-trixie
 
 # Install required packages: nginx, openjdk11, wget, tar, xz
 RUN apk update && \
