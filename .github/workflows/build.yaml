@@ -30,6 +30,8 @@ jobs:
       - name: Install Go dependencies
         working-directory: ./cmd/webui-be
         run: go mod tidy
+      - name: Ensure static asset directory exists
+        run: mkdir -p ./cmd/webui-be/web/static/css
       - name: Ensure static asset directories are not empty
         working-directory: ./cmd/webui-be/web/static/css
         run: |
