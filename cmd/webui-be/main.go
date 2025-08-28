@@ -23,6 +23,7 @@ func main() {
 
 	// Run the application
 	if err := application.Run(); err != nil {
-		logger.Log.Fatal().Err(err).Msg("❌ Application failed to run")
+		logger.Log.Error().Err(err).Msg("❌ Application failed to run")
+		logger.Log.Error().Msgf("❌ Application exited with code: 1")
 	}
 }
