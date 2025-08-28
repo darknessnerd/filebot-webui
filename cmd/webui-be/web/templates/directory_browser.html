@@ -194,5 +194,29 @@
       });
     </script>
   </div>
+  <script>
+    // Ensure window.selectedFiles contains full paths
+    window.selectedFiles = window.selectedFiles || [];
+    function updateSelectedFiles(files) {
+      // files should be an array of full paths
+      window.selectedFiles = files;
+      // Update the hidden input in the FileBot form if present
+      var input = document.getElementById('selected-files');
+      if (input) {
+        input.value = JSON.stringify(window.selectedFiles);
+      }
+      // Update the visible list
+      var list = document.getElementById('selected-files-list');
+      if (list) {
+        if (window.selectedFiles.length > 0) {
+          list.innerHTML = '<ul>' + window.selectedFiles.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
+        } else {
+          list.innerHTML = '<span>No files selected.</span>';
+        }
+      }
+    }
+    // Example usage: updateSelectedFiles(["/path/to/file1.mkv", "/path/to/file2.mp4"]);
+    // Call updateSelectedFiles whenever selection changes in the browser
+  </script>
 </div>
 {{end}}

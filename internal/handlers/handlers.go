@@ -120,8 +120,10 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 	// Directory presets from config
 	presets := h.config.DirectoryPresets
 	presetNames := []string{}
-	for name := range presets {
+	presetRoots := map[string]string{} // Add this to pass to template
+	for name, root := range presets {
 		presetNames = append(presetNames, name)
+		presetRoots[name] = root
 	}
 
 	// Get selected preset from query, default to first
@@ -137,8 +139,12 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 	}
 
 	currentPath := c.Query("path")
-	if currentPath == "" {
-		currentPath = rootPath
+	if currentPath == "" || currentPath != rootPath {
+		// If preset changed, reset currentPath to rootPath
+		presetParam := c.Query("preset")
+		if presetParam != "" && presetParam != selectedPreset {
+			currentPath = rootPath
+		}
 	}
 	parentPath := filepath.Dir(currentPath)
 	if parentPath == "." || parentPath == "/" {
@@ -214,6 +220,7 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 		"Action":               action,
 		"DirectoryPresets":     presets,
 		"PresetNames":          presetNames,
+		"PresetRoots":          presetRoots, // Pass presetRoots to template
 		"SelectedPreset":       selectedPreset,
 	}, true)
 }
@@ -238,11 +245,17 @@ func (h *Handlers) FileBotSelection(c *gin.Context) {
 	filesJSON := c.PostForm("files")
 	outputDirectoryJSON := c.PostForm("outputDirectory")
 
+	// Preserve selected files even when only output directory is changed
 	filesList := []string{}
-	outputDirectory := ""
 	if filesJSON != "" {
-		filesList = strings.Split(filesJSON, ",")
+		if strings.HasPrefix(filesJSON, "[") {
+			_ = json.Unmarshal([]byte(filesJSON), &filesList)
+		} else {
+			filesList = strings.Split(filesJSON, ",")
+		}
 	}
+
+	outputDirectory := ""
 	if outputDirectoryJSON != "" {
 		outputDirectory = outputDirectoryJSON
 	}
