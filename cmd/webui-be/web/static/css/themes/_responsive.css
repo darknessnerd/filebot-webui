@@ -1,0 +1,131 @@
+/* Responsive Styles and Themes */
+
+/* Mobile First Approach */
+@media (max-width: 575.98px) {
+    .container {
+        padding: 0 var(--spacing-md);
+        height: auto;
+    }
+
+    .btn-block-mobile {
+        display: block;
+        width: 100%;
+    }
+
+    .text-center-mobile {
+        text-align: center;
+    }
+
+    .d-none-mobile {
+        display: none !important;
+    }
+
+    .navigation-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 576px) {
+    .container {
+        max-width: 540px;
+    }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+    .container {
+        max-width: 720px;
+    }
+
+    .d-md-block {
+        display: block !important;
+    }
+
+    .d-md-none {
+        display: none !important;
+    }
+
+    .navigation-grid {
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+}
+
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+    .container {
+        max-width: 960px;
+    }
+}
+
+/* Extra large devices (large desktops, 1200px and up) */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1140px;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .btn::before,
+    .quick-btn::before {
+        display: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --border-color: #000000;
+        --shadow-sm: none;
+        --shadow: none;
+        --shadow-lg: none;
+        --shadow-light: none;
+        --shadow-medium: none;
+        --shadow-heavy: none;
+    }
+
+    .btn,
+    .quick-btn {
+        border-width: 2px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .btn,
+    .quick-btn,
+    .header,
+    .footer,
+    .modal,
+    .toast,
+    .quick-actions {
+        display: none !important;
+    }
+
+    .main {
+        padding-top: 0 !important;
+    }
+
+    .container {
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    * {
+        color: #000 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+    }
+}

@@ -1,0 +1,51 @@
+/* FileBot Sidebar Styles */
+.filebot-sidebar {
+  flex: 0 0 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--accent-primary);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-lg) var(--spacing-md);
+  min-width: 220px;
+  max-width: 420px;
+  height: 100vh;
+  gap: var(--spacing-lg);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.filebot-form-mini {
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-md);
+  border: 1px solid var(--accent-primary);
+  margin-bottom: var(--spacing-lg);
+  min-width: 180px;
+  max-width: 400px;
+  overflow-y: auto;
+}
+@media (max-width: 900px) {
+  .filebot-sidebar {
+    position: static;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    border-left: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: var(--spacing-md) 0;
+    background: none;
+    gap: var(--spacing-md);
+  }
+  .filebot-form-mini {
+    min-width: 0;
+    max-width: 100%;
+    margin-bottom: var(--spacing-md);
+  }
+}

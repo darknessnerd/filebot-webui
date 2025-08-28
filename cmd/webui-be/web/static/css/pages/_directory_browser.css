@@ -1,0 +1,126 @@
+/* Directory Browser Page Styles */
+.directory-browser {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  padding-top: 4px;
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+  overflow-y: auto;
+}
+.directory-browser.compact {
+  padding: 4px;
+  font-size: 0.92em;
+}
+.directory-browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: 4px;
+}
+.breadcrumb-nav {
+  flex: 1;
+}
+.breadcrumb-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 0.2em;
+  flex-wrap: wrap;
+}
+.breadcrumb-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+.breadcrumb-sep {
+  color: var(--text-muted);
+  margin: 0 0.1em;
+}
+.directory-browser-buttons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.directory-browser-buttons .btn--icon {
+  padding: 0.1em 0.3em;
+  font-size: 1.1em;
+  min-width: 2em;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.directory-info {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-sm);
+}
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.status {
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-base);
+}
+.status.error {
+  color: #c82333;
+}
+.item-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5em 0.7em;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.item-row:hover, .item-row.selected-item {
+  background: var(--bg-tertiary);
+}
+.item-row.compact-item {
+  min-height: 28px;
+}
+.item-checkbox {
+  margin-right: 0.5em;
+}
+.item-icon {
+  margin-right: 0.3em;
+  display: flex;
+  align-items: center;
+  font-size: 1.2em;
+}
+.item-name {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ellipsized-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tooltip {
+  display: none;
+}
+.compact-list {
+  padding: 0;
+  margin: 0;
+}
+.compact-item {
+  padding: 0.2em 0.5em;
+  font-size: var(--font-size-sm);
+  gap: 0.5em;
+}

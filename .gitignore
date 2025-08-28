@@ -43,9 +43,6 @@ Thumbs.db
 coverage*
 *.coverprofile
 
-# Static assets (build output)
-static/
-
 # Others
 main
 
