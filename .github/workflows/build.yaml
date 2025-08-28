@@ -46,16 +46,20 @@ jobs:
           golint ./... || true
       - name: Ensure static asset directories and styles.css exist
         run: |
+          # Create required directories
           for dir in abstracts base components layout pages themes vendors newdir; do
             mkdir -p cmd/webui-be/web/static/css/$dir
-            if [ -d "cmd/webui-be/web/static/css/$dir" ] && [ -z "$(ls -A cmd/webui-be/web/static/css/$dir)" ]; then
-              touch cmd/webui-be/web/static/css/$dir/.keep
-            fi
           done
           # Ensure styles.css exists
           if [ ! -f cmd/webui-be/web/static/css/styles.css ]; then
             touch cmd/webui-be/web/static/css/styles.css
           fi
+          # Ensure every subdirectory under css has at least one file
+          find cmd/webui-be/web/static/css -type d | while read subdir; do
+            if [ -z "$(ls -A "$subdir")" ]; then
+              touch "$subdir/.keep"
+            fi
+          done
       - name: Run go vet (static analysis)
         run: go vet ./... || true
       - name: Run tests with coverage
@@ -80,16 +84,17 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - name: Install Go dependencies
         run: go mod tidy
       - name: Ensure static asset directory exists
         run: mkdir -p cmd/webui-be/web/static/css
       - name: Ensure static asset directories are not empty
         run: |
-          for dir in cmd/webui-be/web/static/css/abstracts cmd/webui-be/web/static/css/base cmd/webui-be/web/static/css/components cmd/webui-be/web/static/css/layout cmd/webui-be/web/static/css/pages cmd/webui-be/web/static/css/themes cmd/webui-be/web/static/css/vendors; do
-            if [ -d "$dir" ] && [ -z "$(ls -A "$dir")" ]; then
-              touch "$dir/.keep"
+          # Ensure all subdirectories under css exist and are not empty
+          find cmd/webui-be/web/static/css -type d | while read subdir; do
+            if [ -z "$(ls -A "$subdir")" ]; then
+              touch "$subdir/.keep"
             fi
           done
       - name: Build Go backend
