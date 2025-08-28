@@ -52,9 +52,16 @@
     <script>
       function resetPresetPath() {
         var preset = document.getElementById('preset-select').value;
+        var browser = document.getElementById('directory-browser');
+        var currentPath = browser ? browser.getAttribute('data-current-path') : '';
+        // Get selected files and output directory from JS state
+        var files = (window.selectedFiles || []).join(',');
+        var outputDirectory = window.selectedOutput || '';
         var params = new URLSearchParams({preset: preset});
-        // Always reset path to empty so backend sets it to rootPath for the preset
-        params.set('path', '');
+        // Keep current path if available
+        if (currentPath) params.set('path', currentPath);
+        if (files) params.set('files', files);
+        if (outputDirectory) params.set('outputDirectory', outputDirectory);
         htmx.ajax('GET', '/directory-browser?' + params.toString(), {target: '#directory-browser', swap: 'outerHTML'});
       }
     </script>
