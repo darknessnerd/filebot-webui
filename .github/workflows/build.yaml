@@ -48,7 +48,7 @@ jobs:
           golint ./...
       - name: Ensure static asset directories exist
         run: |
-          for dir in abstracts base components layout pages themes vendors; do
+          for dir in abstracts base components layout pages themes vendors newdir; do
             mkdir -p cmd/webui-be/web/static/css/$dir
             if [ -d "cmd/webui-be/web/static/css/$dir" ] && [ -z "$(ls -A cmd/webui-be/web/static/css/$dir)" ]; then
               touch cmd/webui-be/web/static/css/$dir/.keep
