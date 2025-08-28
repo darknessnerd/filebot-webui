@@ -2,61 +2,61 @@
 <form id="filebot-form"
       hx-post="/filebot/execute"
       hx-target="#filebot-form-widget"
-      hx-swap="outerHTML"
+      hx-swap="innerHTML"
       class="filebot-form">
   <h3>FileBot Execute</h3>
   <div class="form-group">
     <label for="db">Database</label>
     <select name="db" id="db" required>
-      <option value="TheMovieDB::TV">TheMovieDB::TV</option>
-      <option value="TheTVDB">TheTVDB</option>
-      <option value="AniDB">AniDB</option>
-      <option value="TheMovieDB">TheMovieDB</option>
-      <option value="OMDb">OMDb</option>
-      <option value="AcoustID">AcoustID</option>
-      <option value="ID3">ID3</option>
+      <option value="TheMovieDB::TV" {{if eq .DB "TheMovieDB::TV"}}selected{{end}}>TheMovieDB::TV</option>
+      <option value="TheTVDB" {{if eq .DB "TheTVDB"}}selected{{end}}>TheTVDB</option>
+      <option value="AniDB" {{if eq .DB "AniDB"}}selected{{end}}>AniDB</option>
+      <option value="TheMovieDB" {{if eq .DB "TheMovieDB"}}selected{{end}}>TheMovieDB</option>
+      <option value="OMDb" {{if eq .DB "OMDb"}}selected{{end}}>OMDb</option>
+      <option value="AcoustID" {{if eq .DB "AcoustID"}}selected{{end}}>AcoustID</option>
+      <option value="ID3" {{if eq .DB "ID3"}}selected{{end}}>ID3</option>
     </select>
   </div>
   <div class="form-group">
     <label for="action">Action</label>
     <select name="action" id="action" required>
-      <option value="move">Move</option>
-      <option value="copy">Copy</option>
-      <option value="symlink">Symlink</option>
-      <option value="test">Test</option>
+      <option value="move" {{if eq .Action "move"}}selected{{end}}>Move</option>
+      <option value="copy" {{if eq .Action "copy"}}selected{{end}}>Copy</option>
+      <option value="symlink" {{if eq .Action "symlink"}}selected{{end}}>Symlink</option>
+      <option value="test" {{if eq .Action "test"}}selected{{end}}>Test</option>
     </select>
   </div>
   <div class="form-group">
     <label for="conflict_resolution">Conflict Resolution</label>
     <select name="conflict_resolution" id="conflict_resolution" required>
-      <option value="skip">Skip</option>
-      <option value="override">Override</option>
-      <option value="auto">Auto</option>
+      <option value="skip" {{if eq .ConflictResolution "skip"}}selected{{end}}>Skip</option>
+      <option value="override" {{if eq .ConflictResolution "override"}}selected{{end}}>Override</option>
+      <option value="auto" {{if eq .ConflictResolution "auto"}}selected{{end}}>Auto</option>
     </select>
   </div>
   <div class="form-group">
     <label for="log_level">Log Level</label>
     <select name="log_level" id="log_level" required>
-      <option value="info">Info</option>
-      <option value="debug">Debug</option>
-      <option value="quiet">Quiet</option>
+      <option value="info" {{if eq .LogLevel "info"}}selected{{end}}>Info</option>
+      <option value="debug" {{if eq .LogLevel "debug"}}selected{{end}}>Debug</option>
+      <option value="quiet" {{if eq .LogLevel "quiet"}}selected{{end}}>Quiet</option>
     </select>
   </div>
   <div class="form-group">
     <label for="format">Format</label>
-    <input type="text" name="format" id="format" placeholder="{n} ({y})/{fn}" />
+    <input type="text" name="format" id="format" placeholder="{n} ({y})/{fn}" value="{{.Format}}" />
   </div>
   <div class="form-group">
     <label for="filter">Filter</label>
-    <input type="text" name="filter" id="filter" placeholder="e.g. age < 7" />
+    <input type="text" name="filter" id="filter" placeholder="e.g. age < 7" value="{{.Filter}}" />
   </div>
   <div class="form-group">
     <label for="query">Query</label>
-    <input type="text" name="query" id="query" placeholder="e.g. Dune" />
+    <input type="text" name="query" id="query" placeholder="e.g. Dune" value="{{.Query}}" />
   </div>
   <div class="form-group">
     <label for="recursive">Recursive</label>
-    <input type="checkbox" name="recursive" id="recursive" value="true" />
+    <input type="checkbox" name="recursive" id="recursive" value="true" {{if .Recursive}}checked{{end}} />
   </div>
   <div class="form-group">
     <label for="files">Files</label>
@@ -86,6 +86,9 @@
   </div>
   <button type="submit">Execute FileBot</button>
   <div id="filebot-form-status">
+    {{if .Error}}
+      <div class="error" style="color: red;">{{.Error}}</div>
+    {{end}}
     {{if .Status}}
       <div class="status">{{.Status}}</div>
     {{end}}

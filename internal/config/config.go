@@ -25,6 +25,9 @@ type Config struct {
 	// Logging configuration
 	Debug    bool   `json:"debug"`
 	LogLevel string `json:"log_level"`
+
+	// FileBot-WebUI specific
+	DirectoryPresets map[string]string `json:"directory_presets"`
 }
 
 type ServerConfig struct {
@@ -179,6 +182,20 @@ func loadEnvironmentVariables(config *Config) {
 	if config.LogLevel == "" {
 		config.LogLevel = getEnvOrDefault("LOG_LEVEL", "debug")
 	}
+
+	// Directory presets
+	presetsRaw := getEnvOrDefault("DIRECTORY_PRESETS", "")
+	if presetsRaw == "" {
+		panic("DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
+	}
+	presets := map[string]string{}
+	for _, entry := range strings.Split(presetsRaw, ",") {
+		parts := strings.SplitN(entry, ":", 2)
+		if len(parts) == 2 {
+			presets[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+	}
+	config.DirectoryPresets = presets
 }
 
 func validateConfig(config *Config) error {

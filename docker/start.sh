@@ -25,4 +25,5 @@ else
     echo "FileBot license file not found at $FILEBOT_LICENSE_PATH, continuing without applying license."
 fi
 # Run the CMD passed from Dockerfile
-exec "$@"
+echo "Starting Go backend: $@"
+eval "$@"

@@ -117,9 +117,25 @@ func extractUserInfo(user *models.User, nameCtx, emailCtx string) (name, email, 
 // DirectoryBrowserHandler handles directory browsing and selection
 // Add to Handlers struct if needed
 func (h *Handlers) DirectoryBrowser(c *gin.Context) {
-	// Get path from query or default
-	rootDirs := []string{"."} // You can customize this
-	rootPath := rootDirs[0]
+	// Directory presets from config
+	presets := h.config.DirectoryPresets
+	presetNames := []string{}
+	for name := range presets {
+		presetNames = append(presetNames, name)
+	}
+
+	// Get selected preset from query, default to first
+	selectedPreset := c.DefaultQuery("preset", "")
+	rootPath := ""
+	if selectedPreset != "" && presets[selectedPreset] != "" {
+		rootPath = presets[selectedPreset]
+	} else if len(presetNames) > 0 {
+		selectedPreset = presetNames[0]
+		rootPath = presets[selectedPreset]
+	} else {
+		rootPath = "."
+	}
+
 	currentPath := c.Query("path")
 	if currentPath == "" {
 		currentPath = rootPath
@@ -184,7 +200,7 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 		"CurrentPath":          currentPath,
 		"RootPath":             rootPath,
 		"ParentPath":           parentPath,
-		"AvailableDirectories": rootDirs,
+		"AvailableDirectories": []string{rootPath},
 		"Files":                files,
 		"FileCount":            fileCount,
 		"DirectoryCount":       dirCount,
@@ -195,7 +211,10 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 		"IsSelected":           isSelected,
 		"Loading":              false,
 		"Error":                err,
-		"Action":               action, // <-- pass action to template
+		"Action":               action,
+		"DirectoryPresets":     presets,
+		"PresetNames":          presetNames,
+		"SelectedPreset":       selectedPreset,
 	}, true)
 }
 
@@ -278,6 +297,18 @@ func (h *Handlers) FileBotExecute(c *gin.Context) {
 		errorMessages = append(errorMessages, "No output directory selected.")
 	}
 
+	// Store form values for repopulation
+	formValues := gin.H{
+		"DB":                 db,
+		"Format":             format,
+		"Action":             action,
+		"Filter":             filter,
+		"ConflictResolution": conflictResolution,
+		"LogLevel":           logLevel,
+		"Query":              query,
+		"Recursive":          recursive,
+	}
+
 	if len(errorMessages) == 0 {
 		for i, file := range filesList {
 			progress = append(progress, "Processing file "+file+" ("+string(i+1)+"/"+string(total)+")...")
@@ -322,6 +353,12 @@ func (h *Handlers) FileBotExecute(c *gin.Context) {
 		"Progress":            progress,
 		"Errors":              errorMessages,
 		"Successes":           successMessages,
+	}
+	for k, v := range formValues {
+		data[k] = v
+	}
+	if len(errorMessages) > 0 {
+		data["Error"] = strings.Join(errorMessages, "\n")
 	}
 	RenderWithHTMX(c, "filebot_form.html", data, true)
 }

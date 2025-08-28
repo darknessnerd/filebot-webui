@@ -37,6 +37,28 @@
       </button>
     </div>
   </header>
+  <div class="directory-browser-presets" style="margin-bottom:1em;">
+    <form id="preset-form" onsubmit="event.preventDefault(); resetPresetPath();">
+      <label for="preset-select">Browse starting from:</label>
+      <select id="preset-select" name="preset"
+        class="btn btn--small"
+        aria-label="Browse starting from"
+        onchange="resetPresetPath()">
+        {{range .PresetNames}}
+          <option value="{{.}}" {{if eq . $.SelectedPreset}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
+    </form>
+    <script>
+      function resetPresetPath() {
+        var preset = document.getElementById('preset-select').value;
+        var params = new URLSearchParams({preset: preset});
+        // Always reset path to empty so backend sets it to rootPath for the preset
+        params.set('path', '');
+        htmx.ajax('GET', '/directory-browser?' + params.toString(), {target: '#directory-browser', swap: 'outerHTML'});
+      }
+    </script>
+  </div>
   <div class="selection-mode-group" style="margin: 1em 0;">
     <label><input type="radio" name="selectionMode" value="files" checked onchange="setSelectionMode('files')"> Select files</label>
     <label style="margin-left:1em;"><input type="radio" name="selectionMode" value="output" onchange="setSelectionMode('output')"> Select output directory</label>
@@ -84,6 +106,8 @@
   </div>
   {{end}}
   <div class="directory-browser-actions">
+    <form style="margin-top:1em;">
+    </form>
     <script>
       var selectionMode = 'files';
       var selectedFiles = [];
