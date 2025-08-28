@@ -86,8 +86,8 @@ jobs:
       - name: Build and push Docker image with SemVer
         uses: docker/build-push-action@v6
         with:
-          context: ./fb-be
-          file: ./fb-be/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:${{ env.VERSION }}
