@@ -20,6 +20,7 @@ import (
 type Server struct {
 	config      *config.Config
 	templateFS  embed.FS
+	staticFS    embed.FS
 	db          *database.DB
 	authService *auth.Service
 	handlers    *handlers.Handlers
@@ -28,10 +29,11 @@ type Server struct {
 }
 
 // New creates a new server instance
-func New(config *config.Config, templateFS embed.FS, db *database.DB) *Server {
+func New(config *config.Config, templateFS embed.FS, staticFS embed.FS, db *database.DB) *Server {
 	return &Server{
 		config:     config,
 		templateFS: templateFS,
+		staticFS:   staticFS,
 		db:         db,
 	}
 }

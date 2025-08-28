@@ -12,6 +12,9 @@ import (
 //go:embed web/templates/*
 var TemplateFS embed.FS
 
+//go:embed web/static/css/*/* web/static/css/styles.css
+var StaticFiles embed.FS
+
 func main() {
 	logger.Log.Info().Msg("Starting application...")
 	// Log DIRECTORY_PRESETS value for debugging
@@ -23,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Create and initialize application
-	application := app.New(TemplateFS)
+	application := app.New(TemplateFS, StaticFiles)
 	defer application.Cleanup()
 
 	// Initialize all components

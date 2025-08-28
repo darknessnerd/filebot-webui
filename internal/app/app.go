@@ -20,12 +20,14 @@ type Application struct {
 	server     *server.Server
 	db         *database.DB
 	templateFS embed.FS
+	staticFS   embed.FS
 }
 
 // New creates a new application instance
-func New(templateFS embed.FS) *Application {
+func New(templateFS embed.FS, staticFS embed.FS) *Application {
 	return &Application{
 		templateFS: templateFS,
+		staticFS:   staticFS,
 	}
 }
 
@@ -102,7 +104,7 @@ func (app *Application) initServer() error {
 	if app.config == nil || app.db == nil {
 		return fmt.Errorf("missing config or db during server initialization")
 	}
-	app.server = server.New(app.config, app.templateFS, app.db)
+	app.server = server.New(app.config, app.templateFS, app.staticFS, app.db)
 	app.server.SetupEngine()
 	app.server.CreateHTTPServer()
 	return nil

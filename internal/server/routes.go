@@ -21,8 +21,15 @@ func (s *Server) setupRoutes() {
 	// API routes (protected)
 	s.setupAPIRoutes()
 
-	// Static files
-	s.engine.Static("/static", "cmd/webui-be/web/static")
+	// Static files (embedded)
+	s.engine.GET("/static/*filepath", func(c *gin.Context) {
+		file := c.Param("filepath")
+		if file == "" || file == "/" {
+			file = "/index.html"
+		}
+		// Prepend the embedded FS root so /static/css/styles.css maps to web/static/css/styles.css
+		c.FileFromFS("web/static"+file, http.FS(s.staticFS))
+	})
 }
 
 // setupAuthRoutes configures authentication routes
