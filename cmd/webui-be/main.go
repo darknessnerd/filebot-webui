@@ -12,11 +12,6 @@ var TemplateFS embed.FS
 
 func main() {
 	logger.Log.Info().Msg("Starting application...")
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Log.Error().Msgf("❌ Application panicked: %v", r)
-		}
-	}()
 	// Create and initialize application
 	application := app.New(TemplateFS)
 	defer application.Cleanup()
@@ -28,7 +23,6 @@ func main() {
 
 	// Run the application
 	if err := application.Run(); err != nil {
-		logger.Log.Error().Err(err).Msg("❌ Application failed to run")
-		logger.Log.Error().Msgf("❌ Application exited with code: 1")
+		logger.Log.Fatal().Err(err).Msg("❌ Application failed to run")
 	}
 }
