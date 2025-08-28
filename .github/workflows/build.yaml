@@ -44,7 +44,7 @@ jobs:
         run: |
           go install golang.org/x/lint/golint@latest
           golint ./...
-      - name: Ensure static asset directories exist
+      - name: Ensure static asset directories and styles.css exist
         run: |
           for dir in abstracts base components layout pages themes vendors newdir; do
             mkdir -p cmd/webui-be/web/static/css/$dir
@@ -52,6 +52,10 @@ jobs:
               touch cmd/webui-be/web/static/css/$dir/.keep
             fi
           done
+          # Ensure styles.css exists
+          if [ ! -f cmd/webui-be/web/static/css/styles.css ]; then
+            touch cmd/webui-be/web/static/css/styles.css
+          fi
       - name: Run go vet (static analysis)
         run: go vet ./...
       - name: Run tests with coverage
