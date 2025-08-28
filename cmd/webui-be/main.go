@@ -28,12 +28,16 @@ func main() {
 
 	// Initialize all components
 	if err := application.Initialize(); err != nil {
-		logger.Log.Fatal().Err(err).Msg("❌ Failed to initialize application")
+		logger.Log.Error().Err(err).Msg("❌ Failed to initialize application")
+		fmt.Fprintln(os.Stderr, "❌ Failed to initialize application:", err)
+		os.Exit(1)
 	}
 
 	// Run the application
 	if err := application.Run(); err != nil {
 		logger.Log.Error().Err(err).Msg("❌ Application failed to run")
+		fmt.Fprintln(os.Stderr, "❌ Application failed to run:", err)
 		logger.Log.Error().Msgf("❌ Application exited with code: 1")
+		os.Exit(1)
 	}
 }
