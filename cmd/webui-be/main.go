@@ -11,6 +11,7 @@ import (
 var TemplateFS embed.FS
 
 func main() {
+	logger.Log.Info().Msg("Starting application...")
 	// Create and initialize application
 	application := app.New(TemplateFS)
 	defer application.Cleanup()
