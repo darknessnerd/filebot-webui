@@ -26,22 +26,16 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - name: Install Go dependencies
+        working-directory: ./cmd/webui-be
         run: go mod tidy
-      - name: Ensure static asset directory exists
-        run: mkdir -p cmd/webui-be/web/static/css
-      - name: Ensure static asset directories are not empty
-        run: |
-          for dir in cmd/webui-be/web/static/css/abstracts cmd/webui-be/web/static/css/base cmd/webui-be/web/static/css/components cmd/webui-be/web/static/css/layout cmd/webui-be/web/static/css/pages cmd/webui-be/web/static/css/themes cmd/webui-be/web/static/css/vendors; do
-            if [ -d "$dir" ] && [ -z "$(ls -A "$dir")" ]; then
-              touch "$dir/.keep"
-            fi
-          done
       - name: Build Go backend
-        run: go build -v ./cmd/webui-be/...
+        working-directory: ./cmd/webui-be
+        run: go build -v ./...
       - name: Test Go backend
-        run: go test -v ./cmd/webui-be/...
+        working-directory: ./cmd/webui-be
+        run: go test -v ./...
   push_to_Docker_Hub:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -56,9 +50,11 @@ jobs:
         with:
           go-version: '1.24'
       - name: Install Go dependencies
+        working-directory: ./cmd/webui-be
         run: go mod tidy
       - name: Build Go backend
-        run: go build -v ./cmd/webui-be/...
+        working-directory: ./cmd/webui-be
+        run: go build -v ./...
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
