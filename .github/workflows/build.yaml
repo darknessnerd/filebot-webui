@@ -21,27 +21,49 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-      # BE BUILD
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25'
+          go-version: 'stable'
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Install Go dependencies
-        run: go mod tidy
-      - name: Ensure static asset directory exists
-        run: mkdir -p cmd/webui-be/web/static/css
-      - name: Ensure static asset directories are not empty
         run: |
-          for dir in cmd/webui-be/web/static/css/abstracts cmd/webui-be/web/static/css/base cmd/webui-be/web/static/css/components cmd/webui-be/web/static/css/layout cmd/webui-be/web/static/css/pages cmd/webui-be/web/static/css/themes cmd/webui-be/web/static/css/vendors; do
-            if [ -d "$dir" ] && [ -z "$(ls -A "$dir")" ]; then
-              touch "$dir/.keep"
+          go mod tidy
+          go mod download
+      - name: Run go vet (static analysis)
+        run: go vet ./...
+      - name: Run golint (linting)
+        run: |
+          go install golang.org/x/lint/golint@latest
+          golint ./...
+      - name: Ensure static asset directories exist
+        run: |
+          for dir in abstracts base components layout pages themes vendors; do
+            mkdir -p cmd/webui-be/web/static/css/$dir
+            if [ -d "cmd/webui-be/web/static/css/$dir" ] && [ -z "$(ls -A cmd/webui-be/web/static/css/$dir)" ]; then
+              touch cmd/webui-be/web/static/css/$dir/.keep
             fi
           done
+      - name: Run tests with coverage
+        run: |
+          go test -v -coverprofile=coverage.out ./cmd/webui-be/...
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
       - name: Build Go backend
         run: go build -v ./cmd/webui-be/...
-      - name: Test Go backend
-        run: go test -v ./cmd/webui-be/...
   push_to_Docker_Hub:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
