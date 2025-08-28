@@ -18,55 +18,43 @@ jobs:
   build_test:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [22.x]
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-      - name: setup node
-        uses: actions/setup-node@master
+      # BE BUILD
+      - name: Set up Go
+        uses: actions/setup-go@v4
         with:
-          node-version: ${{ matrix.node-version }}
-      # FE BUILD
-      - name: Install dependencies
-        working-directory: ./fb-fe
-        run: |
-          npm install
-          npm ci
-      # build and test the apps
-      - name: build
-        working-directory: ./fb-fe
-        run: |
-          npm run build
-#          npm run test
+          go-version: '1.24'
+      - name: Install Go dependencies
+        working-directory: ./cmd/webui-be
+        run: go mod tidy
+      - name: Build Go backend
+        working-directory: ./cmd/webui-be
+        run: go build -v ./...
+      - name: Test Go backend
+        working-directory: ./cmd/webui-be
+        run: go test -v ./...
   push_to_Docker_Hub:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [ 22.x ]
     # build docker image and push to docker hub
     # only if the app build and test successfully
     needs: [build_test]
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
-      - name: setup node
-        uses: actions/setup-node@master
+      - name: Set up Go
+        uses: actions/setup-go@v4
         with:
-          node-version: ${{ matrix.node-version }}
-      # FE BUILD
-      - name: Install dependencies
-        working-directory: ./fb-fe
-        run: |
-          npm install
-          npm ci
-      - name: build
-        working-directory: ./fb-fe
-        run: |
-          npm run build
+          go-version: '1.24'
+      - name: Install Go dependencies
+        working-directory: ./cmd/webui-be
+        run: go mod tidy
+      - name: Build Go backend
+        working-directory: ./cmd/webui-be
+        run: go build -v ./...
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
