@@ -34,7 +34,6 @@ RUN ln -sf /opt/filebot/filebot.sh /usr/bin/filebot && \
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
-COPY .env .
 COPY cmd /app/cmd
 COPY internal ./internal
 RUN go build -o main /app/cmd/webui-be
