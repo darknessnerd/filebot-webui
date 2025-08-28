@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"os"
 
 	"webui-skeleton/internal/app"
@@ -17,7 +18,9 @@ func main() {
 	directoryPresets := os.Getenv("DIRECTORY_PRESETS")
 	logger.Log.Info().Msgf("DIRECTORY_PRESETS value: %s", directoryPresets)
 	if directoryPresets == "" {
-		logger.Log.Fatal().Msg("DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
+		logger.Log.Error().Msg("Fatal: DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
+		fmt.Fprintln(os.Stderr, "Fatal: DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
+		os.Exit(1)
 	}
 	// Create and initialize application
 	application := app.New(TemplateFS)

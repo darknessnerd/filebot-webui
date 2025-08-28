@@ -141,7 +141,7 @@ func parseFlags(config *Config) {
 	flag.Parse()
 }
 
-func loadEnvironmentVariables(config *Config) {
+func loadEnvironmentVariables(config *Config) error {
 	// Server configuration
 	if config.Server.Host == "" {
 		config.Server.Host = getEnvOrDefault("SERVER_HOST", "0.0.0.0")
@@ -186,7 +186,7 @@ func loadEnvironmentVariables(config *Config) {
 	// Directory presets
 	presetsRaw := getEnvOrDefault("DIRECTORY_PRESETS", "")
 	if presetsRaw == "" {
-		panic("DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
+		return fmt.Errorf("DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
 	}
 	presets := map[string]string{}
 	for _, entry := range strings.Split(presetsRaw, ",") {
@@ -196,6 +196,7 @@ func loadEnvironmentVariables(config *Config) {
 		}
 	}
 	config.DirectoryPresets = presets
+	return nil
 }
 
 func validateConfig(config *Config) error {

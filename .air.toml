@@ -5,9 +5,9 @@ tmp_dir = "tmp"
 [build]
   bin = "./tmp/main"
   # Customize binary, can setup environment variables when run your app.
-  full_bin = "APP_ENV=dev ./tmp/main"
+  full_bin = "APP_ENV=dev ./tmp/main --debug --log-level debug"
   # Add additional arguments when running binary (bin/full_bin). Will run './tmp/main hello world'.
-  args_bin = ["--debug", "--log-level", "debug"]
+  args_bin = []
   cmd = "go build -o ./tmp/main ./cmd/webui-be"
   delay = 500
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "data"]
