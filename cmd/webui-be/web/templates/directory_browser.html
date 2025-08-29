@@ -78,9 +78,24 @@
       };
     </script>
   </div>
-  <div class="selection-mode-group" style="margin: 1em 0;">
-    <label><input type="radio" name="selectionMode" value="files" checked onchange="setSelectionMode('files')"> Select files</label>
-    <label style="margin-left:1em;"><input type="radio" name="selectionMode" value="output" onchange="setSelectionMode('output')"> Select output directory</label>
+  <div class="selection-mode-group" style="margin: 1em 0; display: flex; align-items: center; gap: 2em;">
+    <fieldset style="border:none; padding:0; margin:0; display:flex; align-items:center; gap:2em;">
+      <legend style="font-weight:bold; margin-bottom:0.5em;">Selection Mode</legend>
+      <label title="Choose files and folders to process" style="display:flex; align-items:center; gap:0.5em;">
+        <input type="radio" name="selectionMode" value="files" checked onchange="setSelectionMode('files')">
+        <span style="display:flex; align-items:center; gap:0.3em;">
+          <strong style="font-size:1.2em;">📄</strong>
+          <span>Select files</span>
+        </span>
+      </label>
+      <label title="Choose a folder for output" style="display:flex; align-items:center; gap:0.5em;">
+        <input type="radio" name="selectionMode" value="output" onchange="setSelectionMode('output')">
+        <span style="display:flex; align-items:center; gap:0.3em;">
+          <strong style="font-size:1.2em;">📂</strong>
+          <span>Select output directory</span>
+        </span>
+      </label>
+    </fieldset>
   </div>
   <div class="directory-info">
     <span>{{len .Files}} items ({{.DirectoryCount}} directories, {{.FileCount}} files)</span>
@@ -182,18 +197,11 @@
           files: selectedFiles.join(','),
           outputDirectory: selectedOutput
         };
-        fetch('/filebot/selection', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'HX-Request': 'true'
-          },
-          body: new URLSearchParams(payload)
-        }).then(response => response.text())
-          .then(html => {
-            var widget = document.getElementById('filebot-form-widget');
-            if (widget) widget.innerHTML = html;
-          });
+        htmx.ajax('POST', '/filebot/selection', {
+          target: '#filebot-form-container',
+          swap: 'innerHTML',
+          values: payload
+        });
       }
       // Reset selections if directory changes
       document.addEventListener('htmx:afterSwap', function(e) {

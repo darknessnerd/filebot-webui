@@ -326,9 +326,15 @@ func (h *Handlers) FileBotExecute(c *gin.Context) {
 		"Recursive":          recursive,
 	}
 
+	logger.Log.Debug().Str("FileBotExecute", "called").Msg("FileBotExecute handler invoked")
+	logger.Log.Debug().Strs("filesList", filesList).Str("outputDirectory", outputDirectory).Msg("FileBotExecute: files and output directory")
+	logger.Log.Debug().Str("db", db).Str("format", format).Str("action", action).Str("filter", filter).Str("conflictResolution", conflictResolution).Str("logLevel", logLevel).Str("query", query).Bool("recursive", recursive).Msg("FileBotExecute: form values")
+	isHTMX := c.GetHeader("HX-Request") != ""
+	logger.Log.Debug().Bool("isHTMX", isHTMX).Msg("FileBotExecute: HTMX request detected")
+
 	if len(errorMessages) == 0 {
 		for i, file := range filesList {
-			progress = append(progress, "Processing file "+file+" ("+string(i+1)+"/"+string(total)+")...")
+			logger.Log.Debug().Str("file", file).Int("index", i).Int("total", total).Msg("FileBotExecute: processing file")
 			args := []string{"-rename", file, "--db", db, "--action", action, "--conflict", conflictResolution, "--log", logLevel, "--output", outputDirectory, "-non-strict"}
 			if format != "" {
 				args = append(args, "--format", format)
@@ -342,9 +348,10 @@ func (h *Handlers) FileBotExecute(c *gin.Context) {
 			if recursive {
 				args = append(args, "-r")
 			}
-
+			logger.Log.Debug().Strs("args", args).Msg("FileBotExecute: command args")
 			cmd := exec.Command("filebot", args...)
 			output, err := cmd.CombinedOutput()
+			logger.Log.Debug().Str("output", string(output)).Err(err).Msg("FileBotExecute: command output and error")
 			processed++
 			if err != nil {
 				errorMessages = append(errorMessages, "Error processing file '"+file+"': "+err.Error()+" Output: "+string(output))
