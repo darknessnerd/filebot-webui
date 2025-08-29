@@ -87,7 +87,7 @@
       </div>
     </div>
     <button type="submit">Execute FileBot</button>
-    <div id="filebot-form-status">
+    <div id="filebot-form-status" class="scrollable-status">
       {{if .Error}}
         <div class="error" style="color: red;">{{.Error}}</div>
       {{end}}
