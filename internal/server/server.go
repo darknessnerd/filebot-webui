@@ -122,9 +122,9 @@ func (s *Server) CreateHTTPServer() {
 	s.httpServer = &http.Server{
 		Addr:         addr,
 		Handler:      s.engine,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  60 * time.Minute,
+		WriteTimeout: 60 * time.Minute,
+		IdleTimeout:  60 * time.Minute,
 	}
 
 	logger.Log.Info().
