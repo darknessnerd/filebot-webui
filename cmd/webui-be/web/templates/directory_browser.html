@@ -52,17 +52,22 @@
     <script>
       function resetPresetPath() {
         var preset = document.getElementById('preset-select').value;
+        console.log('[resetPresetPath] preset:', preset);
         // Get the root path for the selected preset from a JS object (must be rendered server-side)
         var presetRoots = window.presetRoots || {};
         var rootPath = presetRoots[preset] || '';
+        console.log('[resetPresetPath] rootPath:', rootPath);
         // Get selected files and output directory from JS state
         var files = (window.selectedFiles || []).join(',');
         var outputDirectory = window.selectedOutput || '';
+        console.log('[resetPresetPath] files:', files);
+        console.log('[resetPresetPath] outputDirectory:', outputDirectory);
         var params = new URLSearchParams({preset: preset});
         // Set current path to the root of the selected preset
         if (rootPath) params.set('path', rootPath);
         if (files) params.set('files', files);
         if (outputDirectory) params.set('outputDirectory', outputDirectory);
+        console.log('[resetPresetPath] params:', params.toString());
         htmx.ajax('GET', '/directory-browser?' + params.toString(), {target: '#directory-browser', swap: 'outerHTML'});
       }
       // Render presetRoots JS object from server-side data
@@ -123,9 +128,12 @@
     <form style="margin-top:1em;">
     </form>
     <script>
+      // Use window-scoped variables to persist selection across swaps
+      window.selectedFiles = window.selectedFiles || [];
+      window.selectedOutput = window.selectedOutput || '';
       var selectionMode = 'files';
-      var selectedFiles = [];
-      var selectedOutput = '';
+      var selectedFiles = window.selectedFiles;
+      var selectedOutput = window.selectedOutput;
       function setSelectionMode(mode) {
         selectionMode = mode;
         // Keep selected files when switching modes
@@ -152,6 +160,7 @@
           checkboxes.forEach(function(cb) {
             selectedFiles.push(cb.value);
           });
+          window.selectedFiles = selectedFiles;
         } else if (selectionMode === 'output') {
           checkboxes.forEach(function(cb) {
             if (cb !== checkbox) cb.checked = false;
@@ -167,6 +176,7 @@
             return;
           }
           selectedOutput = checkbox.value;
+          window.selectedOutput = selectedOutput;
         }
         var payload = {
           files: selectedFiles.join(','),
@@ -187,9 +197,21 @@
       }
       // Reset selections if directory changes
       document.addEventListener('htmx:afterSwap', function(e) {
+        console.log('[htmx:afterSwap] event fired:', e);
         if (e.target && e.target.id === 'directory-browser-widget') {
-          selectedFiles = [];
-          selectedOutput = '';
+          console.log('[htmx:afterSwap] Resetting selectedFiles and selectedOutput');
+          window.selectedFiles = [];
+          window.selectedOutput = '';
+          selectedFiles = window.selectedFiles;
+          selectedOutput = window.selectedOutput;
+        } else if (e.target && e.target.id === 'directory-browser') {
+          // Debug: log current path and selection state
+          var currentPath = document.getElementById('directory-browser').getAttribute('data-current-path');
+          selectedFiles = window.selectedFiles;
+          selectedOutput = window.selectedOutput;
+          console.log('[htmx:afterSwap] directory-browser swap, currentPath:', currentPath);
+          console.log('[htmx:afterSwap] selectedFiles:', selectedFiles);
+          console.log('[htmx:afterSwap] selectedOutput:', selectedOutput);
         }
       });
     </script>

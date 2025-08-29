@@ -139,7 +139,11 @@ func (h *Handlers) DirectoryBrowser(c *gin.Context) {
 	}
 
 	currentPath := c.Query("path")
-	if currentPath == "" || currentPath != rootPath {
+	if currentPath == "" {
+		// Initial load: show files of rootPath
+		currentPath = rootPath
+	}
+	if currentPath != rootPath {
 		// If preset changed, reset currentPath to rootPath
 		presetParam := c.Query("preset")
 		if presetParam != "" && presetParam != selectedPreset {
