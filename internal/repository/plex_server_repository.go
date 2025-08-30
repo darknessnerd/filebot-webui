@@ -254,3 +254,12 @@ func (r *PlexServerRepository) GetServersByUser(userID int) ([]models.PlexServer
 	}
 	return servers, nil
 }
+
+type PlexServerRepositoryInterface interface {
+	GetPreferredPlexServer(userID int) (*models.PlexServer, error)
+	SetPreferredPlexServer(userID int, serverID int) error
+	BatchUpsertAndFetchServers(user *models.User, servers []models.PlexServer) ([]models.PlexServer, error)
+	GetServersByUser(userID int) ([]models.PlexServer, error)
+}
+
+// PlexServerRepository already implements GetPreferredPlexServer

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"webui-skeleton/internal/auth"
 	"webui-skeleton/internal/config"
@@ -365,7 +366,7 @@ func (h *Handlers) FileBotExecute(c *gin.Context) {
 
 	status := ""
 	if processed > 0 {
-		status = "Processed " + string(processed) + " of " + string(total) + " files."
+		status = "Processed " + strconv.Itoa(processed) + " of " + strconv.Itoa(total) + " files."
 	}
 
 	data := gin.H{

@@ -20,11 +20,11 @@ type PlexHandler struct {
 	config  *config.Config
 	db      *database.DB
 	authSvc *auth.Service
-	repo    *repository.PlexServerRepository
+	repo    repository.PlexServerRepositoryInterface
 }
 
 // NewPlexHandler creates a new Plex handler
-func NewPlexHandler(config *config.Config, db *database.DB, authSvc *auth.Service, repo *repository.PlexServerRepository) *PlexHandler {
+func NewPlexHandler(config *config.Config, db *database.DB, authSvc *auth.Service, repo repository.PlexServerRepositoryInterface) *PlexHandler {
 	return &PlexHandler{
 		config:  config,
 		db:      db,
@@ -221,7 +221,7 @@ func (h *PlexHandler) RenderPlexServersHTMX(c *gin.Context) {
 	var preferredServerID = -1
 	if err == nil && preferredServer != nil {
 		preferredServerID = preferredServer.ID
-		logger.Log.Debug().Msgf("[HTMX][RenderPlexServersHTMX] Preferred server for user %s: %s", user.PlexUsername, preferredServerID)
+		logger.Log.Debug().Msgf("[HTMX][RenderPlexServersHTMX] Preferred server for user %s: %d", user.PlexUsername, preferredServerID)
 	} else if err != nil {
 		logger.Log.Error().Msgf("[HTMX][RenderPlexServersHTMX] Failed to get preferred server for user %s: %v", user.PlexUsername, err)
 	}
@@ -362,28 +362,85 @@ func (h *PlexHandler) getWorkingURLServer(user *models.User, clientIP string) (s
 	logger.Log.Trace().Msgf("[getWorkingURLServer] preferredServer: %+v\n", preferredServer)
 	logger.Log.Trace().Msgf("[getWorkingURLServer] preferredServer.Connections: %+v\n", preferredServer.Connections)
 
+	logger.Log.Debug().Msgf("[getWorkingURLServer] clientIP: %s", clientIP)
+	for _, conn := range preferredServer.Connections {
+		logger.Log.Debug().Msgf("[getWorkingURLServer] Checking connection URI: %s, Local: %v", conn.URI, conn.Local)
+	}
+
 	isSameNetwork := func(clientIP, connURI string) bool {
-		// Extract host from connURI
-		// Example: http://192.168.1.10:32400
 		uri := strings.TrimPrefix(connURI, "http://")
 		uri = strings.TrimPrefix(uri, "https://")
 		parts := strings.Split(uri, ":")
 		host := parts[0]
-		// Compare first 2 or 3 octets for local network (e.g., 192.168.1.x)
+
+		logger.Log.Debug().Msgf("[getWorkingURLServer] Comparing clientIP: %s with host: %s", clientIP, host)
+
+		// Handle IPv6 localhost
+		if clientIP == "::1" && (host == "127.0.0.1" || host == "localhost" || host == "::1") {
+			logger.Log.Debug().Msg("[getWorkingURLServer] Matched IPv6 localhost")
+			return true
+		}
+		// Handle IPv4 localhost
+		if clientIP == "127.0.0.1" && (host == "127.0.0.1" || host == "localhost" || host == "::1") {
+			logger.Log.Debug().Msg("[getWorkingURLServer] Matched IPv4 localhost")
+			return true
+		}
+		// Handle LAN IPs
+		isLAN := func(ip string) bool {
+			return strings.HasPrefix(ip, "192.168.") || strings.HasPrefix(ip, "10.") ||
+				(strings.HasPrefix(ip, "172.") && func() bool {
+					parts := strings.Split(ip, ".")
+					if len(parts) < 2 {
+						return false
+					}
+					sec, _ := strconv.Atoi(parts[1])
+					return sec >= 16 && sec <= 31
+				}())
+		}
+		if isLAN(clientIP) && isLAN(host) {
+			logger.Log.Debug().Msg("[getWorkingURLServer] Matched LAN IPs")
+			return true
+		}
+		// Fallback: compare first 2 octets for legacy behavior
 		clientParts := strings.Split(clientIP, ".")
 		hostParts := strings.Split(host, ".")
 		if len(clientParts) >= 2 && len(hostParts) >= 2 && clientParts[0] == hostParts[0] && clientParts[1] == hostParts[1] {
+			logger.Log.Debug().Msg("[getWorkingURLServer] Matched first 2 octets")
 			return true
 		}
+		logger.Log.Debug().Msg("[getWorkingURLServer] No network match")
 		return false
 	}
 
-	var localConn, externalConn string
+	var localConn, lanConn, externalConn string
 	for _, conn := range preferredServer.Connections {
 		if isSameNetwork(clientIP, conn.URI) {
+			logger.Log.Debug().Msgf("[getWorkingURLServer] Found local connection: %s", conn.URI)
 			localConn = conn.URI
 			break // Prefer first matching local connection
-		} else if !conn.Local && externalConn == "" {
+		}
+		// Prefer LAN connection if client is localhost and connection is LAN
+		uri := strings.TrimPrefix(conn.URI, "http://")
+		uri = strings.TrimPrefix(uri, "https://")
+		parts := strings.Split(uri, ":")
+		host := parts[0]
+		isLAN := func(ip string) bool {
+			return strings.HasPrefix(ip, "192.168.") || strings.HasPrefix(ip, "10.") ||
+				(strings.HasPrefix(ip, "172.") && func() bool {
+					parts := strings.Split(ip, ".")
+					if len(parts) < 2 {
+						return false
+					}
+					sec, _ := strconv.Atoi(parts[1])
+					return sec >= 16 && sec <= 31
+				}())
+		}
+		if (clientIP == "127.0.0.1" || clientIP == "::1") && isLAN(host) && lanConn == "" {
+			logger.Log.Debug().Msgf("[getWorkingURLServer] Found LAN connection candidate for localhost client: %s", conn.URI)
+			lanConn = conn.URI
+		}
+		if !conn.Local && externalConn == "" {
+			logger.Log.Debug().Msgf("[getWorkingURLServer] Found external connection candidate: %s", conn.URI)
 			externalConn = conn.URI // First external connection
 		}
 	}
@@ -391,6 +448,10 @@ func (h *PlexHandler) getWorkingURLServer(user *models.User, clientIP string) (s
 	if localConn != "" {
 		logger.Log.Debug().Msgf("[getWorkingURLServer] Selected local connection: %s", localConn)
 		return localConn, nil
+	}
+	if lanConn != "" {
+		logger.Log.Debug().Msgf("[getWorkingURLServer] Selected LAN connection for localhost client: %s", lanConn)
+		return lanConn, nil
 	}
 	if externalConn != "" {
 		logger.Log.Debug().Msgf("[getWorkingURLServer] Selected external connection: %s", externalConn)
