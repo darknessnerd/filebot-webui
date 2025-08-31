@@ -98,6 +98,17 @@
   padding: var(--spacing-sm);
   max-height: 50vh;
   overflow-y: auto;
+  transition: max-height 0.3s ease;
+}
+
+/* When Plex widgets are collapsed, expand FileBot container */
+.plex-collapsed .filebot-expanded {
+  flex: 1;
+  transition: flex 0.3s ease;
+}
+
+.plex-collapsed .filebot-expanded .filebot-content {
+  max-height: calc(100vh - 200px);
 }
 
 .filebot-form-mini {
@@ -181,6 +192,11 @@
     max-height: 40vh;
   }
 
+  /* When Plex widgets are collapsed on tablet */
+  .plex-collapsed .filebot-expanded .filebot-content {
+    max-height: 45vh;
+  }
+
   .plex-widgets-row {
     flex-direction: column;
   }
@@ -226,6 +242,15 @@
   .filebot-content {
     max-height: 40vh;
     overflow-y: auto;
+  }
+
+  /* When Plex widgets are collapsed on mobile */
+  .plex-collapsed .filebot-expanded {
+    flex: 1 1 auto;
+  }
+
+  .plex-collapsed .filebot-expanded .filebot-content {
+    max-height: 70vh;
   }
 
   .plex-widgets-container {

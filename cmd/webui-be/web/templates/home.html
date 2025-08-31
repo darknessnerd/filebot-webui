@@ -11,8 +11,8 @@
             <span>Loading file browser...</span>
         </div>
     </div>
-    <div class="filebot-sidebar">
-        <div x-data="{ open: true }" class="filebot-container">
+    <div x-data="{ plexOpen: true }" class="filebot-sidebar" :class="{ 'plex-collapsed': !plexOpen }">
+        <div x-data="{ open: true }" class="filebot-container" :class="{ 'filebot-expanded': !plexOpen }">
             <h3 @click="open = !open" class="filebot-header">
                 <span>FileBot Execute</span>
                 <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
@@ -30,7 +30,9 @@
             </div>
         </div>
 
-        <div x-data="{ open: true }" class="plex-widgets-container">
+        <div x-data="{ open: true }" 
+             x-init="$watch('open', value => { plexOpen = value })" 
+             class="plex-widgets-container">
             <h3 @click="open = !open" class="plex-widgets-header">
                 <span>Plex Widgets</span>
                 <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
