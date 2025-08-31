@@ -22,6 +22,7 @@ type Handlers struct {
 	Auth        *AuthHandler
 	API         *APIHandler
 	Plex        *PlexHandler
+	Deluge      *DelugeHandler
 	Health      *HealthHandler
 	config      *config.Config
 	db          *database.DB
@@ -33,6 +34,7 @@ func NewHandlers(config *config.Config, db *database.DB, authService *auth.Servi
 	return &Handlers{
 		Home:        NewHomeHandler(config, db, authService),
 		Plex:        NewPlexHandler(config, db, authService, repository.NewPlexServerRepository(db.DB)),
+		Deluge:      NewDelugeHandler(config, db, authService, repository.NewDelugeServerRepository(db.DB)),
 		Auth:        NewAuthHandler(config, db, authService),
 		API:         NewAPIHandler(config, db, authService),
 		Health:      NewHealthHandler(config),

@@ -241,6 +241,61 @@ func (db *DB) Migrate() error {
 		return fmt.Errorf("failed to create plex_server_connections table: %w", err)
 	}
 
+	// Create deluge_servers table
+	delugeServersSQL := `
+		CREATE TABLE IF NOT EXISTS deluge_servers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			name VARCHAR(255),
+			host VARCHAR(255),
+			port INTEGER,
+			username VARCHAR(255),
+			password VARCHAR(255),
+			protocol VARCHAR(50),
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			preferred BOOLEAN,
+			uri VARCHAR(255),
+			api_version VARCHAR(50),
+			client_id VARCHAR(255),
+			session_id VARCHAR(255),
+			connected BOOLEAN,
+			last_error TEXT,
+			last_error_at DATETIME,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+			UNIQUE(user_id, name)
+		)`
+
+	if db.config.Type == config.PostgreSQL {
+		delugeServersSQL = `
+			CREATE TABLE IF NOT EXISTS deluge_servers (
+				id SERIAL PRIMARY KEY,
+				user_id INTEGER NOT NULL,
+				name VARCHAR(255),
+				host VARCHAR(255),
+				port INTEGER,
+				username VARCHAR(255),
+				password VARCHAR(255),
+				protocol VARCHAR(50),
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				preferred BOOLEAN,
+				uri VARCHAR(255),
+				api_version VARCHAR(50),
+				client_id VARCHAR(255),
+				session_id VARCHAR(255),
+				connected BOOLEAN,
+				last_error TEXT,
+				last_error_at TIMESTAMP,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+				UNIQUE(user_id, name)
+			)`
+	}
+
+	if _, err := db.DB.Exec(delugeServersSQL); err != nil {
+		return fmt.Errorf("failed to create deluge_servers table: %w", err)
+	}
+
 	logger.Log.Info().Msg("✅ Database migrations completed")
 	return nil
 }

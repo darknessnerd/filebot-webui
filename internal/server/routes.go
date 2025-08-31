@@ -70,6 +70,24 @@ func (s *Server) setupWebRoutes() {
 		webGroup.GET("/plex/servers/htmx", s.handlers.Plex.RenderPlexServersHTMX)
 		webGroup.POST("/plex/set-preferred-server", s.handlers.Plex.SetPreferredPlexServer)
 		webGroup.GET("/plex/configure", s.handlers.Plex.RenderPlexConfigurePage)
+
+		// Deluge routes
+		webGroup.GET("/deluge", s.handlers.Deluge.RenderDelugeHomePage)
+		webGroup.GET("/deluge/configure", s.handlers.Deluge.RenderDelugeConfigurePage)
+		webGroup.GET("/deluge/servers/htmx", s.handlers.Deluge.RenderDelugeServersHTMX)
+		webGroup.GET("/deluge/torrents/htmx", s.handlers.Deluge.GetTorrentsHTMX)
+		webGroup.GET("/deluge/server-status/htmx", s.handlers.Deluge.GetServerStatusHTMX)
+		webGroup.POST("/deluge/add-server", s.handlers.Deluge.AddDelugeServer)
+		webGroup.POST("/deluge/set-preferred-server", s.handlers.Deluge.SetPreferredDelugeServer)
+		webGroup.POST("/deluge/delete-server", s.handlers.Deluge.DeleteDelugeServer)
+		webGroup.POST("/deluge/test-connection", s.handlers.Deluge.TestDelugeConnection)
+		webGroup.POST("/deluge/add-torrent", s.handlers.Deluge.AddTorrent)
+		webGroup.POST("/deluge/pause-torrent", s.handlers.Deluge.PauseTorrent)
+		webGroup.POST("/deluge/resume-torrent", s.handlers.Deluge.ResumeTorrent)
+		webGroup.POST("/deluge/remove-torrent", s.handlers.Deluge.RemoveTorrent)
+		webGroup.POST("/deluge/pause-all", s.handlers.Deluge.PauseAllTorrents)
+		webGroup.POST("/deluge/resume-all", s.handlers.Deluge.ResumeAllTorrents)
+
 		webGroup.GET("/filebot/form", s.handlers.FileBotForm)
 		webGroup.POST("/filebot/selection", s.handlers.FileBotSelection)
 		webGroup.POST("/filebot/execute", s.handlers.FileBotExecute) // Added route for FileBotExecute

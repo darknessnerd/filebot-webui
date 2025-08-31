@@ -97,6 +97,33 @@ func (s *Server) setupTemplates() {
 		"add":               func(a, b int) int { return a + b },
 		"splitPath":         func(p string) []string { return strings.Split(p, "/") },
 		"joinPath":          func(parts []string) string { return strings.Join(parts, "/") },
+		"formatBytes":       func(bytes int64) string {
+			const unit = 1024
+			if bytes < unit {
+				return fmt.Sprintf("%d B", bytes)
+			}
+			div, exp := int64(unit), 0
+			for n := bytes / unit; n >= unit; n /= unit {
+				div *= unit
+				exp++
+			}
+			return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+		},
+		"formatETA": func(eta int64) string {
+			if eta < 0 {
+				return "∞"
+			}
+			hours := eta / 3600
+			minutes := (eta % 3600) / 60
+			seconds := eta % 60
+			if hours > 0 {
+				return fmt.Sprintf("%dh %dm", hours, minutes)
+			} else if minutes > 0 {
+				return fmt.Sprintf("%dm %ds", minutes, seconds)
+			} else {
+				return fmt.Sprintf("%ds", seconds)
+			}
+		},
 	}
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(s.templateFS,
@@ -108,6 +135,11 @@ func (s *Server) setupTemplates() {
 		"web/templates/plex/plex_servers.html",
 		"web/templates/plex/plex_recently_added.html",
 		"web/templates/plex/plex_configure.html",
+		"web/templates/deluge/deluge_configure.html",
+		"web/templates/deluge/deluge_servers.html",
+		"web/templates/deluge/deluge_home.html",
+		"web/templates/deluge/deluge_torrents.html",
+		"web/templates/deluge/deluge_server_status.html",
 		"web/templates/directory_browser.html",
 		"web/templates/filebot_form.html",
 	))
