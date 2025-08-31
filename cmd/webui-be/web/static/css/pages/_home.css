@@ -19,7 +19,7 @@
   overflow-y: auto;
 }
 .home-main {
-  flex: 3;
+  flex: 1 1 50%;
   display: flex;
   flex-direction: row;
   height: 100%;
@@ -43,16 +43,117 @@
   overflow-y: auto;
 }
 
-.recently-added-mini, #plex-libraries-widget, .filebot-form-mini {
+.recently-added-mini, #plex-libraries-widget {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  box-shadow: none;
+  margin-bottom: var(--spacing-md);
+  padding: 0.75em;
+  border: 1px solid var(--border-color);
+  min-width: 0;
+  width: 100%;
+  overflow-y: auto;
+  opacity: 0.85;
+  transition: opacity 0.3s ease;
+}
+
+.recently-added-mini:hover, #plex-libraries-widget:hover {
+  opacity: 1;
+}
+
+.filebot-sidebar {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+}
+
+.filebot-container {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+.filebot-header {
+  color: var(--text-muted);
+  margin: 0;
+  padding: 0.5em 0.75em;
+  font-size: 0.9em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-bottom: 1px solid var(--border-color);
+  opacity: 0.9;
+}
+
+.filebot-content {
+  padding: var(--spacing-sm);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.filebot-form-mini {
+  background: var(--bg-secondary);
+  border-radius: 8px;
   box-shadow: var(--shadow);
-  margin-bottom: var(--spacing-lg);
   padding: 1em;
   border: 1px solid var(--accent-primary);
   min-width: 0;
   width: 100%;
   overflow-y: auto;
+  max-height: 100%;
+}
+
+.plex-widgets-container {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+.plex-widgets-header {
+  color: var(--text-muted);
+  margin: 0;
+  padding: 0.5em 0.75em;
+  font-size: 0.9em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  opacity: 0.9;
+}
+
+.collapse-icon {
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+.plex-widgets-row {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm);
+  overflow-x: auto;
+}
+
+.plex-widgets-row .recently-added-mini,
+.plex-widgets-row #plex-libraries-widget {
+  flex: 1;
+  min-width: 200px;
+  margin-bottom: 0;
+  max-height: 300px;
 }
 
 /* Tablet responsiveness */
@@ -63,23 +164,32 @@
   }
 
   .home-main {
+    flex: 1 1 100%;
     flex-direction: column;
     height: auto;
     max-height: calc(100vh - var(--header-height) - var(--footer-height) - 3rem);
     overflow-y: auto;
   }
 
-  .main-widgets {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    max-height: 20vh;
+  .filebot-sidebar {
+    flex: 1 1 100%;
+    max-height: 50vh;
     overflow-y: auto;
   }
 
-  .recently-added-mini, #plex-libraries-widget {
-    flex: 1 1 calc(50% - var(--spacing-md));
-    min-width: 200px;
+  .filebot-content {
+    max-height: 40vh;
+  }
+
+  .plex-widgets-row {
+    flex-direction: column;
+  }
+
+  .plex-widgets-row .recently-added-mini,
+  .plex-widgets-row #plex-libraries-widget {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
   }
 }
 
@@ -92,6 +202,7 @@
   }
 
   .home-main {
+    flex: 1 1 100%;
     min-width: 0;
     width: 100%;
     height: auto;
@@ -99,18 +210,40 @@
     overflow-y: visible;
   }
 
-  .main-widgets {
+  .filebot-sidebar {
+    flex: 1 1 100%;
+    width: 100%;
+    max-height: none;
+    padding: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--spacing-md);
+  }
+
+  .filebot-container {
+    width: 100%;
+  }
+
+  .filebot-content {
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+
+  .plex-widgets-container {
+    width: 100%;
+  }
+
+  .plex-widgets-row {
     flex-direction: column;
     max-height: 60vh;
     overflow-y: auto;
-    padding: var(--spacing-sm);
-    border: 1px solid var(--accent-primary);
-    border-radius: var(--border-radius-md);
-    margin-bottom: var(--spacing-md);
   }
 
-  .recently-added-mini, #plex-libraries-widget {
-    flex: 1 1 100%;
+  .plex-widgets-row .recently-added-mini,
+  .plex-widgets-row #plex-libraries-widget {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .side-widgets {
@@ -124,9 +257,9 @@
     background: none;
   }
 
-  .recently-added-mini, #plex-libraries-widget, .filebot-form-mini {
+  .filebot-form-mini {
     min-width: 0;
     max-width: 100%;
-    margin-bottom: var(--spacing-md);
+    margin-bottom: 0;
   }
 }

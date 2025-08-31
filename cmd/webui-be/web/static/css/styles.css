@@ -300,11 +300,48 @@ body.fullpage-app {
 }
 
 .recently-added-mini, #plex-libraries-widget {
-    background: #23272f;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    padding: 1rem;
-    min-height: 120px;
+    background: var(--bg-primary);
+    border-radius: 8px;
+    box-shadow: none;
+    padding: 0.75rem;
+    min-height: 100px;
+    opacity: 0.85;
+    transition: opacity 0.3s ease;
+}
+
+.recently-added-mini:hover, #plex-libraries-widget:hover {
+    opacity: 1;
+}
+
+.plex-libraries-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.plex-libraries-list li {
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.plex-libraries-list li strong {
+    font-weight: normal;
+    color: var(--text-muted);
+}
+
+.plex-libraries-list .btn {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.plex-libraries-list .btn:hover {
+    opacity: 1;
 }
 
 @media (max-width: 900px) {

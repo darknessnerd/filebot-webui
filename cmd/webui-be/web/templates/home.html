@@ -10,35 +10,50 @@
              aria-label="Directory Browser">
             <span>Loading file browser...</span>
         </div>
-        <div class="main-widgets">
-            <div id="plex-recently-added-widget"
-                 class="recently-added-mini"
-                 hx-get="/plex/recently-added/htmx"
-                 hx-trigger="load"
-                 hx-target="#plex-recently-added-widget"
-                 hx-swap="innerHTML"
-                 aria-label="Recently Added to Plex">
-                <span>Loading recently added...</span>
-            </div>
-            <div id="plex-libraries-widget"
-                 hx-get="/plex/libraries/htmx"
-                 hx-trigger="load"
-                 hx-target="#plex-libraries-widget"
-                 hx-swap="innerHTML"
-                 aria-label="Plex Libraries">
-                <span>Loading libraries...</span>
-            </div>
-        </div>
     </div>
     <div class="filebot-sidebar">
-        <div id="filebot-form-widget"
-             class="filebot-form-mini"
-             hx-get="/filebot/form"
-             hx-trigger="load"
-             hx-target="#filebot-form-widget"
-             hx-swap="innerHTML"
-             aria-label="FileBot Form">
-            <span>Loading FileBot form...</span>
+        <div x-data="{ open: true }" class="filebot-container">
+            <h3 @click="open = !open" class="filebot-header">
+                <span>FileBot Execute</span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+            </h3>
+            <div x-show="open" class="filebot-content">
+                <div id="filebot-form-widget"
+                     class="filebot-form-mini"
+                     hx-get="/filebot/form"
+                     hx-trigger="load"
+                     hx-target="#filebot-form-widget"
+                     hx-swap="innerHTML"
+                     aria-label="FileBot Form">
+                    <span>Loading FileBot form...</span>
+                </div>
+            </div>
+        </div>
+
+        <div x-data="{ open: true }" class="plex-widgets-container">
+            <h3 @click="open = !open" class="plex-widgets-header">
+                <span>Plex Widgets</span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+            </h3>
+            <div x-show="open" class="plex-widgets-row">
+                <div id="plex-recently-added-widget"
+                     class="recently-added-mini"
+                     hx-get="/plex/recently-added/htmx"
+                     hx-trigger="load"
+                     hx-target="#plex-recently-added-widget"
+                     hx-swap="innerHTML"
+                     aria-label="Recently Added to Plex">
+                    <span>Loading recently added...</span>
+                </div>
+                <div id="plex-libraries-widget"
+                     hx-get="/plex/libraries/htmx"
+                     hx-trigger="load"
+                     hx-target="#plex-libraries-widget"
+                     hx-swap="innerHTML"
+                     aria-label="Plex Libraries">
+                    <span>Loading libraries...</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
