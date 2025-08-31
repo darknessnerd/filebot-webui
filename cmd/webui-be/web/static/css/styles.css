@@ -103,10 +103,37 @@ body {
   gap: var(--spacing-lg);
   background: var(--bg-primary);
   box-shadow: var(--shadow-sm);
-  padding: var(--spacing-md) 0 0;
+  padding: var(--spacing-md) var(--spacing-sm) 0;
   border-radius: var(--border-radius-md);
   height: 98%;
   overflow: hidden;
+}
+
+/* Tablet responsiveness for main content */
+@media (max-width: 1024px) {
+  .main-content {
+    padding: 0 var(--spacing-sm);
+  }
+
+  .main-content-children {
+    padding: var(--spacing-sm);
+    height: auto;
+    min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
+  }
+}
+
+/* Mobile responsiveness for main content */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 0;
+    margin-top: var(--header-height);
+  }
+
+  .main-content-children {
+    padding: var(--spacing-xs);
+    border-radius: 0;
+    gap: var(--spacing-sm);
+  }
 }
 
 /* Debug styles for dropdown visibility */
@@ -242,6 +269,28 @@ body.fullpage-app {
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     padding: 1rem;
     min-height: 320px;
+    overflow-y: auto;
+}
+
+/* Tablet responsiveness for directory browser */
+@media (max-width: 1024px) {
+    .main-browser {
+        max-height: 60vh;
+        overflow-y: auto;
+        border: 1px solid var(--accent-primary);
+    }
+}
+
+/* Mobile responsiveness for directory browser */
+@media (max-width: 768px) {
+    .main-browser {
+        max-height: 50vh;
+        overflow-y: auto;
+        border: 1px solid var(--accent-primary);
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+    }
 }
 
 .side-widgets {

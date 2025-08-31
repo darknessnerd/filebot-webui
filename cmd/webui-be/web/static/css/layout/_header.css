@@ -187,6 +187,28 @@
     display: none !important;
 }
 
+/* Tablet responsiveness */
+@media (max-width: 1024px) {
+    .header-flex {
+        padding: 0 1rem;
+    }
+    .logo {
+        font-size: 1.7rem;
+        margin-right: var(--spacing-md);
+    }
+    .header-title {
+        font-size: 1.1rem;
+        margin: 0 1rem;
+    }
+    .header-nav .nav-links {
+        gap: 1rem;
+    }
+    .user-name {
+        font-size: 1rem;
+    }
+}
+
+/* Mobile responsiveness */
 @media (max-width: 768px) {
     .header-flex {
         padding: 0 0.5rem;
@@ -206,5 +228,8 @@
         min-width: 140px;
         font-size: 0.92rem;
         padding: 4px 0;
+    }
+    .user-name {
+        display: none;
     }
 }

@@ -4,23 +4,24 @@
   flex-direction: row;
   gap: var(--spacing-lg);
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
   align-items: flex-start;
   justify-content: stretch;
+  overflow: hidden;
 }
 .main-widgets {
   display: flex;
-  flex-direction: row;
-  gap: var(--spacing-xs);
+  flex-direction: column;
+  gap: var(--spacing-md);
   padding: var(--spacing-xs);
   height: 100%;
-  flex-basis: 20%;
+  flex: 1;
   overflow-y: auto;
 }
 .home-main {
-  flex: 1 1 0;
+  flex: 3;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100%;
   min-width: 0;
   overflow: hidden;
@@ -32,12 +33,12 @@
   flex-direction: column;
   gap: var(--spacing-lg);
   align-items: stretch;
-  height: 100vh;
+  height: 100%;
   position: sticky;
   top: 0;
   background: var(--bg-secondary);
   border-left: 1px solid var(--accent-primary);
-  padding: var(--spacing-md) var(--spacing-md);
+  padding: var(--spacing-md);
   z-index: 2;
   overflow-y: auto;
 }
@@ -49,23 +50,69 @@
   margin-bottom: var(--spacing-lg);
   padding: 1em;
   border: 1px solid var(--accent-primary);
-  min-width: 220px;
-  max-width: 320px;
+  min-width: 0;
+  width: 100%;
   overflow-y: auto;
 }
 
+/* Tablet responsiveness */
+@media (max-width: 1024px) {
+  .home-flex {
+    height: auto;
+    min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
+  }
+
+  .home-main {
+    flex-direction: column;
+    height: auto;
+    max-height: calc(100vh - var(--header-height) - var(--footer-height) - 3rem);
+    overflow-y: auto;
+  }
+
+  .main-widgets {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    max-height: 20vh;
+    overflow-y: auto;
+  }
+
+  .recently-added-mini, #plex-libraries-widget {
+    flex: 1 1 calc(50% - var(--spacing-md));
+    min-width: 200px;
+  }
+}
+
 /* Mobile responsiveness */
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .home-flex {
     flex-direction: column;
     gap: var(--spacing-md);
     height: auto;
   }
+
   .home-main {
     min-width: 0;
     width: 100%;
     height: auto;
+    max-height: none;
+    overflow-y: visible;
   }
+
+  .main-widgets {
+    flex-direction: column;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--border-radius-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .recently-added-mini, #plex-libraries-widget {
+    flex: 1 1 100%;
+  }
+
   .side-widgets {
     min-width: 0;
     max-width: 100%;
@@ -76,6 +123,7 @@
     padding: 0;
     background: none;
   }
+
   .recently-added-mini, #plex-libraries-widget, .filebot-form-mini {
     min-width: 0;
     max-width: 100%;
