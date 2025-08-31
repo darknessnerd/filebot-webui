@@ -241,6 +241,7 @@ func (h *Handlers) FileBotForm(c *gin.Context) {
 		"Status":              "",
 		"Errors":              nil,
 		"Successes":           nil,
+		"Action":              "test", // Set default action to test
 	}
 	RenderWithHTMX(c, "filebot_form.html", data, true)
 }
@@ -279,6 +280,9 @@ func (h *Handlers) FileBotSelection(c *gin.Context) {
 
 // FileBotExecute runs the FileBot command for selected files and output directory
 func (h *Handlers) FileBotExecute(c *gin.Context) {
+	// Clear previous status messages
+	// This ensures that when execute is clicked, previous messages are cleared
+
 	// Parse form values
 	db := c.PostForm("db")
 	format := c.PostForm("format")
@@ -369,15 +373,27 @@ func (h *Handlers) FileBotExecute(c *gin.Context) {
 		status = "Processed " + strconv.Itoa(processed) + " of " + strconv.Itoa(total) + " files."
 	}
 
+	// Only include status, progress, errors, and successes if there are any
+	// This ensures that when the form is submitted again, previous messages are cleared
 	data := gin.H{
 		"FilesJSON":           filesJSON,
 		"FilesList":           filesList,
 		"OutputDirectoryJSON": outputDirectoryJSON,
 		"OutputDirectory":     outputDirectory,
-		"Status":              status,
-		"Progress":            progress,
-		"Errors":              errorMessages,
-		"Successes":           successMessages,
+	}
+
+	// Only add status, progress, errors, and successes if they have content
+	if status != "" {
+		data["Status"] = status
+	}
+	if len(progress) > 0 {
+		data["Progress"] = progress
+	}
+	if len(errorMessages) > 0 {
+		data["Errors"] = errorMessages
+	}
+	if len(successMessages) > 0 {
+		data["Successes"] = successMessages
 	}
 	for k, v := range formValues {
 		data[k] = v

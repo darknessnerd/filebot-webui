@@ -270,6 +270,8 @@ body.fullpage-app {
     padding: 1rem;
     min-height: 320px;
     overflow-y: auto;
+    display: flex;
+    flex-grow: 1;
 }
 
 /* Tablet responsiveness for directory browser */
