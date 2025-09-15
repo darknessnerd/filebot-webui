@@ -1,12 +1,17 @@
 {{ define "directory_browser.html" }}
-<div id="directory-browser" class="directory-browser compact" data-current-path="{{.CurrentPath}}">
+<div id="directory-browser" class="directory-browser" data-current-path="{{.CurrentPath}}">
   <header class="directory-browser-header">
     <nav class="breadcrumb-nav" aria-label="Breadcrumb">
       <ul class="breadcrumb-list">
         {{ $parts := splitPath .CurrentPath }}
         {{ range $i, $part := $parts }}
           <li>
-            <a href="/directory-browser?path={{ joinPath (slice $parts 0 (add $i 1)) }}" class="breadcrumb-link">{{$part}}</a>
+            <a href="/directory-browser?path={{ joinPath (slice $parts 0 (add $i 1)) }}"
+               class="breadcrumb-link"
+               hx-get="/directory-browser?path={{ joinPath (slice $parts 0 (add $i 1)) }}"
+               hx-target="#directory-browser"
+               hx-swap="outerHTML"
+               hx-push-url="false">{{$part}}</a>
             {{ if lt (add $i 1) (len $parts) }}<span class="breadcrumb-sep">/</span>{{ end }}
           </li>
         {{ end }}
@@ -20,24 +25,37 @@
           {{end}}
         </select>
       </form>
-      <button class="btn btn--icon btn--small" aria-label="Go Up"
+      <button class="btn btn--icon btn--small" aria-label="Go Up" title="Go Up One Level"
         {{if eq .CurrentPath .RootPath}}disabled{{end}}
         hx-get="/directory-browser?path={{.ParentPath}}"
         hx-target="#directory-browser"
         hx-swap="outerHTML"
         hx-push-url="false">
-        ⬆️
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 15l-6-6-6 6"/>
+        </svg>
       </button>
-      <button class="btn btn--icon btn--small" aria-label="Refresh Directory"
+      <button class="btn btn--icon btn--small" aria-label="Refresh Directory" title="Refresh Current Directory"
         hx-get="/directory-browser?path={{.CurrentPath}}"
         hx-target="#directory-browser"
         hx-swap="outerHTML"
-        hx-push-url="false">
-        🔄
+        hx-push-url="false"
+        hx-indicator="#loading-indicator">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"/>
+          <path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+          <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+        </svg>
       </button>
     </div>
   </header>
-  <div class="directory-browser-presets" style="margin-bottom:1em;">
+
+  <div id="loading-indicator" class="status loading" style="display:none;">
+    Loading directory contents...
+  </div>
+
+  <div class="directory-browser-presets">
     <form id="preset-form" onsubmit="event.preventDefault(); resetPresetPath();">
       <label for="preset-select">Browse starting from:</label>
       <select id="preset-select" name="preset"
@@ -68,7 +86,11 @@
         if (files) params.set('files', files);
         if (outputDirectory) params.set('outputDirectory', outputDirectory);
         console.log('[resetPresetPath] params:', params.toString());
-        htmx.ajax('GET', '/directory-browser?' + params.toString(), {target: '#directory-browser', swap: 'outerHTML'});
+        htmx.ajax('GET', '/directory-browser?' + params.toString(), {
+          target: '#directory-browser',
+          swap: 'outerHTML',
+          indicator: '#loading-indicator'
+        });
       }
       // Render presetRoots JS object from server-side data
       window.presetRoots = {
@@ -78,60 +100,95 @@
       };
     </script>
   </div>
-  <div class="selection-mode-group" style="margin: 1em 0; display: flex; align-items: center; gap: 2em;">
-    <fieldset style="border:none; padding:0; margin:0; display:flex; align-items:center; gap:2em;">
-      <legend style="font-weight:bold; margin-bottom:0.5em;">Selection Mode</legend>
-      <label title="Choose files and folders to process" style="display:flex; align-items:center; gap:0.5em;">
-        <input type="radio" name="selectionMode" value="files" checked onchange="setSelectionMode('files')">
-        <span style="display:flex; align-items:center; gap:0.3em;">
-          <strong style="font-size:1.2em;">📄</strong>
+
+  <div class="selection-mode-group">
+    <fieldset>
+      <legend>Selection Mode</legend>
+      <label id="mode-files-label" title="Choose files and folders to process" class="mode-label {{if eq .SelectionMode "files"}}active{{end}}">
+        <input type="radio" name="selectionMode" value="files" {{if eq .SelectionMode "files"}}checked{{end}} onchange="setSelectionMode('files')">
+        <span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
           <span>Select files</span>
         </span>
       </label>
-      <label title="Choose a folder for output" style="display:flex; align-items:center; gap:0.5em;">
-        <input type="radio" name="selectionMode" value="output" onchange="setSelectionMode('output')">
-        <span style="display:flex; align-items:center; gap:0.3em;">
-          <strong style="font-size:1.2em;">📂</strong>
+      <label id="mode-output-label" title="Choose a folder for output" class="mode-label {{if eq .SelectionMode "output"}}active{{end}}">
+        <input type="radio" name="selectionMode" value="output" {{if eq .SelectionMode "output"}}checked{{end}} onchange="setSelectionMode('output')">
+        <span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
           <span>Select output directory</span>
         </span>
       </label>
     </fieldset>
   </div>
+
   <div class="directory-info">
     <span>{{len .Files}} items ({{.DirectoryCount}} directories, {{.FileCount}} files)</span>
   </div>
+
   {{if not .IsCollapsed}}
-  <div class="content compact-list">
-    {{if .Loading}}<div class="status" aria-live="polite">⏳ Loading...</div>{{end}}
-    {{if .Error}}<div class="status error" aria-live="assertive">❌ Error: {{.Error}}</div>{{end}}
+  <div class="content">
+    {{if .Loading}}<div class="status loading" aria-live="polite">Loading directory contents...</div>{{end}}
+    {{if .Error}}<div class="status error" aria-live="assertive">Error: {{.Error}}</div>{{end}}
+
     <ul>
       {{range .Files}}
       <li>
         {{if eq .Type "directory"}}
-          <div class="item-row compact-item{{if .IsSelected}} selected-item{{end}}" tabindex="0" aria-label="Directory: {{.Name}}" aria-selected="{{if .IsSelected}}true{{else}}false{{end}}">
-            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select directory: {{.Name}}" onclick="sendCheckboxSelection(this)" />
+          <div class="item-row{{if .IsSelected}} selected-item{{end}}" tabindex="0"
+               aria-label="Directory: {{.Name}}"
+               aria-selected="{{if .IsSelected}}true{{else}}false{{end}}">
+            <input type="checkbox" class="item-checkbox"
+                   name="selected"
+                   value="{{.Path}}"
+                   {{if .IsSelected}}checked{{end}}
+                   aria-label="Select directory: {{.Name}}"
+                   onclick="sendCheckboxSelection(this)" />
             <a href="/directory-browser?path={{.Path}}"
                hx-get="/directory-browser?path={{.Path}}"
                hx-target="#directory-browser"
                hx-swap="outerHTML"
                hx-push-url="false"
+               hx-indicator="#loading-indicator"
                class="item-link"
                tabindex="0"
                aria-label="Open directory: {{.Name}}">
-              <span style="display: flex; align-items: center;">
-                <strong class="item-icon">📂</strong>
-                <div class="item-name ellipsized-text">{{.Name}}</div>
+              <span class="item-icon folder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
               </span>
+              <div class="item-name">{{.Name}}</div>
             </a>
           </div>
         {{else}}
-          <div class="item-row compact-item{{if .IsSelected}} selected-item{{end}}"
+          <div class="item-row{{if .IsSelected}} selected-item{{end}}"
                tabindex="0"
                aria-label="File: {{.Name}}"
                aria-selected="{{if .IsSelected}}true{{else}}false{{end}}">
-            <input type="checkbox" class="item-checkbox" name="selected" value="{{.Path}}" {{if .IsSelected}}checked{{end}} aria-label="Select file: {{.Name}}" onclick="sendCheckboxSelection(this)" />
-            <strong class="item-icon">📄</strong>
-            <div class="item-name ellipsized-text">{{.Name}}</div>
+            <input type="checkbox" class="item-checkbox"
+                   name="selected"
+                   value="{{.Path}}"
+                   {{if .IsSelected}}checked{{end}}
+                   aria-label="Select file: {{.Name}}"
+                   onclick="sendCheckboxSelection(this)" />
+            <span class="item-icon file">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </span>
+            <div class="item-name">{{.Name}}</div>
           </div>
         {{end}}
       </li>
@@ -139,114 +196,225 @@
     </ul>
   </div>
   {{end}}
-  <div class="directory-browser-actions">
-    <form style="margin-top:1em;">
-    </form>
-    <script>
-      // Use window-scoped variables to persist selection across swaps
-      window.selectedFiles = window.selectedFiles || [];
-      window.selectedOutput = window.selectedOutput || '';
-      var selectionMode = 'files';
-      var selectedFiles = window.selectedFiles;
-      var selectedOutput = window.selectedOutput;
-      function setSelectionMode(mode) {
-        selectionMode = mode;
-        // Keep selected files when switching modes
+
+  <div class="selected-files-summary">
+    <h4>Selected Items</h4>
+    <div id="selection-display">
+      <div id="selected-files-list">
+        {{if .SelectedFiles}}
+          <ul>
+            {{range .SelectedFiles}}
+              <li>{{.}}</li>
+            {{end}}
+          </ul>
+        {{else}}
+          <span>No files selected.</span>
+        {{end}}
+      </div>
+      {{if .SelectedOutput}}
+        <div id="selected-output-display">
+          <strong>Output Directory:</strong> {{.SelectedOutput}}
+        </div>
+      {{end}}
+    </div>
+  </div>
+
+  <script>
+    // Use window-scoped variables to persist selection across swaps
+    window.selectedFiles = window.selectedFiles || [];
+    window.selectedOutput = window.selectedOutput || '';
+    var selectionMode = '{{.SelectionMode}}' || 'files';
+    var selectedFiles = window.selectedFiles;
+    var selectedOutput = window.selectedOutput;
+
+    function setSelectionMode(mode) {
+      selectionMode = mode;
+
+      // Update UI to reflect current mode
+      var filesLabel = document.getElementById('mode-files-label');
+      var outputLabel = document.getElementById('mode-output-label');
+
+      if (mode === 'files') {
+        filesLabel.classList.add('active');
+        outputLabel.classList.remove('active');
+
+        // Restore file selections (files and folders)
         var checkboxes = document.querySelectorAll('.item-checkbox');
-        if (mode === 'files') {
-          // Restore file selections (files and folders)
-          checkboxes.forEach(function(cb) {
-            cb.checked = selectedFiles.includes(cb.value);
-          });
-        } else if (mode === 'output') {
-          // Restore output directory selection
-          checkboxes.forEach(function(cb) {
-            var itemRow = cb.closest('.item-row');
-            var isDirectory = itemRow && itemRow.querySelector('.item-icon') && itemRow.querySelector('.item-icon').textContent.trim() === '📂';
-            cb.checked = isDirectory && cb.value === selectedOutput;
-          });
-        }
-      }
-      function sendCheckboxSelection(checkbox) {
-        var browser = checkbox.closest('.directory-browser');
-        var checkboxes = browser.querySelectorAll('.item-checkbox:checked');
-        if (selectionMode === 'files') {
-          selectedFiles = [];
-          checkboxes.forEach(function(cb) {
-            selectedFiles.push(cb.value);
-          });
-          window.selectedFiles = selectedFiles;
-        } else if (selectionMode === 'output') {
-          checkboxes.forEach(function(cb) {
-            if (cb !== checkbox) cb.checked = false;
-          });
-          var itemRow = checkbox.closest('.item-row');
-          var isDirectory = itemRow && itemRow.querySelector('.item-icon') && itemRow.querySelector('.item-icon').textContent.trim() === '📂';
-          if (!isDirectory) {
-            var statusDiv = document.getElementById('filebot-form-status');
-            if (statusDiv) {
-              statusDiv.innerHTML = '<div class="status error">Please select only a folder as output directory.</div>';
+        checkboxes.forEach(function(cb) {
+          cb.checked = selectedFiles.includes(cb.value);
+          var itemRow = cb.closest('.item-row');
+          if (itemRow) {
+            if (cb.checked) {
+              itemRow.classList.add('selected-item');
+            } else {
+              itemRow.classList.remove('selected-item');
             }
-            checkbox.checked = false;
-            return;
           }
-          selectedOutput = checkbox.value;
-          window.selectedOutput = selectedOutput;
-        }
-        var payload = {
-          files: selectedFiles.join(','),
-          outputDirectory: selectedOutput
-        };
-        htmx.ajax('POST', '/filebot/selection', {
-          target: '#filebot-form-container',
-          swap: 'innerHTML',
-          values: payload
+        });
+      } else if (mode === 'output') {
+        filesLabel.classList.remove('active');
+        outputLabel.classList.add('active');
+
+        // Restore output directory selection
+        var checkboxes = document.querySelectorAll('.item-checkbox');
+        checkboxes.forEach(function(cb) {
+          var itemRow = cb.closest('.item-row');
+          var isDirectory = itemRow && itemRow.querySelector('.item-icon.folder');
+          cb.checked = isDirectory && cb.value === selectedOutput;
+          if (itemRow) {
+            if (cb.checked) {
+              itemRow.classList.add('selected-item');
+            } else {
+              itemRow.classList.remove('selected-item');
+            }
+          }
         });
       }
-      // Reset selections if directory changes
-      document.addEventListener('htmx:afterSwap', function(e) {
-        console.log('[htmx:afterSwap] event fired:', e);
-        if (e.target && e.target.id === 'directory-browser-widget') {
-          console.log('[htmx:afterSwap] Resetting selectedFiles and selectedOutput');
-          window.selectedFiles = [];
-          window.selectedOutput = '';
-          selectedFiles = window.selectedFiles;
-          selectedOutput = window.selectedOutput;
-        } else if (e.target && e.target.id === 'directory-browser') {
-          // Debug: log current path and selection state
-          var currentPath = document.getElementById('directory-browser').getAttribute('data-current-path');
-          selectedFiles = window.selectedFiles;
-          selectedOutput = window.selectedOutput;
-          console.log('[htmx:afterSwap] directory-browser swap, currentPath:', currentPath);
-          console.log('[htmx:afterSwap] selectedFiles:', selectedFiles);
-          console.log('[htmx:afterSwap] selectedOutput:', selectedOutput);
-        }
-      });
-    </script>
-  </div>
-  <script>
-    // Ensure window.selectedFiles contains full paths
-    window.selectedFiles = window.selectedFiles || [];
-    function updateSelectedFiles(files) {
-      // files should be an array of full paths
-      window.selectedFiles = files;
-      // Update the hidden input in the FileBot form if present
-      var input = document.getElementById('selected-files');
-      if (input) {
-        input.value = JSON.stringify(window.selectedFiles);
-      }
-      // Update the visible list
-      var list = document.getElementById('selected-files-list');
-      if (list) {
-        if (window.selectedFiles.length > 0) {
-          list.innerHTML = '<ul>' + window.selectedFiles.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
+
+      // Update the selection display
+      updateSelectionDisplay();
+    }
+
+    function sendCheckboxSelection(checkbox) {
+      var browser = checkbox.closest('.directory-browser');
+      var itemRow = checkbox.closest('.item-row');
+
+      if (selectionMode === 'files') {
+        // In files mode, can select multiple items
+        if (checkbox.checked) {
+          selectedFiles.push(checkbox.value);
+          if (itemRow) itemRow.classList.add('selected-item');
         } else {
-          list.innerHTML = '<span>No files selected.</span>';
+          selectedFiles = selectedFiles.filter(function(f) { return f !== checkbox.value; });
+          if (itemRow) itemRow.classList.remove('selected-item');
+        }
+        window.selectedFiles = selectedFiles;
+      } else if (selectionMode === 'output') {
+        // In output mode, can only select one directory
+        var checkboxes = browser.querySelectorAll('.item-checkbox');
+        checkboxes.forEach(function(cb) {
+          if (cb !== checkbox) {
+            cb.checked = false;
+            var row = cb.closest('.item-row');
+            if (row) row.classList.remove('selected-item');
+          }
+        });
+
+        var isDirectory = itemRow && itemRow.querySelector('.item-icon.folder');
+        if (!isDirectory) {
+          var statusDiv = document.getElementById('filebot-form-status');
+          if (statusDiv) {
+            statusDiv.innerHTML = '<div class="status error">Please select only a folder as output directory.</div>';
+            setTimeout(function() {
+              statusDiv.innerHTML = '';
+            }, 3000);
+          }
+          checkbox.checked = false;
+          if (itemRow) itemRow.classList.remove('selected-item');
+          return;
+        }
+
+        selectedOutput = checkbox.checked ? checkbox.value : '';
+        window.selectedOutput = selectedOutput;
+
+        if (checkbox.checked && itemRow) {
+          itemRow.classList.add('selected-item');
+        }
+      }
+
+      // Update the selection display
+      updateSelectionDisplay();
+
+      var payload = {
+        files: selectedFiles.join(','),
+        outputDirectory: selectedOutput
+      };
+
+      htmx.ajax('POST', '/filebot/selection', {
+        target: '#filebot-form-container',
+        swap: 'innerHTML',
+        values: payload
+      });
+    }
+
+    function updateSelectionDisplay() {
+      var selectionList = document.getElementById('selected-files-list');
+      var outputDisplay = document.getElementById('selected-output-display');
+
+      if (selectionList) {
+        if (selectedFiles.length > 0) {
+          var html = '<ul>';
+          selectedFiles.forEach(function(file) {
+            var fileName = file.split('/').pop();
+            html += '<li>' + fileName + ' <button type="button" class="btn btn--small" onclick="removeSelectedFile(\'' + file + '\')">Remove</button></li>';
+          });
+          html += '</ul>';
+          selectionList.innerHTML = html;
+        } else {
+          selectionList.innerHTML = '<span>No files selected.</span>';
+        }
+      }
+
+      if (outputDisplay) {
+        if (selectedOutput) {
+          outputDisplay.innerHTML = '<strong>Output Directory:</strong> ' + selectedOutput;
+        } else {
+          outputDisplay.innerHTML = '';
         }
       }
     }
-    // Example usage: updateSelectedFiles(["/path/to/file1.mkv", "/path/to/file2.mp4"]);
-    // Call updateSelectedFiles whenever selection changes in the browser
+
+    function removeSelectedFile(filePath) {
+      selectedFiles = selectedFiles.filter(function(f) { return f !== filePath; });
+      window.selectedFiles = selectedFiles;
+
+      // Update checkboxes to match current selection
+      var checkboxes = document.querySelectorAll('.item-checkbox');
+      checkboxes.forEach(function(cb) {
+        if (cb.value === filePath) {
+          cb.checked = false;
+          var itemRow = cb.closest('.item-row');
+          if (itemRow) itemRow.classList.remove('selected-item');
+        }
+      });
+
+      // Update the selection display
+      updateSelectionDisplay();
+
+      // Update the server
+      var payload = {
+        files: selectedFiles.join(','),
+        outputDirectory: selectedOutput
+      };
+
+      htmx.ajax('POST', '/filebot/selection', {
+        target: '#filebot-form-container',
+        swap: 'innerHTML',
+        values: payload
+      });
+    }
+
+    // Initialize the UI based on current mode
+    document.addEventListener('DOMContentLoaded', function() {
+      setSelectionMode(selectionMode);
+      updateSelectionDisplay();
+    });
+
+    // Reset selections if directory changes
+    document.addEventListener('htmx:afterSwap', function(e) {
+      if (e.target && e.target.id === 'directory-browser-widget') {
+        window.selectedFiles = [];
+        window.selectedOutput = '';
+        selectedFiles = window.selectedFiles;
+        selectedOutput = window.selectedOutput;
+      } else if (e.target && e.target.id === 'directory-browser') {
+        // Update UI to reflect current selection state after directory change
+        setTimeout(function() {
+          setSelectionMode(selectionMode);
+          updateSelectionDisplay();
+        }, 50);
+      }
+    });
   </script>
 </div>
 {{end}}

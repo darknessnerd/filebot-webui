@@ -359,7 +359,7 @@ body.fullpage-app {
 
 @media (max-width: 600px) {
     .header-flex, .home-grid {
-        flex-direction: column;
+        flex-direction: row;
         grid-template-columns: 1fr;
         gap: 0.5rem;
     }

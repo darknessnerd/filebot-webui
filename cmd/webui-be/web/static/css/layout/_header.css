@@ -233,3 +233,49 @@
         display: none;
     }
 }
+
+/* Extra small screens (e.g., 419x635) */
+@media (max-width: 480px) {
+    .header-flex {
+        padding: 0 0.4rem;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+    }
+
+    .logo {
+        font-size: 1.1rem;
+        margin-right: 0.3rem;
+    }
+
+    .header-title {
+        font-size: 0.9rem;
+        margin: 0 0.3rem;
+    }
+
+    .header-nav {
+        flex: 0 1 auto;
+    }
+
+    .header-nav .nav-links {
+        gap: 0.5rem;
+    }
+
+    .compact-user-info.dropdown {
+        flex-shrink: 0;
+        min-width: auto;
+    }
+
+    .dropdown-toggle.user-avatar-btn {
+        padding: 2px 6px;
+        min-height: 32px;
+    }
+
+    .user-avatar {
+        width: 28px;
+        height: 28px;
+    }
+
+    .icon {
+        font-size: 0.9em;
+    }
+}
