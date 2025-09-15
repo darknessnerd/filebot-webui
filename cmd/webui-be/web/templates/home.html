@@ -1,14 +1,20 @@
 {{define "home.html"}}
 <div class="card home-flex main-content-children">
-    <div class="home-main">
-        <div id="directory-browser-widget"
-             class="main-browser"
-             hx-get="/directory-browser"
-             hx-trigger="load"
-             hx-target="#directory-browser-widget"
-             hx-swap="innerHTML"
-             aria-label="Directory Browser">
-            <span>Loading file browser...</span>
+    <div x-data="{ open: true }" class="home-main">
+        <h3 @click="open = !open" class="filebot-header">
+            <span>Directory Browser</span>
+            <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+        </h3>
+        <div x-show="open" class="filebot-content">
+            <div id="directory-browser-widget"
+                 class="main-browser"
+                 hx-get="/directory-browser"
+                 hx-trigger="load"
+                 hx-target="#directory-browser-widget"
+                 hx-swap="innerHTML"
+                 aria-label="Directory Browser">
+                <span>Loading file browser...</span>
+            </div>
         </div>
     </div>
     <div x-data="{ plexOpen: true }" class="filebot-sidebar" :class="{ 'plex-collapsed': !plexOpen }">
