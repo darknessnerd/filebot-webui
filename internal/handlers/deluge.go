@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"time"
 	"webui-skeleton/internal/auth"
@@ -100,16 +101,16 @@ func (h *DelugeHandler) AddDelugeServer(c *gin.Context) {
 
 	// Create server object
 	server := &models.DelugeServer{
-		Name:      name,
-		Host:      host,
-		Port:      port,
-		Username:  username,
-		Password:  password,
-		Protocol:  protocol,
-		URI:       fmt.Sprintf("%s://%s:%d", protocol, host, port),
-		CreatedAt: time.Now(),
+		Name:       name,
+		Host:       host,
+		Port:       port,
+		Username:   username,
+		Password:   password,
+		Protocol:   protocol,
+		URI:        fmt.Sprintf("%s://%s:%d", protocol, host, port),
+		CreatedAt:  time.Now(),
 		LastSeenAt: time.Now(),
-		Preferred: setPreferred,
+		Preferred:  setPreferred,
 	}
 
 	// Test connection to the server
@@ -692,6 +693,260 @@ func (h *DelugeHandler) ResumeAllTorrents(c *gin.Context) {
 	})
 }
 
+// ProcessCompletedTorrentWithFilebot processes a completed torrent with Filebot
+func (h *DelugeHandler) ProcessCompletedTorrentWithFilebot(c *gin.Context) {
+	userObj, _ := c.Get("user_obj")
+	user, _ := userObj.(*models.User)
+	torrentID := c.PostForm("torrent_id")
+
+	if torrentID == "" {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Torrent ID is required",
+		})
+		return
+	}
+
+	// Get preferred server
+	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	if err != nil || server == nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
+		})
+		return
+	}
+
+	// Get torrent info to determine file path
+	torrents, err := h.getTorrents(server)
+	if err != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": fmt.Sprintf("Failed to get torrent information: %v", err),
+		})
+		return
+	}
+
+	// Find the specific torrent
+	var targetTorrent *models.DelugeTorrent
+	for i, torrent := range torrents {
+		if torrent.ID == torrentID {
+			targetTorrent = &torrents[i]
+			break
+		}
+	}
+
+	if targetTorrent == nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Torrent not found",
+		})
+		return
+	}
+
+	// Check if torrent is completed
+	if !targetTorrent.IsFinished || targetTorrent.Progress < 100 {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Torrent is not completed yet",
+		})
+		return
+	}
+
+	// Execute Filebot command to process the downloaded file
+	err = h.processWithFilebot(targetTorrent)
+	if err != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": fmt.Sprintf("Failed to process with Filebot: %v", err),
+		})
+		return
+	}
+
+	// Get updated list of torrents
+	updatedTorrents, err := h.getTorrents(server)
+	if err != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"success": fmt.Sprintf("Successfully processed \"%s\" with Filebot", targetTorrent.Name),
+			"error":   fmt.Sprintf("But failed to refresh torrent list: %v", err),
+		})
+		return
+	}
+
+	c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+		"torrents": updatedTorrents,
+		"success":  fmt.Sprintf("Successfully processed \"%s\" with Filebot", targetTorrent.Name),
+	})
+}
+
+// processWithFilebot executes the Filebot command to process a torrent
+func (h *DelugeHandler) processWithFilebot(torrent *models.DelugeTorrent) error {
+	// Construct the full path to the downloaded file
+	sourcePath := fmt.Sprintf("%s/%s", torrent.DownloadPath, torrent.Name)
+
+	// Construct output directory - using a movies folder in user's home directory as default
+	// This could be made configurable in the future
+	outputDir := fmt.Sprintf("%s/media/movies", h.config.Filebot.OutputDirectory)
+
+	// Prepare the Filebot command
+	// Using common Filebot options:
+	// -non-strict: allows for more lenient matching
+	// --action move: moves files instead of copying
+	// --conflict auto: automatically resolves conflicts
+	// -r: recursive processing
+	cmd := exec.Command(
+		"filebot",
+		"-script", "fn:amc",
+		"--output", outputDir,
+		"--action", "move",
+		"--conflict", "auto",
+		"-non-strict",
+		"-r",
+		"--def", "clean=y",
+		"--def", "artwork=y",
+		"--def", "unsorted=y",
+		"--def", fmt.Sprintf("movieFormat=%s", h.config.Filebot.MovieFormat),
+		"--def", fmt.Sprintf("seriesFormat=%s", h.config.Filebot.SeriesFormat),
+		sourcePath,
+	)
+
+	// Create a buffer to store output
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Execute the command
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("filebot command failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	// Log the output
+	logger.Log.Info().Msgf("Filebot processed torrent %s successfully: %s", torrent.Name, stdout.String())
+
+	return nil
+}
+
+// TestFilebotProcessing tests Filebot processing without actually moving files
+func (h *DelugeHandler) TestFilebotProcessing(c *gin.Context) {
+	userObj, _ := c.Get("user_obj")
+	user, _ := userObj.(*models.User)
+	torrentID := c.PostForm("torrent_id")
+
+	if torrentID == "" {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Torrent ID is required",
+		})
+		return
+	}
+
+	// Get preferred server
+	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	if err != nil || server == nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
+		})
+		return
+	}
+
+	// Get torrent info to determine file path
+	torrents, err := h.getTorrents(server)
+	if err != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": fmt.Sprintf("Failed to get torrent information: %v", err),
+		})
+		return
+	}
+
+	// Find the specific torrent
+	var targetTorrent *models.DelugeTorrent
+	for i, torrent := range torrents {
+		if torrent.ID == torrentID {
+			targetTorrent = &torrents[i]
+			break
+		}
+	}
+
+	if targetTorrent == nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Torrent not found",
+		})
+		return
+	}
+
+	// Check if torrent is completed
+	if !targetTorrent.IsFinished || targetTorrent.Progress < 100 {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Torrent is not completed yet",
+		})
+		return
+	}
+
+	// Test Filebot processing without actually moving the files
+	output, err := h.testFilebotProcessing(targetTorrent)
+	if err != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": fmt.Sprintf("Failed to test Filebot processing: %v", err),
+		})
+		return
+	}
+
+	// Get updated list of torrents
+	updatedTorrents, err := h.getTorrents(server)
+	if err != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"success":        fmt.Sprintf("Successfully tested \"%s\" with Filebot", targetTorrent.Name),
+			"error":          fmt.Sprintf("But failed to refresh torrent list: %v", err),
+			"filebot_output": output,
+		})
+		return
+	}
+
+	c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+		"torrents":       updatedTorrents,
+		"success":        fmt.Sprintf("Successfully tested \"%s\" with Filebot", targetTorrent.Name),
+		"filebot_output": output,
+	})
+}
+
+// testFilebotProcessing tests Filebot processing without actually moving files
+func (h *DelugeHandler) testFilebotProcessing(torrent *models.DelugeTorrent) (string, error) {
+	// Construct the full path to the downloaded file
+	sourcePath := fmt.Sprintf("%s/%s", torrent.DownloadPath, torrent.Name)
+
+	// Construct output directory - using a movies folder in user's home directory as default
+	outputDir := fmt.Sprintf("%s/media/movies", h.config.Filebot.OutputDirectory)
+
+	// Prepare the Filebot command with -n flag for test mode (no execution)
+	// -n: don't execute, just print what would be done
+	cmd := exec.Command(
+		"filebot",
+		"-script", "fn:amc",
+		"--output", outputDir,
+		"--action", "move",
+		"--conflict", "auto",
+		"-non-strict",
+		"-r",
+		"-n", // Add the -n flag for test mode
+		"--def", "clean=y",
+		"--def", "artwork=y",
+		"--def", "unsorted=y",
+		"--def", fmt.Sprintf("movieFormat=%s", h.config.Filebot.MovieFormat),
+		"--def", fmt.Sprintf("seriesFormat=%s", h.config.Filebot.SeriesFormat),
+		sourcePath,
+	)
+
+	// Create a buffer to store output
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Execute the command
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("filebot test command failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	// Log the output
+	logger.Log.Info().Msgf("Filebot test processing for torrent %s output: %s", torrent.Name, stdout.String())
+
+	return stdout.String(), nil
+}
+
 // Helper methods for interacting with the Deluge API
 
 // getTorrents gets the list of torrents from the Deluge server
@@ -944,7 +1199,7 @@ func (h *DelugeHandler) getServerStatus(server *models.DelugeServer) (*models.De
 	infoPayload := map[string]interface{}{
 		"method": "daemon.info",
 		"params": []interface{}{},
-		"id": 6,
+		"id":     6,
 	}
 
 	jsonData, err = json.Marshal(infoPayload)
@@ -1417,7 +1672,7 @@ func (h *DelugeHandler) pauseAllTorrentsOnServer(server *models.DelugeServer) er
 	payload := map[string]interface{}{
 		"method": "core.pause_all_torrents",
 		"params": []interface{}{},
-		"id": 11,
+		"id":     11,
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -1477,7 +1732,7 @@ func (h *DelugeHandler) resumeAllTorrentsOnServer(server *models.DelugeServer) e
 	payload := map[string]interface{}{
 		"method": "core.resume_all_torrents",
 		"params": []interface{}{},
-		"id": 12,
+		"id":     12,
 	}
 
 	jsonData, err := json.Marshal(payload)

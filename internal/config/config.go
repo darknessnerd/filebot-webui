@@ -28,6 +28,9 @@ type Config struct {
 
 	// FileBot-WebUI specific
 	DirectoryPresets map[string]string `json:"directory_presets"`
+
+	// Filebot configuration
+	Filebot FilebotConfig `json:"filebot"`
 }
 
 type ServerConfig struct {
@@ -196,6 +199,22 @@ func loadEnvironmentVariables(config *Config) error {
 		}
 	}
 	config.DirectoryPresets = presets
+
+	// Filebot configuration
+	config.Filebot.Path = getEnvOrDefault("FILEBOT_PATH", "/usr/bin/filebot")
+	config.Filebot.Arguments = getEnvOrDefault("FILEBOT_ARGUMENTS", "--help")
+	config.Filebot.LogLevel = getEnvOrDefault("FILEBOT_LOG_LEVEL", "info")
+	config.Filebot.OutputDirectory = getEnvOrDefault("FILEBOT_OUTPUT_DIRECTORY", "/output")
+	config.Filebot.MovieFormat = getEnvOrDefault("FILEBOT_MOVIE_FORMAT", "default")
+	config.Filebot.SeriesFormat = getEnvOrDefault("FILEBOT_SERIES_FORMAT", "default")
+	config.Filebot.MusicFormat = getEnvOrDefault("FILEBOT_MUSIC_FORMAT", "default")
+	config.Filebot.ConflictAction = getEnvOrDefault("FILEBOT_CONFLICT_ACTION", "ask")
+	config.Filebot.Database = getEnvOrDefault("FILEBOT_DATABASE", "TheMovieDB")
+	config.Filebot.Language = getEnvOrDefault("FILEBOT_LANGUAGE", "en")
+	config.Filebot.Recursive = getEnvAsBoolOrDefault("FILEBOT_RECURSIVE", false)
+	config.Filebot.Artwork = getEnvAsBoolOrDefault("FILEBOT_ARTWORK", false)
+	config.Filebot.Subtitles = getEnvAsBoolOrDefault("FILEBOT_SUBTITLES", false)
+
 	return nil
 }
 
@@ -258,4 +277,20 @@ func getEnvAsSliceOrDefault(key string, defaultValue []string, separator string)
 		return strings.Split(value, separator)
 	}
 	return defaultValue
+}
+
+type FilebotConfig struct {
+	Path            string `json:"path"`
+	Arguments       string `json:"arguments"`
+	LogLevel        string `json:"log_level"`
+	OutputDirectory string `json:"output_directory"`
+	MovieFormat     string `json:"movie_format"`
+	SeriesFormat    string `json:"series_format"`
+	MusicFormat     string `json:"music_format"`
+	ConflictAction  string `json:"conflict_action"`
+	Database        string `json:"database"` // e.g., TheMovieDB, AniDB
+	Language        string `json:"language"`
+	Recursive       bool   `json:"recursive"`
+	Artwork         bool   `json:"artwork"`
+	Subtitles       bool   `json:"subtitles"`
 }

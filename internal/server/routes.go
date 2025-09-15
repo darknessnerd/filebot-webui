@@ -87,6 +87,8 @@ func (s *Server) setupWebRoutes() {
 		webGroup.POST("/deluge/remove-torrent", s.handlers.Deluge.RemoveTorrent)
 		webGroup.POST("/deluge/pause-all", s.handlers.Deluge.PauseAllTorrents)
 		webGroup.POST("/deluge/resume-all", s.handlers.Deluge.ResumeAllTorrents)
+		webGroup.POST("/deluge/process-with-filebot", s.handlers.Deluge.ProcessCompletedTorrentWithFilebot)
+		webGroup.POST("/deluge/test-filebot-processing", s.handlers.Deluge.TestFilebotProcessing)
 
 		webGroup.GET("/filebot/form", s.handlers.FileBotForm)
 		webGroup.POST("/filebot/selection", s.handlers.FileBotSelection)
