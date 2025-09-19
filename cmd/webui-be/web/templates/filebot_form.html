@@ -5,98 +5,109 @@
         hx-target="#filebot-form-container"
         hx-swap="innerHTML"
         hx-push-url="false"
-        class="filebot-form">
-    <h3>FileBot Execute</h3>
+        class="filebot-form"
+        novalidate>
+    <h3 class="filebot-form__title">FileBot Execute</h3>
+
+    <div class="filebot-form-grid">
+      <div class="form-group">
+        <label for="db" class="form-label">Database</label>
+        <select name="db" id="db" required class="form-control">
+          <option value="TheMovieDB::TV" {{if eq .DB "TheMovieDB::TV"}}selected{{end}}>TheMovieDB::TV</option>
+          <option value="TheTVDB" {{if eq .DB "TheTVDB"}}selected{{end}}>TheTVDB</option>
+          <option value="AniDB" {{if eq .DB "AniDB"}}selected{{end}}>AniDB</option>
+          <option value="TheMovieDB" {{if eq .DB "TheMovieDB"}}selected{{end}}>TheMovieDB</option>
+          <option value="OMDb" {{if eq .DB "OMDb"}}selected{{end}}>OMDb</option>
+          <option value="AcoustID" {{if eq .DB "AcoustID"}}selected{{end}}>AcoustID</option>
+          <option value="ID3" {{if eq .DB "ID3"}}selected{{end}}>ID3</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="action" class="form-label">Action</label>
+        <select name="action" id="action" required class="form-control">
+          <option value="move" {{if eq .Action "move"}}selected{{end}}>Move</option>
+          <option value="copy" {{if eq .Action "copy"}}selected{{end}}>Copy</option>
+          <option value="symlink" {{if eq .Action "symlink"}}selected{{end}}>Symlink</option>
+          <option value="test" {{if eq .Action "test"}}selected{{end}}>Test</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="conflict_resolution" class="form-label">Conflict Resolution</label>
+        <select name="conflict_resolution" id="conflict_resolution" required class="form-control">
+          <option value="skip" {{if eq .ConflictResolution "skip"}}selected{{end}}>Skip</option>
+          <option value="override" {{if eq .ConflictResolution "override"}}selected{{end}}>Override</option>
+          <option value="auto" {{if eq .ConflictResolution "auto"}}selected{{end}}>Auto</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="log_level" class="form-label">Log Level</label>
+        <select name="log_level" id="log_level" required class="form-control">
+          <option value="info" {{if eq .LogLevel "info"}}selected{{end}}>Info</option>
+          <option value="debug" {{if eq .LogLevel "debug"}}selected{{end}}>Debug</option>
+          <option value="quiet" {{if eq .LogLevel "quiet"}}selected{{end}}>Quiet</option>
+        </select>
+      </div>
+    </div>
+
     <div class="form-group">
-      <label for="db">Database</label>
-      <select name="db" id="db" required>
-        <option value="TheMovieDB::TV" {{if eq .DB "TheMovieDB::TV"}}selected{{end}}>TheMovieDB::TV</option>
-        <option value="TheTVDB" {{if eq .DB "TheTVDB"}}selected{{end}}>TheTVDB</option>
-        <option value="AniDB" {{if eq .DB "AniDB"}}selected{{end}}>AniDB</option>
-        <option value="TheMovieDB" {{if eq .DB "TheMovieDB"}}selected{{end}}>TheMovieDB</option>
-        <option value="OMDb" {{if eq .DB "OMDb"}}selected{{end}}>OMDb</option>
-        <option value="AcoustID" {{if eq .DB "AcoustID"}}selected{{end}}>AcoustID</option>
-        <option value="ID3" {{if eq .DB "ID3"}}selected{{end}}>ID3</option>
-      </select>
+      <label for="format" class="form-label">Format</label>
+      <input type="text" name="format" id="format" placeholder="{n} ({y})/{fn}" value="{{.Format}}" class="form-control" />
+      <small class="help-text">Use FileBot format expressions (e.g. {n} ({y})/{fn})</small>
     </div>
     <div class="form-group">
-      <label for="action">Action</label>
-      <select name="action" id="action" required>
-        <option value="move" {{if eq .Action "move"}}selected{{end}}>Move</option>
-        <option value="copy" {{if eq .Action "copy"}}selected{{end}}>Copy</option>
-        <option value="symlink" {{if eq .Action "symlink"}}selected{{end}}>Symlink</option>
-        <option value="test" {{if eq .Action "test"}}selected{{end}}>Test</option>
-      </select>
+      <label for="filter" class="form-label">Filter</label>
+      <input type="text" name="filter" id="filter" placeholder="e.g. age < 7" value="{{.Filter}}" class="form-control" />
+      <small class="help-text">Optional: Narrow results (e.g. age < 7)</small>
     </div>
     <div class="form-group">
-      <label for="conflict_resolution">Conflict Resolution</label>
-      <select name="conflict_resolution" id="conflict_resolution" required>
-        <option value="skip" {{if eq .ConflictResolution "skip"}}selected{{end}}>Skip</option>
-        <option value="override" {{if eq .ConflictResolution "override"}}selected{{end}}>Override</option>
-        <option value="auto" {{if eq .ConflictResolution "auto"}}selected{{end}}>Auto</option>
-      </select>
+      <label for="query" class="form-label">Query</label>
+      <input type="text" name="query" id="query" placeholder="e.g. Dune" value="{{.Query}}" class="form-control" />
+      <small class="help-text">Optional search override</small>
+    </div>
+    <div class="form-group inline-checkbox">
+      <label for="recursive" class="form-label">Recursive</label>
+      <div class="checkbox-wrapper">
+        <input type="checkbox" name="recursive" id="recursive" value="true" {{if .Recursive}}checked{{end}} />
+        <span class="checkbox-label">Scan subdirectories</span>
+      </div>
     </div>
     <div class="form-group">
-      <label for="log_level">Log Level</label>
-      <select name="log_level" id="log_level" required>
-        <option value="info" {{if eq .LogLevel "info"}}selected{{end}}>Info</option>
-        <option value="debug" {{if eq .LogLevel "debug"}}selected{{end}}>Debug</option>
-        <option value="quiet" {{if eq .LogLevel "quiet"}}selected{{end}}>Quiet</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label for="format">Format</label>
-      <input type="text" name="format" id="format" placeholder="{n} ({y})/{fn}" value="{{.Format}}" />
-    </div>
-    <div class="form-group">
-      <label for="filter">Filter</label>
-      <input type="text" name="filter" id="filter" placeholder="e.g. age < 7" value="{{.Filter}}" />
-    </div>
-    <div class="form-group">
-      <label for="query">Query</label>
-      <input type="text" name="query" id="query" placeholder="e.g. Dune" value="{{.Query}}" />
-    </div>
-    <div class="form-group">
-      <label for="recursive">Recursive</label>
-      <input type="checkbox" name="recursive" id="recursive" value="true" {{if .Recursive}}checked{{end}} />
-    </div>
-    <div class="form-group">
-      <label for="files">Files</label>
+      <label for="files" class="form-label">Files</label>
       <input type="hidden" name="files" id="selected-files" value="{{.FilesJSON}}" />
-      <div id="selected-files-list">
+      <div id="selected-files-list" class="file-list-box">
         {{if .FilesList}}
-          <ul>
+          <ul class="file-list">
           {{range .FilesList}}
-            <li>{{.}}</li>
+            <li class="file-list-item">{{.}}</li>
           {{end}}
           </ul>
         {{else}}
-          <span>No files selected.</span>
+          <span class="empty-state">No files selected.</span>
         {{end}}
       </div>
     </div>
     <div class="form-group">
-      <label for="outputDirectory">Output Directory</label>
+      <label for="outputDirectory" class="form-label">Output Directory</label>
       <input type="hidden" name="outputDirectory" id="output-directory" value="{{.OutputDirectoryJSON}}" />
-      <div id="output-directory-display">
+      <div id="output-directory-display" class="output-dir-box">
         {{if .OutputDirectory}}
-          <span>{{.OutputDirectory}}</span>
+          <span class="output-value">{{.OutputDirectory}}</span>
         {{else}}
-          <span>No output directory selected.</span>
+          <span class="empty-state">No output directory selected.</span>
         {{end}}
       </div>
     </div>
-    <button type="submit">Execute FileBot</button>
-    <div id="filebot-form-status" class="scrollable-status">
+    <button type="submit" class="btn btn-primary filebot-submit">Execute FileBot</button>
+    <div id="filebot-form-status" class="scrollable-status filebot-status" aria-live="polite">
       {{if .Error}}
-        <div class="error" style="color: red;">{{.Error}}</div>
+        <div class="status-block error">{{.Error}}</div>
       {{end}}
       {{if .Status}}
-        <div class="status">{{.Status}}</div>
+        <div class="status-block info">{{.Status}}</div>
       {{end}}
       {{if .Progress}}
-        <div class="progress">
-          <ul>
+        <div class="status-block progress">
+          <ul class="status-list">
           {{range .Progress}}
             <li>{{.}}</li>
           {{end}}
@@ -104,8 +115,8 @@
         </div>
       {{end}}
       {{if .Errors}}
-        <div class="errors">
-          <ul>
+        <div class="status-block error">
+          <ul class="status-list">
           {{range .Errors}}
             <li>{{.}}</li>
           {{end}}
@@ -113,8 +124,8 @@
         </div>
       {{end}}
       {{if .Successes}}
-        <div class="successes">
-          <ul>
+        <div class="status-block success">
+          <ul class="status-list">
           {{range .Successes}}
             <li>{{.}}</li>
           {{end}}

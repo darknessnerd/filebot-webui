@@ -1,13 +1,21 @@
 /* Home Page Styles */
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
 .home-flex {
+  /* Removed fixed height & hidden overflow to allow content to size naturally */
   display: flex;
   flex-direction: row;
   gap: var(--spacing-lg);
   width: 100%;
-  height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
-  align-items: flex-start;
+  min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
+  align-items: stretch; /* allow children (.home-main, .filebot-sidebar) to match tallest column */
   justify-content: stretch;
-  overflow: hidden;
+  overflow: visible;
 }
 .main-widgets {
   display: flex;
@@ -19,10 +27,10 @@
   overflow-y: auto;
 }
 .home-main {
-  flex: 1 1 50%;
+  flex: 1 1 auto;
   display: flex;
-  flex-direction: row;
-  height: 100%;
+  flex-direction: column;
+  /* height:100%; removed so it can inherit stretch height */
   min-width: 0;
   overflow: hidden;
 }
@@ -33,14 +41,9 @@
   flex-direction: column;
   gap: var(--spacing-lg);
   align-items: stretch;
-  height: 100%;
-  position: sticky;
-  top: 0;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--accent-primary);
-  padding: var(--spacing-md);
-  z-index: 2;
+  /* height:100%; removed to allow stretch */
   overflow-y: auto;
+  padding: var(--spacing-xs);
 }
 
 .recently-added-mini, #plex-libraries-widget {
@@ -66,49 +69,30 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  height: 100%;
+  /* height:100%; removed to allow stretch */
   overflow-y: auto;
   padding: var(--spacing-xs);
 }
 
-.filebot-container {
-  background: var(--bg-primary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-  margin-bottom: var(--spacing-md);
-}
-
-.filebot-header {
-  color: var(--text-muted);
-  margin: 0;
-  padding: 0.5em 0.75em;
-  font-size: 0.9em;
-  cursor: pointer;
-  user-select: none;
+/* Make collapsible containers flex so their content can stretch */
+.filebot-container, .plex-widgets-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  opacity: 0.9;
+  flex-direction: column;
+  max-height: none;
+  flex: 1 1 auto;
 }
 
+/* Let inner content fill remaining height */
 .filebot-content {
-  padding: var(--spacing-sm);
-  max-height: 50vh;
+  flex: 1 1 auto;
+  max-height: none; /* remove 50vh cap for full-height behavior */
+  min-height: 0; /* allow scrolling within */
   overflow-y: auto;
-  transition: max-height 0.3s ease;
 }
 
-/* When Plex widgets are collapsed, expand FileBot container */
-.plex-collapsed .filebot-expanded {
-  flex: 1;
-  transition: flex 0.3s ease;
-}
-
+/* When plex collapsed still allow filebot to grow */
 .plex-collapsed .filebot-expanded .filebot-content {
-  max-height: calc(100vh - 200px);
+  max-height: none;
 }
 
 .filebot-form-mini {
@@ -175,10 +159,13 @@
   }
 
   .home-main {
-    flex: 1 1 100%;
+    display: flex;
     flex-direction: column;
+    flex-grow: 1;
+    flex-shrink: 0;
+    flex-basis: auto;
+    background: rebeccapurple;
     height: auto;
-    max-height: calc(100vh - var(--header-height) - var(--footer-height) - 3rem);
     overflow-y: auto;
   }
 
@@ -189,7 +176,7 @@
   }
 
   .filebot-content {
-    max-height: 40vh;
+    max-height: 45vh;
   }
 
   /* When Plex widgets are collapsed on tablet */
@@ -240,7 +227,7 @@
   }
 
   .filebot-content {
-    max-height: 40vh;
+    max-height: 70vh;
     overflow-y: auto;
   }
 

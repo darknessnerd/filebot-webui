@@ -15,6 +15,7 @@
                 <ul class="nav-links">
                     {{if .authenticated}}
                         <li><a href="/" hx-get="/" hx-target="#main-content" hx-push-url="false" hx-swap="innerHTML" aria-label="Home"><span class="icon">🏠</span>Home</a></li>
+                        <li><a href="/deluge" hx-get="/deluge" hx-target="#main-content" hx-swap="innerHTML" aria-label="Deluge"><span class="icon">🧲</span>Deluge</a></li>
                     {{end}}
                 </ul>
             </nav>
@@ -33,7 +34,6 @@
                 <ul class="dropdown-menu" x-show="open" @click.away="open = false" tabindex="-1" role="menu">
                     <li role="menuitem"><span class="icon">📧</span><span class="user-email">{{.email}}</span></li>
                     <li role="menuitem"><span class="icon">🛠️</span><a href="/plex/configure" hx-get="/plex/configure" hx-target="#main-content" hx-swap="innerHTML">Plex Config</a></li>
-                    <li role="menuitem"><span class="icon">🧲</span><a href="/deluge" hx-get="/deluge" hx-target="#main-content" hx-swap="innerHTML">Deluge</a></li>
                     <li role="menuitem"><span class="icon">⚙️</span><a href="/deluge/configure" hx-get="/deluge/configure" hx-target="#main-content" hx-swap="innerHTML">Deluge Config</a></li>
                     <li role="menuitem"><span class="icon">🚪</span><button class="btn btn-secondary" onclick="logout()">Logout</button></li>
                 </ul>
@@ -58,7 +58,7 @@
 
     <footer class="footer small-footer">
         <div class="container">
-            <p class="footer-text">&copy; 2025 WebUI Skeleton. Built with Go and authentication ready.</p>
+            <p class="footer-text">&copy; 2025 FileBot.</p>
         </div>
     </footer>
 

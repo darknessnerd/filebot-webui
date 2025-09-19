@@ -25,6 +25,7 @@
 @import url('components/_notifications.css');
 @import url('components/_auth.css');
 @import url('components/_modals.css');
+@import url('components/_filebot_form.css');
 
 /* 4. LAYOUT */
 @import url('layout/_header.css');
@@ -105,8 +106,8 @@ body {
   box-shadow: var(--shadow-sm);
   padding: var(--spacing-md) var(--spacing-sm) 0;
   border-radius: var(--border-radius-md);
-  height: 98%;
-  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: calc(100vh - var(--header-height) - var(--footer-height) - var(--spacing-md));
 }
 
 /* Tablet responsiveness for main content */
@@ -117,7 +118,7 @@ body {
 
   .main-content-children {
     padding: var(--spacing-sm);
-    height: auto;
+    flex: 1 1 auto;
     min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
   }
 }
