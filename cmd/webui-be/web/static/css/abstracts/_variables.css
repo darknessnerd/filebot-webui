@@ -74,11 +74,6 @@
     --section-spacing-xl: 4rem;
 }
 
-/* Apply --text-primary to all elements */
-* {
-    color: var(--text-primary);
-}
-
 /* Dark theme support */
 @media (prefers-color-scheme: dark) {
     :root {

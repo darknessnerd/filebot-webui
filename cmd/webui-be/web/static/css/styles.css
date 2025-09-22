@@ -43,32 +43,19 @@
 
 
 
-/* Hacker Terminal Theme */
+/* Theme variable overrides: only values differing from abstracts/_variables.css kept to avoid duplication */
 :root {
-  --bg-primary: #181818;
-  --bg-secondary: #222;
-  --bg-tertiary: #111;
-  --text-primary: #00ff00;
-  --text-muted: #4afc4a;
-  --accent-primary: #00ff00;
-  --accent-secondary: #00b300;
-  --border-color: #00ff0033;
-  --shadow-sm: 0 2px 8px #00ff0022;
-  --font-family-main: 'Fira Mono', 'Consolas', 'Menlo', monospace;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.2rem;
-  --font-size-xxl: 2rem;
-  --font-size-sm: 0.9rem;
-  --container-max-width: 1200px;
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 32px;
-  --border-radius: 4px;
-  --border-radius-md: 8px;
-  --header-height: 48px;
-  --footer-height: 32px;
-  --transition-fast: 0.15s;
+  --bg-tertiary: #111;              /* override default #232323 */
+  --text-primary: #00ff00;          /* override default #39ff14 */
+  --text-muted: #4afc4a;            /* override muted color */
+  --accent-primary: #00ff00;        /* override accent */
+  --accent-secondary: #00b300;      /* override secondary accent */
+  --border-color: #00ff0033;        /* translucent border variant */
+  --shadow-sm: 0 2px 8px #00ff0022; /* adjusted shadow tint */
+  --font-size-xxl: 2rem;            /* larger XXL heading */
+  --container-max-width: 1200px;    /* wider container */
+  --spacing-lg: 32px;               /* larger large spacing */
+  --footer-height: 32px;            /* shorter footer height */
 }
 
 html, body {
@@ -137,34 +124,16 @@ body.fullpage-app {
 
 /* Tablet responsiveness for main content */
 @media (max-width: 1024px) {
-  .main-content {
-    padding: 0 var(--spacing-sm);
-  }
-
-  .main-content-children {
-    padding: var(--spacing-sm);
-    flex: 1 1 auto;
-    min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
-  }
+  .main-content { padding: 0 var(--spacing-sm); }
+  .main-content-children { padding: var(--spacing-sm); flex: 1 1 auto; min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem); }
 }
 
 /* Mobile responsiveness for main content */
 @media (max-width: 768px) {
-  body { overflow: auto; } /* allow normal page scrolling on mobile */
-
-  .main-content {
-    padding: 0;
-    margin-top: var(--header-height);
-  }
-  .main-content-children.home-layout {
-     flex-direction: column;
-  }
-
-  .main-content-children {
-    padding: var(--spacing-xs);
-    border-radius: 0;
-    gap: var(--spacing-sm);
-  }
+  body { overflow: auto; }
+  .main-content { padding: 0; margin-top: var(--header-height); }
+  .main-content-children.home-layout { flex-direction: column; }
+  .main-content-children { padding: var(--spacing-xs); border-radius: 0; gap: var(--spacing-sm); }
 }
 
 /* Debug styles for dropdown visibility */
@@ -172,19 +141,12 @@ body.fullpage-app {
   transition: opacity 0.2s;
 }
 
-/* Debug: visually indicate when dropdown is open */
-.compact-user-info .dropdown-menu[style*="display: block"] {
-  outline: 2px solid red;
-}
-
 /* Terminal flicker animation */
 @keyframes terminal-flicker {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.8; }
 }
-.logo, .header-title, .footer-text {
-  animation: terminal-flicker 2s infinite;
-}
+.anim-terminal-flicker { animation: terminal-flicker 2s infinite; }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
@@ -207,51 +169,39 @@ button:focus {
   outline: 2px solid var(--accent-primary);
 }
 
-/* Terminal prompt and blinking cursor effect */
-.terminal-prompt {
-  font-family: var(--font-family-main);
-  color: var(--accent-primary);
-  font-size: var(--font-size-lg);
-  background: none;
-  border: none;
-  outline: none;
-  display: inline-block;
-}
-.blink-cursor {
-  display: inline-block;
-  width: 1ch;
-  background: var(--accent-primary);
-  animation: blink-cursor 1s steps(2, start) infinite;
-  vertical-align: bottom;
-}
-@keyframes blink-cursor {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-.terminal-window {
+/* Re-introduced terminal component styles */
+.terminal-window, .terminal-shell { /* shell container */
   background: var(--bg-secondary);
-  border: 2px solid #333; /* More elegant, subtle border */
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius-md);
-  box-shadow: 0 0 24px #222 inset, 0 2px 8px #00ff0022; /* Subtle shadow, slight green glow */
-  padding: var(--spacing-lg);
+  box-shadow: 0 2px 12px #00000044, 0 0 12px #00ff0022 inset;
+  padding: var(--spacing-md);
   margin: var(--spacing-md) auto;
   max-width: 900px;
-  min-height: 300px;
-  font-size: var(--font-size-lg);
-  color: var(--accent-primary);
+  min-height: 240px;
   font-family: var(--font-family-main);
-  position: relative;
+  font-size: var(--font-size-base);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+.terminal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--spacing-sm); }
+.terminal-title { font-weight:600; color: var(--accent-primary); }
+.terminal-body { flex:1 1 auto; overflow-y:auto; font-size: var(--font-size-sm); line-height:1.4; padding-right:4px; }
+.terminal-line { white-space:pre-wrap; word-break:break-word; margin: 0 0 2px 0; }
+.terminal-prompt-line { display:flex; align-items:center; gap:4px; margin-top: var(--spacing-xs); }
+.prompt-label { color: var(--accent-primary); }
+.terminal-input { flex:1; background: var(--bg-primary); border:1px solid var(--border-color); color: var(--text-primary); font-family: var(--font-family-main); padding:4px 6px; border-radius: var(--border-radius-sm); outline:none; }
+.terminal-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 2px #00ff0022; }
+/* Optional blinking cursor utility (opt-in) */
+.blink-cursor { display:inline-block; width:1ch; background: var(--accent-primary); animation: blink-cursor 1s steps(2,start) infinite; vertical-align:baseline; }
+@keyframes blink-cursor { 0%,100% { opacity:1;} 50% { opacity:0; } }
+/* Legacy prompt class retained */
+.terminal-prompt { font-family: var(--font-family-main); color: var(--accent-primary); font-size: var(--font-size-base); background:none; border:none; }
+/* Responsive: make terminal full width on small screens */
+@media (max-width: 768px) { .terminal-window, .terminal-shell { margin: var(--spacing-sm) 0; border-radius: 0; max-width: 100%; } }
 
-/* Removed directory-browser related classes now in _directory_browser.css */
-
-/* abstracts/_variables.css, base/_reset.css, base/_typography.css, components/_auth.css, components/_buttons.css, components/_forms.css, components/_modals.css, components/_notifications.css, layout/_footer.css, layout/_grid.css, layout/_header.css, pages/_home.css, themes/_responsive.css, vendors/ */
-
-.footer-text {
-    margin: 0;
-}
-
-
+/* Status bar and message styles */
 .status-bar {
     margin-bottom: 1rem;
     min-height: 32px;
@@ -311,78 +261,5 @@ button:focus {
         border-radius: var(--border-radius-md);
         padding: var(--spacing-sm);
         margin-bottom: var(--spacing-md);
-    }
-}
-
-.side-widgets {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.recently-added-mini, #plex-libraries-widget {
-    background: var(--bg-primary);
-    border-radius: 8px;
-    box-shadow: none;
-    padding: 0.75rem;
-    min-height: 100px;
-    opacity: 0.85;
-    transition: opacity 0.3s ease;
-}
-
-.recently-added-mini:hover, #plex-libraries-widget:hover {
-    opacity: 1;
-}
-
-.plex-libraries-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    font-size: 0.85rem;
-}
-
-.plex-libraries-list li {
-    margin-bottom: 0.5rem;
-    opacity: 0.9;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.plex-libraries-list li strong {
-    font-weight: normal;
-    color: var(--text-muted);
-}
-
-.plex-libraries-list .btn {
-    font-size: 0.7rem;
-    padding: 2px 6px;
-    opacity: 0.8;
-    transition: opacity 0.2s ease;
-}
-
-.plex-libraries-list .btn:hover {
-    opacity: 1;
-}
-
-@media (max-width: 900px) {
-    .home-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    .side-widgets {
-        flex-direction: row;
-        gap: 1rem;
-    }
-}
-
-@media (max-width: 600px) {
-    .header-flex, .home-grid {
-        flex-direction: row;
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-    }
-    .main-content {
-        padding: 1rem 0 0.5rem 0;
     }
 }
