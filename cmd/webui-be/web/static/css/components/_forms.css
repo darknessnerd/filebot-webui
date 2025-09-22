@@ -1,11 +1,11 @@
 /* Form Components */
 .form-group {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: 0.75rem; /* Reduced from var(--spacing-lg) */
 }
 
 .form-label {
     display: block;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0.3rem; /* Reduced from var(--spacing-sm) */
     font-weight: 500;
     color: var(--text-primary);
     font-size: var(--font-size-base);
@@ -14,8 +14,8 @@
 .form-control {
     display: block;
     width: 100%;
-    padding: var(--spacing-md) var(--spacing-lg);
-    font-size: var(--font-size-lg);
+    padding: 0.5rem 0.75rem; /* Reduced from var(--spacing-md) var(--spacing-lg) */
+    font-size: var(--font-size-base); /* Reduced from var(--font-size-lg) */
     line-height: 1.5;
     color: var(--text-primary);
     background-color: var(--bg-secondary);
