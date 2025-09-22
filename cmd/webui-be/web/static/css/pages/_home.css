@@ -6,116 +6,62 @@
   padding: var(--spacing-md);
   box-shadow: var(--shadow-sm);
 }
+
+/* Base layout - desktop first */
 .home-flex {
-  /* Removed fixed height & hidden overflow to allow content to size naturally */
   display: flex;
   flex-direction: row;
   gap: var(--spacing-lg);
   width: 100%;
+  height: 100%;
   min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
-  align-items: stretch; /* allow children (.home-main, .filebot-sidebar) to match tallest column */
+  align-items: stretch;
   justify-content: stretch;
   overflow: visible;
 }
-.main-widgets {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  padding: var(--spacing-xs);
-  height: 100%;
-  flex: 1;
-  overflow-y: auto;
-}
+
+/* Column sizing and scroll management */
 .home-main {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  /* height:100%; removed so it can inherit stretch height */
   min-width: 0;
+  min-height: 0; /* allow interior scroll areas to size */
   overflow: hidden;
 }
 
-.side-widgets {
-  flex: 0 0 30%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  align-items: stretch;
-  /* height:100%; removed to allow stretch */
-  overflow-y: auto;
-  padding: var(--spacing-xs);
-}
-
-.recently-added-mini, #plex-libraries-widget {
-  background: var(--bg-primary);
-  border-radius: 8px;
-  box-shadow: none;
-  margin-bottom: var(--spacing-md);
-  padding: 0.75em;
-  border: 1px solid var(--border-color);
-  min-width: 0;
-  width: 100%;
-  overflow-y: auto;
-  opacity: 0.85;
-  transition: opacity 0.3s ease;
-}
-
-.recently-added-mini:hover, #plex-libraries-widget:hover {
-  opacity: 1;
-}
-
 .filebot-sidebar {
-  flex: 1 1 50%;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  /* height:100%; removed to allow stretch */
   overflow-y: auto;
   padding: var(--spacing-xs);
+  flex: 0 0 clamp(300px, 30%, 420px);
+  max-width: clamp(300px, 30%, 420px);
+  min-height: 0;
 }
 
-/* Make collapsible containers flex so their content can stretch */
+/* Widget containers */
 .filebot-container, .plex-widgets-container {
   display: flex;
   flex-direction: column;
-  max-height: none;
-  flex: 1 1 auto;
+  flex: 0 0 auto; /* natural height */
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
 }
 
-/* Let inner content fill remaining height */
-.filebot-content {
+/* Content areas */
+.filebot-content, .plex-widgets-row {
   flex: 1 1 auto;
-  max-height: none; /* remove 50vh cap for full-height behavior */
   min-height: 0; /* allow scrolling within */
   overflow-y: auto;
 }
 
-/* When plex collapsed still allow filebot to grow */
-.plex-collapsed .filebot-expanded .filebot-content {
-  max-height: none;
-}
-
-.filebot-form-mini {
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  padding: 1em;
-  border: 1px solid var(--accent-primary);
-  min-width: 0;
-  width: 100%;
-  overflow-y: auto;
-  max-height: 100%;
-}
-
-.plex-widgets-container {
-  background: var(--bg-primary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-  margin-bottom: var(--spacing-md);
-}
-
-.plex-widgets-header {
+/* Widget headers */
+.filebot-header, .plex-widgets-header {
   color: var(--text-muted);
   margin: 0;
   padding: 0.5em 0.75em;
@@ -135,6 +81,12 @@
   opacity: 0.7;
 }
 
+/* When plex collapsed still allow filebot to grow */
+.plex-collapsed .filebot-expanded .filebot-content {
+  max-height: none;
+}
+
+/* Plex widgets row */
 .plex-widgets-row {
   display: flex;
   flex-direction: row;
@@ -143,135 +95,119 @@
   overflow-x: auto;
 }
 
-.plex-widgets-row .recently-added-mini,
-.plex-widgets-row #plex-libraries-widget {
+/* Plex mini widgets */
+.recently-added-mini, #plex-libraries-widget {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 0.75em;
+  border: 1px solid var(--border-color);
+  min-width: 0;
   flex: 1;
   min-width: 200px;
   margin-bottom: 0;
   max-height: 300px;
+  overflow-y: auto;
+  opacity: 0.85;
+  transition: opacity 0.3s ease;
 }
 
-/* Tablet responsiveness */
-@media (max-width: 1024px) {
-  .home-flex {
-    height: auto;
-    min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
-  }
+.recently-added-mini:hover, #plex-libraries-widget:hover {
+  opacity: 1;
+}
 
-  .home-main {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    flex-shrink: 0;
-    flex-basis: auto;
-    background: rebeccapurple;
-    height: auto;
-    overflow-y: auto;
-  }
+/* FileBot form */
+.filebot-form-mini {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 1em;
+  border: 1px solid var(--accent-primary);
+  min-width: 0;
+  width: 100%;
+  overflow-y: auto;
+  max-height: 100%;
+}
 
+/* RESPONSIVE BREAKPOINTS - CONSOLIDATED */
+
+/* Large Tablet (901px-1180px) */
+@media (max-width: 1180px) and (min-width: 901px) {
   .filebot-sidebar {
-    flex: 1 1 100%;
-    max-height: 50vh;
-    overflow-y: auto;
-  }
-
-  .filebot-content {
-    max-height: 45vh;
-  }
-
-  /* When Plex widgets are collapsed on tablet */
-  .plex-collapsed .filebot-expanded .filebot-content {
-    max-height: 45vh;
-  }
-
-  .plex-widgets-row {
-    flex-direction: column;
-  }
-
-  .plex-widgets-row .recently-added-mini,
-  .plex-widgets-row #plex-libraries-widget {
-    flex: 0 0 auto;
-    min-width: 0;
-    width: 100%;
+    flex: 0 0 clamp(260px, 34%, 360px);
+    max-width: clamp(260px, 34%, 360px);
   }
 }
 
-/* Mobile responsiveness */
-@media (max-width: 768px) {
+/* Tablet and below (≤900px) */
+@media (max-width: 900px) {
+  /* Change to vertical layout */
   .home-flex {
     flex-direction: column;
     gap: var(--spacing-md);
     height: auto;
   }
 
+  /* Main content first */
   .home-main {
-    flex: 1 1 100%;
-    min-width: 0;
+    order: 1;
     width: 100%;
-    height: auto;
-    max-height: none;
+    flex: 0 0 auto;
     overflow-y: visible;
+    background: transparent; /* remove debug color */
   }
 
+  /* Sidebar second - full width */
   .filebot-sidebar {
-    flex: 1 1 100%;
+    order: 2;
     width: 100%;
-    max-height: none;
-    padding: var(--spacing-sm);
+    max-width: 100%;
+    flex: 0 0 auto;
+    overflow: visible;
     border-top: 1px solid var(--border-color);
     margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
   }
 
-  .filebot-container {
+  /* All containers full width */
+  .filebot-container, .plex-widgets-container {
     width: 100%;
+    max-width: 100%;
   }
 
+  /* Vertical stacking in Plex widgets row */
+  .plex-widgets-row {
+    flex-direction: column;
+    overflow-x: visible;
+    max-height: 60vh;
+  }
+
+  /* Full width widgets */
+  .plex-widgets-row .recently-added-mini,
+  .plex-widgets-row #plex-libraries-widget {
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  /* Content height caps */
+  .filebot-content {
+    max-height: 45vh;
+  }
+
+  /* When Plex widgets are collapsed */
+  .plex-collapsed .filebot-expanded .filebot-content {
+    max-height: 60vh;
+  }
+}
+
+/* Mobile (≤768px) */
+@media (max-width: 768px) {
   .filebot-content {
     max-height: 70vh;
-    overflow-y: auto;
-  }
-
-  /* When Plex widgets are collapsed on mobile */
-  .plex-collapsed .filebot-expanded {
-    flex: 1 1 auto;
   }
 
   .plex-collapsed .filebot-expanded .filebot-content {
     max-height: 70vh;
-  }
-
-  .plex-widgets-container {
-    width: 100%;
-  }
-
-  .plex-widgets-row {
-    flex-direction: column;
-    max-height: 60vh;
-    overflow-y: auto;
-  }
-
-  .plex-widgets-row .recently-added-mini,
-  .plex-widgets-row #plex-libraries-widget {
-    flex: 0 0 auto;
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .side-widgets {
-    min-width: 0;
-    max-width: 100%;
-    width: 100%;
-    height: auto;
-    position: static;
-    border-left: none;
-    padding: 0;
-    background: none;
-  }
-
-  .filebot-form-mini {
-    min-width: 0;
-    max-width: 100%;
-    margin-bottom: 0;
   }
 }

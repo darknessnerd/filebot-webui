@@ -1,11 +1,11 @@
 {{define "home.html"}}
-<div class="card home-flex main-content-children">
-    <div x-data="{ open: true }" class="home-main">
-        <h3 @click="open = !open" class="filebot-header">
+<div class="home-flex main-content-children home-layout">
+    <section x-data="{ open: true }" class="home-main" aria-labelledby="directory-browser-heading">
+        <h3 id="directory-browser-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
             <span>Directory Browser</span>
-            <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+            <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
         </h3>
-        <div x-show="open" class="filebot-content">
+        <div x-show="open" class="filebot-content" x-transition>
             <div id="directory-browser-widget"
                  class="main-browser"
                  hx-get="/directory-browser"
@@ -16,14 +16,14 @@
                 <span>Loading file browser...</span>
             </div>
         </div>
-    </div>
-    <div x-data="{ plexOpen: true }" class="filebot-sidebar" :class="{ 'plex-collapsed': !plexOpen }">
-        <div x-data="{ open: true }" class="filebot-container" :class="{ 'filebot-expanded': !plexOpen }">
-            <h3 @click="open = !open" class="filebot-header">
+    </section>
+    <aside x-data="{ plexOpen: true }" class="filebot-sidebar" :class="{ 'plex-collapsed': !plexOpen }" aria-label="Sidebar Panels">
+        <section x-data="{ open: true }" class="filebot-container" :class="{ 'filebot-expanded': !plexOpen }" aria-labelledby="filebot-form-heading">
+            <h3 id="filebot-form-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
                 <span>FileBot Execute</span>
-                <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
             </h3>
-            <div x-show="open" class="filebot-content">
+            <div x-show="open" class="filebot-content" x-transition>
                 <div id="filebot-form-widget"
                      class="filebot-form-mini"
                      hx-get="/filebot/form"
@@ -34,16 +34,16 @@
                     <span>Loading FileBot form...</span>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div x-data="{ open: true }" 
-             x-init="$watch('open', value => { plexOpen = value })" 
-             class="plex-widgets-container">
-            <h3 @click="open = !open" class="plex-widgets-header">
+        <section x-data="{ open: true }"
+             x-init="$watch('open', value => { plexOpen = value })"
+             class="plex-widgets-container" aria-labelledby="plex-widgets-heading">
+            <h3 id="plex-widgets-heading" @click="open = !open" class="plex-widgets-header" role="button" tabindex="0">
                 <span>Plex Widgets</span>
-                <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
             </h3>
-            <div x-show="open" class="plex-widgets-row">
+            <div x-show="open" class="plex-widgets-row" x-transition>
                 <div id="plex-recently-added-widget"
                      class="recently-added-mini"
                      hx-get="/plex/recently-added/htmx"
@@ -62,8 +62,8 @@
                     <span>Loading libraries...</span>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    </aside>
 </div>
 <script>
     console.log('🏠 [Home] home.html rendered');

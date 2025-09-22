@@ -71,6 +71,9 @@
   --transition-fast: 0.15s;
 }
 
+html, body {
+  height: 100%;
+}
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -80,6 +83,17 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* prevent extra page scrollbar on desktop */
+}
+
+body.fullpage-app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    background: #181a20;
+    color: #eaeaea;
+    font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
 }
 
 .container {
@@ -96,7 +110,9 @@ body {
   box-shadow: 0 0 24px #00ff0022 inset;
   border-radius: var(--border-radius-md);
   margin: var(--header-height) 0 0 0;
-  overflow: hidden;
+  overflow: hidden; /* was auto; remove outer scrollbar */
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content-children {
@@ -108,6 +124,15 @@ body {
   border-radius: var(--border-radius-md);
   flex: 1 1 auto;
   min-height: calc(100vh - var(--header-height) - var(--footer-height) - var(--spacing-md));
+}
+
+.main-content-children.home-layout {
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: calc(100vh - var(--header-height) - var(--footer-height));
+  overflow: hidden;
 }
 
 /* Tablet responsiveness for main content */
@@ -125,9 +150,14 @@ body {
 
 /* Mobile responsiveness for main content */
 @media (max-width: 768px) {
+  body { overflow: auto; } /* allow normal page scrolling on mobile */
+
   .main-content {
     padding: 0;
     margin-top: var(--header-height);
+  }
+  .main-content-children.home-layout {
+     flex-direction: column;
   }
 
   .main-content-children {
@@ -216,18 +246,6 @@ button:focus {
 /* Removed directory-browser related classes now in _directory_browser.css */
 
 /* abstracts/_variables.css, base/_reset.css, base/_typography.css, components/_auth.css, components/_buttons.css, components/_forms.css, components/_modals.css, components/_notifications.css, layout/_footer.css, layout/_grid.css, layout/_header.css, pages/_home.css, themes/_responsive.css, vendors/ */
-
-body.fullpage-app {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    background: #181a20;
-    color: #eaeaea;
-    font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
-}
-
-/* Removed duplicated .footer styles */
 
 .footer-text {
     margin: 0;
