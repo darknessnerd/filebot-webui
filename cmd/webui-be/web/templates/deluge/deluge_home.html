@@ -18,21 +18,20 @@
                 <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
             </h3>
             <div x-show="open" class="filebot-content">
-                <div id="add-torrent-form" class="p-4">
-                    <form hx-post="/deluge/add-torrent" hx-target="#deluge-torrents-widget" class="space-y-4">
-                        <div>
-                            <label for="torrent_url" class="block text-sm font-medium text-gray-700">Torrent URL or Magnet Link</label>
+                <div id="add-torrent-form" class="filebot-form-mini">
+                    <form hx-post="/deluge/add-torrent" hx-target="#deluge-torrents-widget">
+                        <div class="form-group">
+                            <label for="torrent_url" class="form-label">Torrent URL or Magnet Link</label>
                             <input type="text" id="torrent_url" name="torrent_url" required
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                   class="form-control">
                         </div>
-                        <div>
-                            <label for="download_location" class="block text-sm font-medium text-gray-700">Download Location (optional)</label>
+                        <div class="form-group">
+                            <label for="download_location" class="form-label">Download Location (optional)</label>
                             <input type="text" id="download_location" name="download_location"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                   class="form-control">
                         </div>
-                        <div class="flex justify-end">
-                            <button type="submit"
-                                    class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        <div class="form-group">
+                            <button type="submit" class="btn">
                                 Add Torrent
                             </button>
                         </div>
@@ -41,14 +40,14 @@
             </div>
         </div>
 
-        <div x-data="{ open: true }" class="filebot-container mt-4">
+        <div x-data="{ open: true }" class="filebot-container">
             <h3 @click="open = !open" class="filebot-header">
                 <span>Deluge Server</span>
                 <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
             </h3>
             <div x-show="open" class="filebot-content">
                 <div id="deluge-server-widget"
-                     class="p-4"
+                     class="filebot-form-mini"
                      hx-get="/deluge/server-status/htmx"
                      hx-trigger="load"
                      hx-target="#deluge-server-widget"
@@ -59,21 +58,25 @@
             </div>
         </div>
 
-        <div x-data="{ open: true }" class="filebot-container mt-4">
+        <div x-data="{ open: true }" class="filebot-container">
             <h3 @click="open = !open" class="filebot-header">
                 <span>Global Actions</span>
                 <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
             </h3>
             <div x-show="open" class="filebot-content">
-                <div class="p-4 space-y-2">
-                    <button hx-post="/deluge/pause-all" hx-target="#deluge-torrents-widget"
-                            class="w-full inline-flex justify-center rounded-md border border-transparent bg-yellow-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
-                        Pause All
-                    </button>
-                    <button hx-post="/deluge/resume-all" hx-target="#deluge-torrents-widget"
-                            class="w-full inline-flex justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                        Resume All
-                    </button>
+                <div class="filebot-form-mini">
+                    <div class="form-group">
+                        <button hx-post="/deluge/pause-all" hx-target="#deluge-torrents-widget"
+                                class="btn" style="background-color: var(--warning-color); color: white; width: 100%;">
+                            Pause All
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <button hx-post="/deluge/resume-all" hx-target="#deluge-torrents-widget"
+                                class="btn" style="background-color: var(--success-color); color: white; width: 100%;">
+                            Resume All
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
