@@ -131,16 +131,8 @@
 
 /* RESPONSIVE BREAKPOINTS - CONSOLIDATED */
 
-/* Large Tablet (901px-1180px) */
-@media (max-width: 1180px) and (min-width: 901px) {
-  .filebot-sidebar {
-    flex: 0 0 clamp(260px, 34%, 360px);
-    max-width: clamp(260px, 34%, 360px);
-  }
-}
-
-/* Tablet and below (≤900px) */
-@media (max-width: 900px) {
+/* Tablet and below (≤1020px) */
+@media (max-width: 1020px) {
   /* Change to vertical layout */
   .home-flex {
     flex-direction: column;
