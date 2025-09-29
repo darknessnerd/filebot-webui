@@ -104,7 +104,7 @@ func (h *AuthHandler) PlexPoll(c *gin.Context) {
 	}
 	logger.Log.Info().Int64("pin_id", pinID).Str("client_ip", c.ClientIP()).Str("user_email", user.Email).Msg("Plex login successful, JWT issued")
 	c.SetCookie("auth_token", token, 3600, "/", "", false, true)
-	c.Redirect(http.StatusFound, "/dashboard")
+	c.Redirect(http.StatusFound, "/")
 }
 
 // PlexStart: returns Auth App URL for forward flow
@@ -173,7 +173,7 @@ func (h *AuthHandler) PlexForward(c *gin.Context) {
 	}
 	logger.Log.Info().Int64("pin_id", pinID).Str("client_ip", c.ClientIP()).Str("user_email", user.Email).Msg("✅ [PlexForward] Plex login successful, JWT issued")
 	c.SetCookie("auth_token", token, 3600, "/", "", false, true)
-	c.Redirect(http.StatusFound, "/dashboard")
+	c.Redirect(http.StatusFound, "/")
 }
 
 // Logout handles user logout

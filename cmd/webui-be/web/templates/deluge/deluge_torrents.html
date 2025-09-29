@@ -101,11 +101,11 @@
                             </button>
                             {{if and .IsFinished (ge .Progress 100.0)}}
                                 <div class="action-buttons">
-                                    <button hx-post="/deluge/test-filebot-processing" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
+                                    <button hx-get="/filebot/form?torrent_id={{.ID}}&mode=test" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
                                             class="btn btn-filebot-test">
                                         Test with Filebot
                                     </button>
-                                    <button hx-post="/deluge/process-with-filebot" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
+                                    <button hx-get="/filebot/form?torrent_id={{.ID}}" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
                                             class="btn btn-filebot-process">
                                         Process with Filebot
                                     </button>

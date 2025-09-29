@@ -9,6 +9,9 @@
         novalidate>
     <h3 class="filebot-form__title">FileBot Execute</h3>
 
+    <!-- Hidden torrent ID field for tracking which torrent is being processed -->
+    <input type="hidden" name="torrent_id" id="torrent_id" value="{{.TorrentID}}" />
+
     <div class="filebot-form-grid">
       <div class="form-group">
         <label for="db" class="form-label">Database</label>

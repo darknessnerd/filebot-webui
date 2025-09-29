@@ -97,7 +97,7 @@ func (s *Server) setupTemplates() {
 		"add":               func(a, b int) int { return a + b },
 		"splitPath":         func(p string) []string { return strings.Split(p, "/") },
 		"joinPath":          func(parts []string) string { return strings.Join(parts, "/") },
-		"formatBytes":       func(bytes int64) string {
+		"formatBytes": func(bytes int64) string {
 			const unit = 1024
 			if bytes < unit {
 				return fmt.Sprintf("%d B", bytes)
@@ -128,7 +128,6 @@ func (s *Server) setupTemplates() {
 
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(s.templateFS,
 		"web/templates/base.html",
-		"web/templates/dashboard.html",
 		"web/templates/home.html",
 		"web/templates/login.html",
 		"web/templates/plex/plex_libraries.html",

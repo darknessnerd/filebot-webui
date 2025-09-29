@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os/exec"
+	"net/url"
 	"strconv"
 	"time"
 	"webui-skeleton/internal/auth"
@@ -23,7 +23,7 @@ type DelugeHandler struct {
 	config  *config.Config
 	db      *database.DB
 	authSvc *auth.Service
-	repo    repository.DelugeServerRepositoryInterface
+	Repo    repository.DelugeServerRepositoryInterface
 }
 
 // NewDelugeHandler creates a new Deluge handler
@@ -32,7 +32,7 @@ func NewDelugeHandler(config *config.Config, db *database.DB, authSvc *auth.Serv
 		config:  config,
 		db:      db,
 		authSvc: authSvc,
-		repo:    repo,
+		Repo:    repo,
 	}
 }
 
@@ -52,14 +52,14 @@ func (h *DelugeHandler) RenderDelugeServersHTMX(c *gin.Context) {
 
 	logger.Log.Debug().Msgf("[HTMX][RenderDelugeServersHTMX] Called for user: %s", user.Name)
 
-	servers, err := h.repo.GetServersByUser(user.ID)
+	servers, err := h.Repo.GetServersByUser(user.ID)
 	if err != nil {
 		logger.Log.Error().Msgf("[HTMX][RenderDelugeServersHTMX] Failed to get servers for user %s: %v", user.Name, err)
 		c.String(http.StatusInternalServerError, "Failed to get Deluge servers")
 		return
 	}
 
-	preferredServer, err := h.repo.GetPreferredDelugeServer(user.ID)
+	preferredServer, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	var preferredServerID = -1
 	if err == nil && preferredServer != nil {
 		preferredServerID = preferredServer.ID
@@ -128,7 +128,7 @@ func (h *DelugeHandler) AddDelugeServer(c *gin.Context) {
 	}
 
 	// Save server to database
-	err = h.repo.UpsertDelugeServer(user, server)
+	err = h.Repo.UpsertDelugeServer(user, server)
 	if err != nil {
 		logger.Log.Error().Msgf("[AddDelugeServer] Failed to save server for user %s: %v", user.Name, err)
 		c.String(http.StatusInternalServerError, "Failed to save Deluge server")
@@ -137,7 +137,7 @@ func (h *DelugeHandler) AddDelugeServer(c *gin.Context) {
 
 	// Set as preferred if requested
 	if setPreferred {
-		err = h.repo.SetPreferredDelugeServer(user.ID, server.ID)
+		err = h.Repo.SetPreferredDelugeServer(user.ID, server.ID)
 		if err != nil {
 			logger.Log.Error().Msgf("[AddDelugeServer] Failed to set preferred server for user %s: %v", user.Name, err)
 		}
@@ -169,7 +169,7 @@ func (h *DelugeHandler) SetPreferredDelugeServer(c *gin.Context) {
 	}
 
 	// Update preferred server in deluge_servers table
-	err = h.repo.SetPreferredDelugeServer(user.ID, serverID)
+	err = h.Repo.SetPreferredDelugeServer(user.ID, serverID)
 	if err != nil {
 		logger.Log.Error().Msgf("[HTMX][SetPreferredDelugeServer] Failed to set preferred server for user: %s, error: %v", user.Name, err)
 		c.String(http.StatusInternalServerError, "Failed to set preferred server")
@@ -197,7 +197,7 @@ func (h *DelugeHandler) DeleteDelugeServer(c *gin.Context) {
 		return
 	}
 
-	err = h.repo.DeleteServer(serverID, user.ID)
+	err = h.Repo.DeleteServer(serverID, user.ID)
 	if err != nil {
 		logger.Log.Error().Msgf("[DeleteDelugeServer] Failed to delete server for user %s: %v", user.Name, err)
 		c.String(http.StatusInternalServerError, "Failed to delete Deluge server")
@@ -225,7 +225,7 @@ func (h *DelugeHandler) TestDelugeConnection(c *gin.Context) {
 	}
 
 	// Get server from database
-	servers, err := h.repo.GetServersByUser(user.ID)
+	servers, err := h.Repo.GetServersByUser(user.ID)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to get Deluge servers")
 		return
@@ -248,18 +248,18 @@ func (h *DelugeHandler) TestDelugeConnection(c *gin.Context) {
 	connected, err := h.testDelugeConnection(server)
 	if err != nil {
 		logger.Log.Error().Msgf("[TestDelugeConnection] Connection test failed for server %s: %v", server.Name, err)
-		h.repo.UpdateServerStatus(server.ID, false, err.Error())
+		h.Repo.UpdateServerStatus(server.ID, false, err.Error())
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Connection test failed: %v", err))
 		return
 	}
 
 	if !connected {
-		h.repo.UpdateServerStatus(server.ID, false, "Connection test failed")
+		h.Repo.UpdateServerStatus(server.ID, false, "Connection test failed")
 		c.String(http.StatusBadGateway, "Connection test failed")
 		return
 	}
 
-	h.repo.UpdateServerStatus(server.ID, true, "")
+	h.Repo.UpdateServerStatus(server.ID, true, "")
 	c.String(http.StatusOK, "Connection test successful")
 }
 
@@ -386,7 +386,7 @@ func (h *DelugeHandler) GetTorrentsHTMX(c *gin.Context) {
 	user, _ := userObj.(*models.User)
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -414,7 +414,7 @@ func (h *DelugeHandler) GetServerStatusHTMX(c *gin.Context) {
 	user, _ := userObj.(*models.User)
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_server_status.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -452,7 +452,7 @@ func (h *DelugeHandler) AddTorrent(c *gin.Context) {
 	}
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -497,7 +497,7 @@ func (h *DelugeHandler) PauseTorrent(c *gin.Context) {
 	}
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -542,7 +542,7 @@ func (h *DelugeHandler) ResumeTorrent(c *gin.Context) {
 	}
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -588,7 +588,7 @@ func (h *DelugeHandler) RemoveTorrent(c *gin.Context) {
 	}
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -625,7 +625,7 @@ func (h *DelugeHandler) PauseAllTorrents(c *gin.Context) {
 	user, _ := userObj.(*models.User)
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -662,7 +662,7 @@ func (h *DelugeHandler) ResumeAllTorrents(c *gin.Context) {
 	user, _ := userObj.(*models.User)
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -698,6 +698,7 @@ func (h *DelugeHandler) ProcessCompletedTorrentWithFilebot(c *gin.Context) {
 	userObj, _ := c.Get("user_obj")
 	user, _ := userObj.(*models.User)
 	torrentID := c.PostForm("torrent_id")
+	mode := c.PostForm("mode") // Get the mode parameter from the form
 
 	if torrentID == "" {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
@@ -707,7 +708,7 @@ func (h *DelugeHandler) ProcessCompletedTorrentWithFilebot(c *gin.Context) {
 	}
 
 	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
 	if err != nil || server == nil {
 		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
 			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
@@ -748,203 +749,21 @@ func (h *DelugeHandler) ProcessCompletedTorrentWithFilebot(c *gin.Context) {
 		return
 	}
 
-	// Execute Filebot command to process the downloaded file
-	err = h.processWithFilebot(targetTorrent)
-	if err != nil {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"error": fmt.Sprintf("Failed to process with Filebot: %v", err),
-		})
-		return
-	}
-
-	// Get updated list of torrents
-	updatedTorrents, err := h.getTorrents(server)
-	if err != nil {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"success": fmt.Sprintf("Successfully processed \"%s\" with Filebot", targetTorrent.Name),
-			"error":   fmt.Sprintf("But failed to refresh torrent list: %v", err),
-		})
-		return
-	}
-
-	c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-		"torrents": updatedTorrents,
-		"success":  fmt.Sprintf("Successfully processed \"%s\" with Filebot", targetTorrent.Name),
-	})
-}
-
-// processWithFilebot executes the Filebot command to process a torrent
-func (h *DelugeHandler) processWithFilebot(torrent *models.DelugeTorrent) error {
 	// Construct the full path to the downloaded file
-	sourcePath := fmt.Sprintf("%s/%s", torrent.DownloadPath, torrent.Name)
+	sourcePath := fmt.Sprintf("%s/%s", targetTorrent.DownloadPath, targetTorrent.Name)
 
-	// Construct output directory - using a movies folder in user's home directory as default
-	// This could be made configurable in the future
-	outputDir := fmt.Sprintf("%s/media/movies", h.config.Filebot.OutputDirectory)
+	// Build the redirect URL with torrent ID, source path, and mode parameters
+	redirectURLParams := fmt.Sprintf("source_path=%s&torrent_id=%s",
+		url.QueryEscape(sourcePath), url.QueryEscape(torrentID))
 
-	// Prepare the Filebot command
-	// Using common Filebot options:
-	// -non-strict: allows for more lenient matching
-	// --action move: moves files instead of copying
-	// --conflict auto: automatically resolves conflicts
-	// -r: recursive processing
-	cmd := exec.Command(
-		"filebot",
-		"-script", "fn:amc",
-		"--output", outputDir,
-		"--action", "move",
-		"--conflict", "auto",
-		"-non-strict",
-		"-r",
-		"--def", "clean=y",
-		"--def", "artwork=y",
-		"--def", "unsorted=y",
-		"--def", fmt.Sprintf("movieFormat=%s", h.config.Filebot.MovieFormat),
-		"--def", fmt.Sprintf("seriesFormat=%s", h.config.Filebot.SeriesFormat),
-		sourcePath,
-	)
-
-	// Create a buffer to store output
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Execute the command
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("filebot command failed: %v\nstderr: %s", err, stderr.String())
+	// Add mode parameter if specified (for test mode)
+	if mode != "" {
+		redirectURLParams += fmt.Sprintf("&mode=%s", url.QueryEscape(mode))
 	}
 
-	// Log the output
-	logger.Log.Info().Msgf("Filebot processed torrent %s successfully: %s", torrent.Name, stdout.String())
-
-	return nil
-}
-
-// TestFilebotProcessing tests Filebot processing without actually moving files
-func (h *DelugeHandler) TestFilebotProcessing(c *gin.Context) {
-	userObj, _ := c.Get("user_obj")
-	user, _ := userObj.(*models.User)
-	torrentID := c.PostForm("torrent_id")
-
-	if torrentID == "" {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"error": "Torrent ID is required",
-		})
-		return
-	}
-
-	// Get preferred server
-	server, err := h.repo.GetPreferredDelugeServer(user.ID)
-	if err != nil || server == nil {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
-		})
-		return
-	}
-
-	// Get torrent info to determine file path
-	torrents, err := h.getTorrents(server)
-	if err != nil {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"error": fmt.Sprintf("Failed to get torrent information: %v", err),
-		})
-		return
-	}
-
-	// Find the specific torrent
-	var targetTorrent *models.DelugeTorrent
-	for i, torrent := range torrents {
-		if torrent.ID == torrentID {
-			targetTorrent = &torrents[i]
-			break
-		}
-	}
-
-	if targetTorrent == nil {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"error": "Torrent not found",
-		})
-		return
-	}
-
-	// Check if torrent is completed
-	if !targetTorrent.IsFinished || targetTorrent.Progress < 100 {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"error": "Torrent is not completed yet",
-		})
-		return
-	}
-
-	// Test Filebot processing without actually moving the files
-	output, err := h.testFilebotProcessing(targetTorrent)
-	if err != nil {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"error": fmt.Sprintf("Failed to test Filebot processing: %v", err),
-		})
-		return
-	}
-
-	// Get updated list of torrents
-	updatedTorrents, err := h.getTorrents(server)
-	if err != nil {
-		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-			"success":        fmt.Sprintf("Successfully tested \"%s\" with Filebot", targetTorrent.Name),
-			"error":          fmt.Sprintf("But failed to refresh torrent list: %v", err),
-			"filebot_output": output,
-		})
-		return
-	}
-
-	c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
-		"torrents":       updatedTorrents,
-		"success":        fmt.Sprintf("Successfully tested \"%s\" with Filebot", targetTorrent.Name),
-		"filebot_output": output,
-	})
-}
-
-// testFilebotProcessing tests Filebot processing without actually moving files
-func (h *DelugeHandler) testFilebotProcessing(torrent *models.DelugeTorrent) (string, error) {
-	// Construct the full path to the downloaded file
-	sourcePath := fmt.Sprintf("%s/%s", torrent.DownloadPath, torrent.Name)
-
-	// Construct output directory - using a movies folder in user's home directory as default
-	outputDir := fmt.Sprintf("%s/media/movies", h.config.Filebot.OutputDirectory)
-
-	// Prepare the Filebot command with -n flag for test mode (no execution)
-	// -n: don't execute, just print what would be done
-	cmd := exec.Command(
-		"filebot",
-		"-script", "fn:amc",
-		"--output", outputDir,
-		"--action", "move",
-		"--conflict", "auto",
-		"-non-strict",
-		"-r",
-		"-n", // Add the -n flag for test mode
-		"--def", "clean=y",
-		"--def", "artwork=y",
-		"--def", "unsorted=y",
-		"--def", fmt.Sprintf("movieFormat=%s", h.config.Filebot.MovieFormat),
-		"--def", fmt.Sprintf("seriesFormat=%s", h.config.Filebot.SeriesFormat),
-		sourcePath,
-	)
-
-	// Create a buffer to store output
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Execute the command
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("filebot test command failed: %v\nstderr: %s", err, stderr.String())
-	}
-
-	// Log the output
-	logger.Log.Info().Msgf("Filebot test processing for torrent %s output: %s", torrent.Name, stdout.String())
-
-	return stdout.String(), nil
+	// Redirect to home page with the parameters
+	redirectURL := fmt.Sprintf("/?%s", redirectURLParams)
+	c.Redirect(http.StatusSeeOther, redirectURL)
 }
 
 // Helper methods for interacting with the Deluge API
@@ -1765,14 +1584,5 @@ func (h *DelugeHandler) resumeAllTorrentsOnServer(server *models.DelugeServer) e
 
 	var response map[string]interface{}
 	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return err
-	}
-
-	// Check if the API call was successful
-	if response["error"] != nil {
-		return fmt.Errorf("API call failed: %v", response["error"])
-	}
-
-	return nil
+	return err
 }

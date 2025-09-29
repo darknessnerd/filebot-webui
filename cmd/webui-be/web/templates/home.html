@@ -30,6 +30,13 @@
                      hx-trigger="load"
                      hx-target="#filebot-form-widget"
                      hx-swap="innerHTML"
+                     x-init="
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const filePath = urlParams.get('file_path');
+                        const mode = urlParams.get('mode');
+                        if (filePath) {
+                            $el.setAttribute('hx-get', `/filebot/form?file_path=${encodeURIComponent(filePath)}${mode ? '&mode=' + mode : ''}`);
+                        }"
                      aria-label="FileBot Form">
                     <span>Loading FileBot form...</span>
                 </div>

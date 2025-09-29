@@ -86,7 +86,7 @@ func TestGetWorkingURLServer_NoConnection(t *testing.T) {
 
 func TestGetWorkingURLServer_RepoError(t *testing.T) {
 	h := &PlexHandler{repo: &mockPlexServerRepository{
-		preferredServerErr: errors.New("repo error"),
+		preferredServerErr: errors.New("Repo error"),
 	}}
 	user := &models.User{ID: 1, PlexUsername: "testuser"}
 	clientIP := "192.168.1.20"
