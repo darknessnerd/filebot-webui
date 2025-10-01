@@ -60,6 +60,7 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 		"Successes":           nil,
 		"Action":              "test",    // Set default action to test
 		"TorrentID":           torrentID, // Pass the torrent ID to the template
+		"DeleteTorrent":       true,      // Default to true for the delete torrent checkbox
 	}
 
 	// If mode is specified, set it as the action
@@ -197,6 +198,7 @@ func (h *FileBotHandler) FileBotSelection(c *gin.Context) {
 		"Successes":           nil,
 		"Action":              action,    // Preserve the action
 		"TorrentID":           torrentID, // Preserve the torrent ID
+		"DeleteTorrent":       true,      // Default to true for the delete torrent checkbox
 	}
 
 	logger.Log.Debug().
@@ -220,8 +222,10 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 		Str("log_level", c.PostForm("log_level")).
 		Str("query", c.PostForm("query")).
 		Str("recursive", c.PostForm("recursive")).
+		Str("delete_torrent", c.PostForm("delete_torrent")).
 		Str("files_json_length", strconv.Itoa(len(c.PostForm("files")))).
 		Str("output_directory", c.PostForm("outputDirectory")).
+		Str("torrent_id", c.PostForm("torrent_id")).
 		Str("request_id", c.GetHeader("X-Request-ID")).
 		Str("client_ip", c.ClientIP()).
 		Msg("FileBotExecute handler invoked")
@@ -235,8 +239,10 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 	logLevel := c.PostForm("log_level")
 	query := c.PostForm("query")
 	recursive := c.PostForm("recursive") == "true"
+	deleteTorrent := c.PostForm("delete_torrent") == "true"
 	filesJSON := c.PostForm("files")
 	outputDirectoryJSON := c.PostForm("outputDirectory")
+	torrentID := c.PostForm("torrent_id")
 
 	// Multi-file selection logic: parse filesJSON as CSV or JSON array
 	var filesList []string
@@ -291,6 +297,8 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 		"LogLevel":           logLevel,
 		"Query":              query,
 		"Recursive":          recursive,
+		"TorrentID":          torrentID,
+		"DeleteTorrent":      deleteTorrent,
 	}
 
 	isHTMX := c.GetHeader("HX-Request") != ""
@@ -299,6 +307,7 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 		Bool("has_validation_errors", len(errorMessages) > 0).
 		Int("files_count", total).
 		Bool("has_output_dir", outputDirectory != "").
+		Bool("delete_torrent", deleteTorrent).
 		Msg("FileBotExecute: Request validation")
 
 	if len(errorMessages) == 0 {
@@ -384,6 +393,58 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 			Int("success_count", len(successMessages)).
 			Int("error_count", len(errorMessages)).
 			Msg("FileBotExecute: File processing completed")
+
+		// Delete the torrent if:
+		// 1. The delete_torrent checkbox was selected
+		// 2. A torrent ID was provided
+		// 3. All files were processed successfully (no errors)
+		// 4. The action was "move" (only makes sense to delete after moving)
+		if deleteTorrent && torrentID != "" && len(errorMessages) == 0 && processed == total && total > 0 && action == "move" {
+			logger.Log.Info().
+				Str("torrent_id", torrentID).
+				Msg("FileBotExecute: Attempting to delete torrent after successful move operation")
+
+			// Get the deluge service from context
+			delugeService, exists := c.Get("deluge_service")
+			if !exists {
+				logger.Log.Warn().Msg("FileBotExecute: deluge_service not found in context, cannot delete torrent")
+			} else if delugeHandler, ok := delugeService.(*DelugeHandler); ok {
+				// Get user to get preferred Deluge server
+				userObj, _ := c.Get("user_obj")
+				user, ok := userObj.(*models.User)
+
+				if ok && h.delugeRepo != nil {
+					// Get preferred Deluge server
+					server, err := h.delugeRepo.GetPreferredDelugeServer(user.ID)
+					if err != nil {
+						logger.Log.Warn().
+							Err(err).
+							Int("user_id", user.ID).
+							Msg("FileBotExecute: Error getting preferred Deluge server, cannot delete torrent")
+					} else if server != nil {
+						// Remove the torrent but keep data (since it has been moved by FileBot)
+						// The removeData parameter is false to keep original data
+						err = delugeHandler.removeTorrentFromServer(server, torrentID, true)
+						if err != nil {
+							logger.Log.Warn().
+								Err(err).
+								Str("torrent_id", torrentID).
+								Msg("FileBotExecute: Error deleting torrent after move operation")
+							// Add a warning to the user that torrent deletion failed
+							successMessages = append(successMessages, "Note: Files were moved successfully, but automatic torrent removal failed. You may need to remove the torrent manually.")
+						} else {
+							logger.Log.Info().
+								Str("torrent_id", torrentID).
+								Msg("FileBotExecute: Successfully deleted torrent after move operation")
+							// Add a success message about torrent deletion
+							successMessages = append(successMessages, "Torrent was successfully removed from Deluge after files were moved.")
+						}
+					}
+				}
+			} else {
+				logger.Log.Warn().Msg("FileBotExecute: deluge_service type assertion failed")
+			}
+		}
 	}
 
 	status := ""
@@ -399,6 +460,7 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 		"FilesList":           filesList,
 		"OutputDirectoryJSON": outputDirectoryJSON,
 		"OutputDirectory":     outputDirectory,
+		"TorrentID":           torrentID, // Preserve the torrent ID
 	}
 
 	// Only add status, progress, errors, and successes if they have content

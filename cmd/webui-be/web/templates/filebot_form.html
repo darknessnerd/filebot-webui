@@ -74,6 +74,15 @@
         <span class="checkbox-label">Scan subdirectories</span>
       </div>
     </div>
+    {{if .TorrentID}}
+    <div class="form-group inline-checkbox">
+      <label for="delete_torrent" class="form-label">Delete Torrent</label>
+      <div class="checkbox-wrapper">
+        <input type="checkbox" name="delete_torrent" id="delete_torrent" value="true" {{if .DeleteTorrent}}checked{{end}} />
+        <span class="checkbox-label">Delete torrent after successful move</span>
+      </div>
+    </div>
+    {{end}}
     <div class="form-group">
       <label for="files" class="form-label">Files</label>
       <input type="hidden" name="files" id="selected-files" value="{{.FilesJSON}}" />
