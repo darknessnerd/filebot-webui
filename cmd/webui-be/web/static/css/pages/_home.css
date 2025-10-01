@@ -116,17 +116,63 @@
   opacity: 1;
 }
 
-/* FileBot form */
-.filebot-form-mini {
+/* Plex Libraries List - Default vertical layout */
+.plex-libraries-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.plex-libraries-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.plex-libraries-list li:last-child {
+  border-bottom: none;
+}
+
+/* Plex Libraries Horizontal Layout */
+.plex-libraries-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.library-card {
   background: var(--bg-secondary);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  padding: 1em;
-  border: 1px solid var(--accent-primary);
-  min-width: 0;
-  width: 100%;
-  overflow-y: auto;
-  max-height: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  min-width: fit-content;
+  text-align: center;
+}
+
+.library-type {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
+}
+
+/* Library Refresh Buttons for Quick Actions */
+.library-refresh-btn {
+  margin-right: 0.5rem;
+  white-space: nowrap;
+}
+
+.library-refresh-btn .btn-icon {
+  margin-right: 0.25rem;
+}
+
+/* Empty state styling */
+.empty-state {
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
 }
 
 /* RESPONSIVE BREAKPOINTS - CONSOLIDATED */

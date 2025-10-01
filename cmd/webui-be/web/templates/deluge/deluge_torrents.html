@@ -24,6 +24,94 @@
                 </button>
             </div>
         </div>
+
+        <!-- Mobile Card Layout (hidden on tablet+) -->
+        <div class="torrent-cards">
+            {{range .torrents}}
+            <div class="torrent-card">
+                <div class="torrent-card-header">
+                    <h4 class="torrent-card-name">{{.Name}}</h4>
+                    <div class="torrent-card-status">
+                        {{if eq .State "Downloading"}}
+                            <span class="status-label status-downloading">Downloading</span>
+                        {{else if eq .State "Seeding"}}
+                            <span class="status-label status-seeding">Seeding</span>
+                        {{else if eq .State "Paused"}}
+                            <span class="status-label status-paused">Paused</span>
+                        {{else if eq .State "Error"}}
+                            <span class="status-label status-error">Error</span>
+                        {{else if eq .State "Queued"}}
+                            <span class="status-label status-queued">Queued</span>
+                        {{else if eq .State "Checking"}}
+                            <span class="status-label status-checking">Checking</span>
+                        {{else}}
+                            <span class="status-label status-unknown">{{.State}}</span>
+                        {{end}}
+                    </div>
+                </div>
+
+                <div class="torrent-card-progress">
+                    <div class="progress-container">
+                        <div class="progress-bar" data-progress="{{.Progress}}">
+                            <div class="progress-fill" style="width: {{.Progress}}%;"></div>
+                        </div>
+                        <span class="progress-percentage">{{printf "%.1f" .Progress}}%</span>
+                    </div>
+                </div>
+
+                <div class="torrent-card-info">
+                    <div class="torrent-info-item">
+                        <span class="info-label">Size:</span>
+                        <span class="info-value">{{formatBytes .Size}}</span>
+                    </div>
+                    {{if or (eq .State "Downloading") (eq .State "Seeding")}}
+                    <div class="torrent-info-item">
+                        <span class="info-label">Speed:</span>
+                        <div class="speed-info">
+                            <div class="speed-download">↓ {{formatBytes .DownloadSpeed}}/s</div>
+                            <div class="speed-upload">↑ {{formatBytes .UploadSpeed}}/s</div>
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+
+                <div class="torrent-card-actions">
+                    <div class="primary-actions">
+                        {{if eq .State "Paused"}}
+                            <button hx-post="/deluge/resume-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
+                                    class="btn btn-resume">
+                                Resume
+                            </button>
+                        {{else}}
+                            <button hx-post="/deluge/pause-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
+                                    class="btn btn-pause">
+                                Pause
+                            </button>
+                        {{end}}
+                        <button hx-post="/deluge/remove-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
+                                hx-confirm="Are you sure you want to remove this torrent?"
+                                class="btn btn-remove">
+                            Remove
+                        </button>
+                    </div>
+                    {{if and .IsFinished (ge .Progress 100.0)}}
+                        <div class="filebot-actions">
+                            <button hx-get="/filebot/form?torrent_id={{.ID}}&mode=test" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
+                                    class="btn btn-filebot-test">
+                                Test with Filebot
+                            </button>
+                            <button hx-get="/filebot/form?torrent_id={{.ID}}" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
+                                    class="btn btn-filebot-process">
+                                Process with Filebot
+                            </button>
+                        </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+
+        <!-- Desktop/Tablet Table Layout (hidden on mobile) -->
         <div class="table-container">
             <table class="data-table">
                 <thead>

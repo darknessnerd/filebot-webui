@@ -8,14 +8,15 @@
     <div x-show="open" class="filebot-content" x-transition>
       <!-- Quick Actions Bar -->
       <div class="action-bar">
-        <button class="btn btn-primary" id="refresh-all-btn"
-                hx-get="/plex/refresh-library"
-                hx-target="#status-message"
-                hx-swap="innerHTML"
-                hx-indicator=".refresh-spinner">
-          <span class="btn-icon">🔄</span> Refresh Libraries
-          <span class="refresh-spinner htmx-indicator"></span>
-        </button>
+        <!-- Individual Library Refresh Buttons -->
+        <div id="library-refresh-buttons"
+             class="library-refresh-container"
+             hx-get="/plex/libraries/htmx?layout=horizontal&show_refresh=true&buttons_only=true"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+          <span class="loading-text">Loading library actions...</span>
+        </div>
+
         <div id="status-message" class="status-message"></div>
       </div>
 
@@ -46,23 +47,6 @@
              hx-swap="innerHTML"
              aria-label="Recently Added to Plex">
           <div class="loading-indicator">Loading recently added...</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Libraries Section -->
-    <section x-data="{ open: true }" class="filebot-container" aria-labelledby="libraries-heading">
-      <h3 id="libraries-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
-        <span>Plex Libraries</span>
-        <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
-      </h3>
-      <div x-show="open" class="filebot-content" x-transition>
-        <div id="libraries-widget"
-             hx-get="/plex/libraries/htmx"
-             hx-trigger="load"
-             hx-swap="innerHTML"
-             aria-label="Plex Libraries">
-          <div class="loading-indicator">Loading libraries...</div>
         </div>
       </div>
     </section>

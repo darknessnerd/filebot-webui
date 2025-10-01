@@ -56,8 +56,22 @@ func (h *PlexHandler) GetPlexLibraries(c *gin.Context) {
 	}
 	logger.Log.Trace().Msgf("[GetPlexLibraries] Parsed libraries DTO: %+v", dto)
 	if c.GetHeader("HX-Request") != "" {
+		// Parse query parameters for template configuration
+		layout := c.Query("layout")
+		showRefresh := c.Query("show_refresh") == "true"
+		buttonsOnly := c.Query("buttons_only") == "true"
+
+		logger.Log.Debug().
+			Str("layout", layout).
+			Bool("show_refresh", showRefresh).
+			Bool("buttons_only", buttonsOnly).
+			Msg("[GetPlexLibraries] Template parameters parsed")
+
 		c.HTML(http.StatusOK, "plex_libraries.html", gin.H{
-			"libraries": dto.MediaContainer.Directory,
+			"libraries":    dto.MediaContainer.Directory,
+			"layout":       layout,
+			"show_refresh": showRefresh,
+			"buttons_only": buttonsOnly,
 		})
 	} else {
 		c.JSON(http.StatusOK, dto)

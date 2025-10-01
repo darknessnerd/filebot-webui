@@ -70,8 +70,8 @@ func (s *Server) setupWebRoutes() {
 	webGroup := s.engine.Group("/")
 	webGroup.Use(s.authService.AuthWithUserMiddleware())
 	{
-		webGroup.GET("/", s.handlers.Home.HomePage)
-		webGroup.GET("/dashboard", s.handlers.Home.DashboardPage)
+		webGroup.GET("/dashboard", s.handlers.Home.HomePage)
+		webGroup.GET("/", s.handlers.Home.DashboardPage)
 		webGroup.GET("/plex/libraries/htmx", s.handlers.Plex.GetPlexLibraries)
 		webGroup.GET("/plex/recently-added/htmx", s.handlers.Plex.RenderPlexRecentlyAddedHTMX)
 		webGroup.GET("/plex/servers/htmx", s.handlers.Plex.RenderPlexServersHTMX)
