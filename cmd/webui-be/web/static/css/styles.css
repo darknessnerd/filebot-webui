@@ -28,6 +28,7 @@
 @import url('components/_filebot_form.css');
 @import url('components/_filebot_sidebar.css');
 @import url('components/_deluge_torrents.css');
+@import url('components/_plex_recently_added.css');
 
 /* 4. LAYOUT */
 @import url('layout/_header.css');

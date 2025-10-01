@@ -223,37 +223,38 @@
 .torrent-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-xs);
+  gap: 2px; /* Reduced from var(--spacing-xs) */
+}
+
+.btn-resume,
+.btn-pause,
+.btn-remove,
+.btn-filebot-test,
+.btn-filebot-process {
+  font-size: var(--font-size-xs);
+  padding: 2px 4px; /* Much more compact */
+  border-radius: 2px; /* Smaller border radius */
+  line-height: 1;
+  min-width: auto;
+  white-space: nowrap;
 }
 
 .btn-resume {
   background-color: var(--success-color);
   color: var(--bg-primary);
   border-color: var(--success-color);
-  font-size: var(--font-size-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
 }
 
 .btn-pause {
   background-color: var(--warning-color);
   color: var(--bg-primary);
   border-color: var(--warning-color);
-  font-size: var(--font-size-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
 }
 
 .btn-remove {
   background-color: var(--error-color);
   color: var(--bg-primary);
   border-color: var(--error-color);
-  font-size: var(--font-size-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
-}
-
-.btn-filebot-test,
-.btn-filebot-process {
-  font-size: var(--font-size-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
 }
 
 .btn-filebot-test {
@@ -273,6 +274,13 @@
   align-items: center;
   gap: var(--spacing-xs);
   font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm); /* Keep refresh button normal size */
+}
+
+.action-buttons {
+  display: flex;
+  gap: 2px; /* Very tight spacing */
+  flex-wrap: wrap;
 }
 
 /* Mobile-first approach: Card layout for small screens */
@@ -427,6 +435,8 @@
   .primary-actions .btn,
   .filebot-actions .btn {
     width: 100%;
+    padding: var(--spacing-xs);
+    font-size: var(--font-size-xs);
   }
 }
 
@@ -466,14 +476,19 @@
   }
 
   .action-buttons {
-    flex-direction: column;
-    gap: var(--spacing-xs);
+    flex-direction: row; /* Changed from column to row */
+    gap: 1px; /* Minimal gap */
+    flex-wrap: wrap;
   }
 
   .btn-filebot-test,
-  .btn-filebot-process {
+  .btn-filebot-process,
+  .btn-resume,
+  .btn-pause,
+  .btn-remove {
     font-size: var(--font-size-xs);
-    padding: var(--spacing-xs);
+    padding: 1px 3px; /* Ultra compact for tablet */
+    border-radius: 1px;
   }
 
   /* Hide ETA column on tablet */
@@ -498,7 +513,8 @@
 
   .action-buttons {
     flex-direction: row;
-    gap: var(--spacing-xs); /* Reduced gap */
+    gap: 1px; /* Minimal gap */
+    flex-wrap: wrap;
   }
 
   .btn-filebot-test,
@@ -507,7 +523,9 @@
   .btn-pause,
   .btn-remove {
     font-size: var(--font-size-xs);
-    padding: var(--spacing-xs); /* Reduced padding */
+    padding: 1px 2px; /* Ultra compact for desktop */
+    border-radius: 1px;
+    min-height: 16px; /* Ensure minimum touch target */
   }
 
   .content-container {

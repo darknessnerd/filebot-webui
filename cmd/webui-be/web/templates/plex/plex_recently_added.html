@@ -1,22 +1,54 @@
 {{define "plex_recently_added.html"}}
 {{/* Render each library section from GroupedRecentlyAdded */}}
 {{range $lib, $items := .GroupedRecentlyAdded}}
-    <div x-data="{ open: true, width: 320 }" class="library-section" style="margin-bottom: 0.5em;">
-        <h2 @click="open = !open" style="color: var(--text-muted); margin-top: 0.7em; margin-bottom: 0.2em; font-size: 0.9em; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 0.4em; opacity: 0.9;">
-            <span style="font-weight: 400; letter-spacing: 0.01em;">{{$lib}}</span>
-            <span x-text="open ? '▼' : '►'" style="font-size: 0.8em; margin-left: 0; opacity: 0.7;"></span>
+    <div x-data="{ open: true }" class="library-section">
+        <h2 @click="open = !open" class="library-header">
+            <span class="library-title">{{$lib}}</span>
+            <span x-text="open ? '▼' : '►'" class="library-toggle"></span>
         </h2>
-        <div x-show="open" style="transition: max-height 0.3s; overflow: hidden;">
-            <div x-data="recentlyAddedScroller()" x-init="startScroll()" class="recently-added-scroll-container" style="overflow-x: auto; white-space: nowrap; position: relative; max-width: 100vw; width: 320px; scrollbar-width: thin; scrollbar-color: var(--text-muted) var(--bg-primary); opacity: 0.8;">
-                <ul class="plex-recently-added-list" style="display: flex; gap: 4px; padding: 0; margin: 0; list-style: none;">
+        <div x-show="open" class="library-content">
+            <!-- Mobile Card Layout (hidden on tablet+) -->
+            <div class="plex-cards">
+                {{range $items}}
+                <div class="plex-card">
+                    <img src="{{$.PlexBaseURL}}{{.Thumb}}?X-Plex-Token={{$.PlexToken}}"
+                         alt="{{.Title}}"
+                         class="plex-card-image" />
+                    <div class="plex-card-content">
+                        <h4 class="plex-card-title">{{.Title}}</h4>
+                        <div class="plex-card-meta">
+                            <div class="plex-card-year">{{.Year}}</div>
+                            <div class="plex-card-library">{{.LibrarySectionTitle}}</div>
+                        </div>
+                        <div class="plex-card-actions">
+                            <button class="plex-card-button"
+                                hx-get="/api/v1/plex/recently-added/{{.RatingKey}}"
+                                hx-trigger="click"
+                                hx-target="#recently-added-details-{{.RatingKey}}"
+                                hx-swap="innerHTML">
+                                View Details
+                            </button>
+                        </div>
+                        <div id="recently-added-details-{{.RatingKey}}"></div>
+                    </div>
+                </div>
+                {{else}}
+                <div class="plex-empty-state">No recently added items found.</div>
+                {{end}}
+            </div>
+
+            <!-- Desktop/Tablet Horizontal Scroll Layout (hidden on mobile) -->
+            <div x-data="recentlyAddedScroller()" x-init="startScroll()" class="recently-added-scroll-container">
+                <ul class="plex-recently-added-list">
                     {{range $items}}
-                    <li style="display: inline-block; vertical-align: top; min-width: 80px; max-width: 90px; background: transparent; border-radius: 4px; box-shadow: none; padding: 4px; text-align: center;">
-                        <img src="{{$.PlexBaseURL}}{{.Thumb}}?X-Plex-Token={{$.PlexToken}}" alt="{{.Title}}" style="width: 36px; height: 54px; object-fit: cover; border-radius: 2px; box-shadow: none; margin-bottom: 4px; opacity: 0.9;" />
-                        <div style="font-weight: normal; font-size: 0.7rem; color: var(--text-muted);">{{.Title}}</div>
-                        <div style="font-size: 0.6rem; color: var(--text-muted); opacity: 0.8;">{{.Year}}</div>
-                        <div style="font-size: 0.55rem; color: var(--text-muted); opacity: 0.7;">{{.LibrarySectionTitle}}</div>
-                        <button class="btn btn-xs"
-                            style="font-size: 0.6rem; padding: 1px 4px; margin-top: 2px; opacity: 0.8;"
+                    <li class="plex-item">
+                        <img src="{{$.PlexBaseURL}}{{.Thumb}}?X-Plex-Token={{$.PlexToken}}"
+                             alt="{{.Title}}"
+                             class="plex-item-image" />
+                        <div class="plex-item-title">{{.Title}}</div>
+                        <div class="plex-item-year">{{.Year}}</div>
+                        <div class="plex-item-library">{{.LibrarySectionTitle}}</div>
+                        <button class="plex-item-button"
                             hx-get="/api/v1/plex/recently-added/{{.RatingKey}}"
                             hx-trigger="click"
                             hx-target="#recently-added-details-{{.RatingKey}}"
@@ -26,7 +58,7 @@
                         <div id="recently-added-details-{{.RatingKey}}"></div>
                     </li>
                     {{else}}
-                    <li style="font-size: 0.7rem;">No recently added items found.</li>
+                    <li class="plex-empty-state">No recently added items found.</li>
                     {{end}}
                 </ul>
             </div>
@@ -39,10 +71,10 @@ function recentlyAddedScroller() {
         scrollInterval: null,
         startScroll() {
             const container = this.$el;
-            // Slower scrolling (1px instead of 2px) and longer interval (80ms instead of 40ms)
+            // Slower scrolling for better UX
             this.scrollInterval = setInterval(() => {
                 if (container.scrollLeft + container.offsetWidth >= container.scrollWidth) {
-                    // Pause for 3 seconds before restarting
+                    // Pause before restarting
                     clearInterval(this.scrollInterval);
                     setTimeout(() => {
                         container.scrollLeft = 0;
