@@ -483,19 +483,53 @@
   }
 }
 
-/* Desktop optimizations */
+/* Desktop optimizations - More compact design */
 @media (min-width: 1024px) {
   .data-table th,
   .data-table td {
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-sm); /* Reduced from var(--spacing-sm) var(--spacing-md) */
+    font-size: var(--font-size-xs); /* Reduced font size */
   }
 
   .torrent-name {
-    max-width: 400px;
+    max-width: 300px; /* Reduced from 400px */
+    font-size: var(--font-size-sm);
   }
 
   .action-buttons {
     flex-direction: row;
+    gap: var(--spacing-xs); /* Reduced gap */
+  }
+
+  .btn-filebot-test,
+  .btn-filebot-process,
+  .btn-resume,
+  .btn-pause,
+  .btn-remove {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs); /* Reduced padding */
+  }
+
+  .content-container {
+    padding: var(--spacing-sm); /* Reduced from var(--spacing-md) */
+  }
+
+  .content-header {
+    margin-bottom: var(--spacing-md); /* Reduced from var(--spacing-lg) */
+  }
+
+  .progress-bar {
+    height: 6px; /* Reduced from 8px */
+  }
+
+  .status-label {
+    padding: var(--spacing-xs); /* More compact status labels */
+    font-size: var(--font-size-xs);
+  }
+
+  .speed-download,
+  .speed-upload {
+    font-size: var(--font-size-xs);
   }
 }
 
