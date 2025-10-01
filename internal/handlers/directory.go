@@ -115,8 +115,19 @@ func (h *DirectoryHandler) BrowseDirectory(c *gin.Context) {
 	// Get action from query param (default to "files")
 	action := c.DefaultQuery("action", "none")
 
+	// Check for embedded parameter (for modal view)
+	isEmbedded := c.Query("embedded") == "true"
+	torrentID := c.Query("torrent_id")
+	filesJSON := c.Query("files")
+
+	// Choose template based on embedded mode
+	templateName := "directory_browser.html"
+	if isEmbedded {
+		templateName = "directory_browser_embedded.html"
+	}
+
 	// Render template
-	RenderWithHTMX(c, "directory_browser.html", gin.H{
+	RenderWithHTMX(c, templateName, gin.H{
 		"CurrentPath":          currentPath,
 		"RootPath":             rootPath,
 		"ParentPath":           parentPath,
@@ -134,7 +145,10 @@ func (h *DirectoryHandler) BrowseDirectory(c *gin.Context) {
 		"Action":               action,
 		"DirectoryPresets":     presets,
 		"PresetNames":          presetNames,
-		"PresetRoots":          presetRoots, // Pass presetRoots to template
+		"PresetRoots":          presetRoots,
 		"SelectedPreset":       selectedPreset,
+		"TorrentID":            torrentID,
+		"FilesJSON":            filesJSON,
+		"IsEmbedded":           isEmbedded,
 	}, true)
 }

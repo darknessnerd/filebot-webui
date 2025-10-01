@@ -91,13 +91,20 @@
     </div>
     <div class="form-group">
       <label for="outputDirectory" class="form-label">Output Directory</label>
-      <input type="hidden" name="outputDirectory" id="output-directory" value="{{.OutputDirectoryJSON}}" />
-      <div id="output-directory-display" class="output-dir-box">
-        {{if .OutputDirectory}}
-          <span class="output-value">{{.OutputDirectory}}</span>
-        {{else}}
-          <span class="empty-state">No output directory selected.</span>
-        {{end}}
+      <div class="directory-selection-row">
+        <input type="hidden" name="outputDirectory" id="output-directory" value="{{.OutputDirectoryJSON}}" />
+        <div id="output-directory-display" class="output-dir-box">
+          {{if .OutputDirectory}}
+            <span class="output-value">{{.OutputDirectory}}</span>
+          {{else}}
+            <span class="empty-state">No output directory selected.</span>
+          {{end}}
+        </div>
+        <button type="button"
+                class="btn btn-secondary btn-select-dir"
+                onclick="openDirectoryModal()">
+          Select Directory
+        </button>
       </div>
     </div>
     <button type="submit" class="btn btn-primary filebot-submit">Execute FileBot</button>
@@ -138,4 +145,68 @@
     </div>
   </form>
 </div>
+
+<!-- Directory browser modal -->
+<div id="directory-modal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Select Output Directory</h3>
+      <span class="modal-close" onclick="closeDirectoryModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="directory-browser-container">
+      <!-- Directory browser will be loaded here via AJAX -->
+    </div>
+  </div>
+</div>
+
+<script>
+  // Store selected files and output directory for state management
+  window.selectedFiles = {{.FilesJSON}};
+  window.selectedOutput = {{.OutputDirectoryJSON}};
+
+  // Function to open the directory selection modal
+  function openDirectoryModal() {
+    const modal = document.getElementById('directory-modal');
+    const browserContainer = document.getElementById('directory-browser-container');
+
+    // Show the modal
+    modal.style.display = 'block';
+
+    // Load the directory browser into the modal
+    htmx.ajax('GET', '/directory-browser?embedded=true&torrent_id={{.TorrentID}}&files={{.FilesJSON}}', {
+      target: '#directory-browser-container',
+      swap: 'innerHTML'
+    });
+  }
+
+  // Function to close the directory selection modal
+  function closeDirectoryModal() {
+    const modal = document.getElementById('directory-modal');
+    modal.style.display = 'none';
+  }
+
+  // Function to select a directory and update the form
+  function selectDirectory(path) {
+    const outputField = document.getElementById('output-directory');
+    const outputDisplay = document.getElementById('output-directory-display');
+
+    // Update the hidden input and display
+    outputField.value = path;
+    outputDisplay.innerHTML = '<span class="output-value">' + path + '</span>';
+
+    // Store in window state
+    window.selectedOutput = path;
+
+    // Close the modal
+    closeDirectoryModal();
+  }
+
+  // Close modal if clicking outside of it
+  window.onclick = function(event) {
+    const modal = document.getElementById('directory-modal');
+    if (event.target == modal) {
+      closeDirectoryModal();
+    }
+  }
+</script>
 {{end}}

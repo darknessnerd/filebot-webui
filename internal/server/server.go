@@ -141,6 +141,7 @@ func (s *Server) setupTemplates() {
 		"web/templates/deluge/deluge_server_status.html",
 		"web/templates/directory_browser.html",
 		"web/templates/filebot_form.html",
+		"web/templates/directory_browser_embedded.html",
 	))
 
 	s.engine.SetHTMLTemplate(tmpl)
