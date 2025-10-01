@@ -1,0 +1,120 @@
+{{define "landing_page.html"}}
+<div class="home-flex main-content-children home-layout">
+  <section x-data="{ open: true }" class="home-main" aria-labelledby="dashboard-heading">
+    <h3 id="dashboard-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
+      <span>Dashboard Overview</span>
+      <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
+    </h3>
+    <div x-show="open" class="filebot-content" x-transition>
+      <!-- Quick Actions Bar -->
+      <div class="action-bar">
+        <button class="btn btn-primary" id="refresh-all-btn"
+                hx-get="/plex/refresh-library"
+                hx-target="#status-message"
+                hx-swap="innerHTML"
+                hx-indicator=".refresh-spinner">
+          <span class="btn-icon">🔄</span> Refresh Libraries
+          <span class="refresh-spinner htmx-indicator"></span>
+        </button>
+        <div id="status-message" class="status-message"></div>
+      </div>
+
+      <!-- Torrents Section -->
+      <div id="torrents-widget"
+           class="main-browser"
+           hx-get="/deluge/torrents/htmx"
+           hx-trigger="load"
+           hx-swap="innerHTML"
+           aria-label="Active Torrents">
+        <div class="loading-indicator">Loading torrents...</div>
+      </div>
+    </div>
+  </section>
+
+  <aside x-data="{ plexOpen: true }" class="filebot-sidebar" :class="{ 'plex-collapsed': !plexOpen }" aria-label="Dashboard Panels">
+    <!-- Recently Added Section -->
+    <section x-data="{ open: true }" class="filebot-container" aria-labelledby="recent-heading">
+      <h3 id="recent-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
+        <span>Recently Added</span>
+        <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
+      </h3>
+      <div x-show="open" class="filebot-content" x-transition>
+        <div id="recently-added-widget"
+             class="recently-added-mini"
+             hx-get="/plex/recently-added/htmx"
+             hx-trigger="load"
+             hx-swap="innerHTML"
+             aria-label="Recently Added to Plex">
+          <div class="loading-indicator">Loading recently added...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Libraries Section -->
+    <section x-data="{ open: true }" class="filebot-container" aria-labelledby="libraries-heading">
+      <h3 id="libraries-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
+        <span>Plex Libraries</span>
+        <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
+      </h3>
+      <div x-show="open" class="filebot-content" x-transition>
+        <div id="libraries-widget"
+             hx-get="/plex/libraries/htmx"
+             hx-trigger="load"
+             hx-swap="innerHTML"
+             aria-label="Plex Libraries">
+          <div class="loading-indicator">Loading libraries...</div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<!-- Add Torrent Modal -->
+<div id="add-torrent-modal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Add New Torrent</h3>
+      <span class="modal-close" onclick="document.getElementById('add-torrent-modal').style.display='none'">&times;</span>
+    </div>
+    <div class="modal-body" id="add-torrent-modal-content">
+      <!-- Add torrent form will be loaded here via AJAX -->
+      <div class="loading-indicator">Loading torrent form...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  console.log('🏠 [Dashboard] landing_page.html rendered');
+
+  // Function to handle torrent actions with confirmation
+  function confirmTorrentAction(action, torrentId, torrentName) {
+    const actions = {
+      'pause': 'pause',
+      'resume': 'resume',
+      'remove': 'remove',
+      'process': 'process with FileBot'
+    };
+
+    if (confirm(`Are you sure you want to ${actions[action]} torrent "${torrentName}"?`)) {
+      if (action === 'process') {
+        window.location.href = `/filebot/form?torrent_id=${torrentId}&mode=move`;
+      } else {
+        htmx.ajax('POST', `/deluge/${action}-torrent`, {
+          target: '#torrents-widget',
+          swap: 'innerHTML',
+          values: { torrent_id: torrentId }
+        });
+      }
+    }
+  }
+
+  // Close modal if clicking outside of it
+  window.onclick = function(event) {
+    const addTorrentModal = document.getElementById('add-torrent-modal');
+
+    if (event.target == addTorrentModal) {
+      addTorrentModal.style.display = 'none';
+    }
+  }
+</script>
+{{end}}

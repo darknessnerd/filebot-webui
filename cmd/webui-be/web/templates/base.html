@@ -15,6 +15,7 @@
                 <ul class="nav-links">
                     {{if .authenticated}}
                         <li><a href="/" hx-get="/" hx-target="#main-content" hx-push-url="false" hx-swap="innerHTML" aria-label="Home"><span class="icon">🏠</span>Home</a></li>
+                        <li><a href="/dashboard" hx-get="/dashboard" hx-target="#main-content" hx-swap="innerHTML" aria-label="Dashboard"><span class="icon">📊</span>Dashboard</a></li>
                         <li><a href="/deluge" hx-get="/deluge" hx-target="#main-content" hx-swap="innerHTML" aria-label="Deluge"><span class="icon">🧲</span>Deluge</a></li>
                     {{end}}
                 </ul>

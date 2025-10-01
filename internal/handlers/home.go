@@ -30,3 +30,10 @@ func (h *HomeHandler) HomePage(c *gin.Context) {
 		"title": "FileBot WebUI - Home",
 	}, true)
 }
+
+// DashboardPage renders the dashboard landing page
+func (h *HomeHandler) DashboardPage(c *gin.Context) {
+	RenderWithHTMX(c, "landing_page.html", gin.H{
+		"title": "FileBot WebUI - Dashboard",
+	}, true)
+}
