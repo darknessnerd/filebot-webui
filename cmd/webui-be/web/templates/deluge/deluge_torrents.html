@@ -9,7 +9,7 @@
         </div>
     {{else if not .torrents}}
         <div class="alert alert-warning">
-            <div class="alert-icon">⚠️</div>
+            <div class="alert-icon">���️</div>
             <div class="alert-content">
                 <p>No torrents found. Add a torrent using the form on the right.</p>
             </div>
@@ -25,11 +25,69 @@
             </div>
         </div>
 
+        <!-- Bulk Actions Form -->
+        <form id="bulk-actions-form" hx-post="/deluge/bulk-action" hx-target="#deluge-torrents-widget" hx-swap="innerHTML">
+            <div class="bulk-actions-bar">
+                <div class="selection-controls">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="select-all" onchange="toggleAllSelection()">
+                        <span class="checkmark"></span>
+                        Select All
+                    </label>
+                    <span id="selection-count" class="selection-count">0 selected</span>
+                </div>
+                <div class="action-controls">
+                    <select name="action" id="bulk-action-select" required>
+                        <option value="">Select Action</option>
+                        <option value="pause">Pause Selected</option>
+                        <option value="resume">Resume Selected</option>
+                        <option value="remove">Remove Selected</option>
+                    </select>
+                    <label class="checkbox-container" id="remove-data-option" style="display: none;">
+                        <input type="checkbox" name="remove_data" value="true">
+                        <span class="checkmark"></span>
+                        Delete Files
+                    </label>
+                    <button type="submit" class="btn btn-primary" disabled id="bulk-action-btn">
+                        Apply Action
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filebot Actions -->
+            <div class="filebot-bulk-actions" id="filebot-bulk-actions" style="display: none;">
+                <button type="button"
+                        hx-post="/deluge/bulk-filebot"
+                        hx-vals='{"mode": "test"}'
+                        hx-target="#main-content"
+                        hx-swap="innerHTML"
+                        hx-include="[name='torrent_ids']:checked"
+                        onclick="submitFilebotAction('test')"
+                        class="btn btn-filebot-test">
+                    Test Selected with Filebot
+                </button>
+                <button type="button"
+                        hx-post="/deluge/bulk-filebot"
+                        hx-target="#main-content"
+                        hx-swap="innerHTML"
+                        hx-include="[name='torrent_ids']:checked"
+                        onclick="submitFilebotAction('process')"
+                        class="btn btn-filebot-process">
+                    Process Selected with Filebot
+                </button>
+            </div>
+
         <!-- Mobile Card Layout (hidden on tablet+) -->
         <div class="torrent-cards">
             {{range .torrents}}
             <div class="torrent-card">
                 <div class="torrent-card-header">
+                    <div class="torrent-select">
+                        <label class="checkbox-container">
+                            <input type="checkbox" name="torrent_ids" value="{{.ID}}" onchange="updateSelection()">
+                            <span class="checkmark"></span>
+                        </label>
+                    </div>
                     <h4 class="torrent-card-name">{{.Name}}</h4>
                     <div class="torrent-card-status">
                         {{if eq .State "Downloading"}}
@@ -74,39 +132,6 @@
                     </div>
                     {{end}}
                 </div>
-
-                <div class="torrent-card-actions">
-                    <div class="primary-actions">
-                        {{if eq .State "Paused"}}
-                            <button hx-post="/deluge/resume-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
-                                    class="btn btn-resume">
-                                Resume
-                            </button>
-                        {{else}}
-                            <button hx-post="/deluge/pause-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
-                                    class="btn btn-pause">
-                                Pause
-                            </button>
-                        {{end}}
-                        <button hx-post="/deluge/remove-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
-                                hx-confirm="Are you sure you want to remove this torrent?"
-                                class="btn btn-remove">
-                            Remove
-                        </button>
-                    </div>
-                    {{if and .IsFinished (ge .Progress 100.0)}}
-                        <div class="filebot-actions">
-                            <button hx-get="/filebot/form?torrent_id={{.ID}}&mode=test" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
-                                    class="btn btn-filebot-test">
-                                Test with Filebot
-                            </button>
-                            <button hx-get="/filebot/form?torrent_id={{.ID}}" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
-                                    class="btn btn-filebot-process">
-                                Process with Filebot
-                            </button>
-                        </div>
-                    {{end}}
-                </div>
             </div>
             {{end}}
         </div>
@@ -116,18 +141,29 @@
             <table class="data-table">
                 <thead>
                     <tr>
+                        <th width="40px">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="select-all-table" onchange="toggleAllSelection()">
+                                <span class="checkmark"></span>
+                            </label>
+                        </th>
                         <th>Name</th>
                         <th>Size</th>
                         <th>Progress</th>
                         <th>Status</th>
                         <th>Speed</th>
                         <th>ETA</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {{range .torrents}}
                     <tr>
+                        <td>
+                            <label class="checkbox-container">
+                                <input type="checkbox" name="torrent_ids" value="{{.ID}}" onchange="updateSelection()">
+                                <span class="checkmark"></span>
+                            </label>
+                        </td>
                         <td class="torrent-name">{{.Name}}</td>
                         <td class="torrent-size">{{formatBytes .Size}}</td>
                         <td class="torrent-progress">
@@ -170,41 +206,132 @@
                                 {{formatETA .ETA}}
                             {{end}}
                         </td>
-                        <td class="torrent-actions">
-                            {{if eq .State "Paused"}}
-                                <button hx-post="/deluge/resume-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
-                                        class="btn btn-resume">
-                                    Resume
-                                </button>
-                            {{else}}
-                                <button hx-post="/deluge/pause-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
-                                        class="btn btn-pause">
-                                    Pause
-                                </button>
-                            {{end}}
-                            <button hx-post="/deluge/remove-torrent" hx-vals='{"torrent_id": "{{.ID}}"}' hx-target="#deluge-torrents-widget"
-                                    hx-confirm="Are you sure you want to remove this torrent?"
-                                    class="btn btn-remove">
-                                Remove
-                            </button>
-                            {{if and .IsFinished (ge .Progress 100.0)}}
-                                <div class="action-buttons">
-                                    <button hx-get="/filebot/form?torrent_id={{.ID}}&mode=test" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
-                                            class="btn btn-filebot-test">
-                                        Test with Filebot
-                                    </button>
-                                    <button hx-get="/filebot/form?torrent_id={{.ID}}" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="false"
-                                            class="btn btn-filebot-process">
-                                        Process with Filebot
-                                    </button>
-                                </div>
-                            {{end}}
-                        </td>
                     </tr>
                     {{end}}
                 </tbody>
             </table>
         </div>
+        </form>
     {{end}}
 </div>
+
+<script>
+function toggleAllSelection() {
+    const selectAllCheckbox = document.getElementById('select-all') || document.getElementById('select-all-table');
+    const checkboxes = document.querySelectorAll('input[name="torrent_ids"]');
+    const isChecked = selectAllCheckbox.checked;
+
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+
+    // Sync both select-all checkboxes
+    const selectAllMain = document.getElementById('select-all');
+    const selectAllTable = document.getElementById('select-all-table');
+    if (selectAllMain) selectAllMain.checked = isChecked;
+    if (selectAllTable) selectAllTable.checked = isChecked;
+
+    updateSelection();
+}
+
+function updateSelection() {
+    const checkedBoxes = document.querySelectorAll('input[name="torrent_ids"]:checked');
+    const totalBoxes = document.querySelectorAll('input[name="torrent_ids"]');
+    const count = checkedBoxes.length;
+
+    // Update selection count
+    const selectionCount = document.getElementById('selection-count');
+    if (selectionCount) {
+        selectionCount.textContent = `${count} selected`;
+    }
+
+    // Enable/disable action button
+    const actionBtn = document.getElementById('bulk-action-btn');
+    if (actionBtn) {
+        actionBtn.disabled = count === 0;
+    }
+
+    // Show/hide filebot actions for completed torrents
+    const filebotActions = document.getElementById('filebot-bulk-actions');
+    if (filebotActions) {
+        const hasCompletedSelected = Array.from(checkedBoxes).some(checkbox => {
+            // Check if the torrent row has completed status (this is a simplified check)
+            const row = checkbox.closest('tr') || checkbox.closest('.torrent-card');
+            return row && row.textContent.includes('100.0%');
+        });
+
+        filebotActions.style.display = hasCompletedSelected ? 'block' : 'none';
+    }
+
+    // Update select-all checkbox state
+    const selectAllMain = document.getElementById('select-all');
+    const selectAllTable = document.getElementById('select-all-table');
+    const allSelected = count === totalBoxes.length && count > 0;
+    const someSelected = count > 0 && count < totalBoxes.length;
+
+    if (selectAllMain) {
+        selectAllMain.checked = allSelected;
+        selectAllMain.indeterminate = someSelected;
+    }
+    if (selectAllTable) {
+        selectAllTable.checked = allSelected;
+        selectAllTable.indeterminate = someSelected;
+    }
+}
+
+// Show/hide remove data option based on action
+document.addEventListener('DOMContentLoaded', function() {
+    const actionSelect = document.getElementById('bulk-action-select');
+    const removeDataOption = document.getElementById('remove-data-option');
+
+    if (actionSelect && removeDataOption) {
+        actionSelect.addEventListener('change', function() {
+            if (this.value === 'remove') {
+                removeDataOption.style.display = 'inline-block';
+            } else {
+                removeDataOption.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Submit filebot action with selected torrent IDs
+function submitFilebotAction(mode) {
+    const checkedBoxes = document.querySelectorAll('input[name="torrent_ids"]:checked');
+
+    if (checkedBoxes.length === 0) {
+        alert('Please select at least one torrent');
+        return;
+    }
+
+    // Create form data
+    const formData = new FormData();
+    formData.append('mode', mode);
+
+    // Add all selected torrent IDs
+    checkedBoxes.forEach(checkbox => {
+        formData.append('torrent_ids', checkbox.value);
+    });
+
+    // Submit via fetch and handle redirect
+    fetch('/deluge/bulk-filebot', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        // Check for HX-Redirect header
+        const redirectUrl = response.headers.get('HX-Redirect');
+        if (redirectUrl) {
+            // Navigate to the filebot form
+            window.location.href = redirectUrl;
+        } else {
+            console.error('No redirect URL received');
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting filebot action:', error);
+        alert('Error processing request. Please try again.');
+    });
+}
+</script>
 {{end}}

@@ -40,6 +40,7 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 	filePath := c.Query("file_path")
 	mode := c.Query("mode")
 	torrentID := c.Query("torrent_id")
+	torrentIDs := c.QueryArray("torrent_id") // Support multiple torrent IDs for bulk operations
 	sourcePath := c.Query("source_path")
 
 	logger.Log.Debug().
@@ -48,6 +49,7 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 		Str("source_path", sourcePath).
 		Str("mode", mode).
 		Str("torrent_id", torrentID).
+		Strs("torrent_ids", torrentIDs).
 		Msg("FileBotForm handler invoked")
 
 	// For initial load, no files or output directory selected
@@ -58,9 +60,10 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 		"OutputDirectory":     "",
 		"Status":              "",
 		"Successes":           nil,
-		"Action":              "test",    // Set default action to test
-		"TorrentID":           torrentID, // Pass the torrent ID to the template
-		"DeleteTorrent":       true,      // Default to true for the delete torrent checkbox
+		"Action":              "test",     // Set default action to test
+		"TorrentID":           torrentID,  // Pass the torrent ID to the template (for single torrent compatibility)
+		"TorrentIDs":          torrentIDs, // Pass all torrent IDs for bulk operations
+		"DeleteTorrent":       true,       // Default to true for the delete torrent checkbox
 	}
 
 	// If mode is specified, set it as the action
@@ -75,9 +78,19 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 		logger.Log.Debug().Str("source_path", sourcePath).Msg("FileBotForm using source_path parameter")
 	}
 
-	// If we have a torrent_id, fetch torrent info from Deluge
-	if torrentID != "" {
-		logger.Log.Debug().Str("torrent_id", torrentID).Msg("FileBotForm: Fetching torrent info from Deluge")
+	// Determine which torrent IDs to process
+	var targetTorrentIDs []string
+	if len(torrentIDs) > 0 {
+		targetTorrentIDs = torrentIDs
+		logger.Log.Debug().Strs("torrent_ids", torrentIDs).Msg("FileBotForm: Processing multiple torrent IDs (bulk operation)")
+	} else if torrentID != "" {
+		targetTorrentIDs = []string{torrentID}
+		logger.Log.Debug().Str("torrent_id", torrentID).Msg("FileBotForm: Processing single torrent ID")
+	}
+
+	// If we have torrent ID(s), fetch torrent info from Deluge
+	if len(targetTorrentIDs) > 0 {
+		logger.Log.Debug().Strs("torrent_ids", targetTorrentIDs).Msg("FileBotForm: Fetching torrent info from Deluge")
 		userObj, _ := c.Get("user_obj")
 		user, ok := userObj.(*models.User)
 
@@ -102,22 +115,50 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 							logger.Log.Debug().Err(err).Msg("FileBotForm: Error getting torrents from Deluge")
 						} else {
 							logger.Log.Debug().Int("torrents_count", len(torrents)).Msg("FileBotForm: Got torrents from Deluge")
-							// Find the specific torrent
+
+							var foundPaths []string
+							var foundTorrentNames []string
+
+							// Find the specific torrents
 							for _, torrent := range torrents {
-								if torrent.ID == torrentID {
-									// Construct the full path to the downloaded file
-									filePath = fmt.Sprintf("%s/%s", torrent.DownloadPath, torrent.Name)
-									logger.Log.Debug().
-										Str("torrent_id", torrent.ID).
-										Str("torrent_name", torrent.Name).
-										Str("download_path", torrent.DownloadPath).
-										Str("full_path", filePath).
-										Msg("FileBotForm: Found matching torrent")
-									break
+								for _, targetID := range targetTorrentIDs {
+									if torrent.ID == targetID {
+										// Construct the full path to the downloaded file
+										fullPath := fmt.Sprintf("%s/%s", torrent.DownloadPath, torrent.Name)
+										foundPaths = append(foundPaths, fullPath)
+										foundTorrentNames = append(foundTorrentNames, torrent.Name)
+										logger.Log.Debug().
+											Str("torrent_id", torrent.ID).
+											Str("torrent_name", torrent.Name).
+											Str("download_path", torrent.DownloadPath).
+											Str("full_path", fullPath).
+											Msg("FileBotForm: Found matching torrent")
+										break
+									}
 								}
 							}
-							if filePath == "" {
-								logger.Log.Debug().Str("torrent_id", torrentID).Msg("FileBotForm: No matching torrent found with provided ID")
+
+							if len(foundPaths) > 0 {
+								// For backward compatibility, set filePath to the first found path
+								if filePath == "" {
+									filePath = foundPaths[0]
+								}
+
+								// Set up the files list for bulk processing
+								if len(foundPaths) > 1 {
+									// Multiple torrents found - set up for bulk processing
+									filesJSON, _ := json.Marshal(foundPaths)
+									data["FilesJSON"] = string(filesJSON)
+									data["FilesList"] = foundPaths
+									data["Status"] = fmt.Sprintf("Loaded %d torrents for bulk processing: %s", len(foundPaths), strings.Join(foundTorrentNames, ", "))
+								} else {
+									// Single torrent - maintain existing behavior
+									data["FilesJSON"] = fmt.Sprintf("[\"%s\"]", foundPaths[0])
+									data["FilesList"] = foundPaths
+									data["Status"] = fmt.Sprintf("File loaded from torrent: %s", foundTorrentNames[0])
+								}
+							} else {
+								logger.Log.Debug().Strs("torrent_ids", targetTorrentIDs).Msg("FileBotForm: No matching torrents found with provided IDs")
 							}
 						}
 					} else {
@@ -132,8 +173,8 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 		}
 	}
 
-	// If we have a file path, add it to the files list
-	if filePath != "" {
+	// If we have a file path and no files were loaded from torrents, add it to the files list
+	if filePath != "" && data["FilesList"] == nil {
 		data["FilesJSON"] = fmt.Sprintf("[\"%s\"]", filePath)
 		data["FilesList"] = []string{filePath}
 		data["Status"] = "File loaded from parameters"

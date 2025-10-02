@@ -1586,3 +1586,131 @@ func (h *DelugeHandler) resumeAllTorrentsOnServer(server *models.DelugeServer) e
 	err = json.Unmarshal(body, &response)
 	return err
 }
+
+// BulkTorrentAction handles bulk actions on multiple torrents
+func (h *DelugeHandler) BulkTorrentAction(c *gin.Context) {
+	userObj, _ := c.Get("user_obj")
+	user, _ := userObj.(*models.User)
+
+	action := c.PostForm("action")
+	torrentIDs := c.PostFormArray("torrent_ids")
+	removeData := c.PostForm("remove_data") == "true"
+
+	if action == "" {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Action is required",
+		})
+		return
+	}
+
+	if len(torrentIDs) == 0 {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "At least one torrent must be selected",
+		})
+		return
+	}
+
+	// Get preferred server
+	server, err := h.Repo.GetPreferredDelugeServer(user.ID)
+	if err != nil || server == nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "No preferred Deluge server found. Please configure one in the Deluge Configuration page.",
+		})
+		return
+	}
+
+	// Execute bulk action
+	var actionErr error
+	switch action {
+	case "pause":
+		actionErr = h.bulkPauseTorrents(server, torrentIDs)
+	case "resume":
+		actionErr = h.bulkResumeTorrents(server, torrentIDs)
+	case "remove":
+		actionErr = h.bulkRemoveTorrents(server, torrentIDs, removeData)
+	default:
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "Invalid action",
+		})
+		return
+	}
+
+	if actionErr != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": fmt.Sprintf("Failed to %s torrents: %v", action, actionErr),
+		})
+		return
+	}
+
+	// Get updated list of torrents
+	torrents, err := h.getTorrents(server)
+	if err != nil {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": fmt.Sprintf("Torrents %s successfully, but failed to refresh torrent list: %v", action, err),
+		})
+		return
+	}
+
+	c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+		"torrents": torrents,
+	})
+}
+
+// bulkPauseTorrents pauses multiple torrents
+func (h *DelugeHandler) bulkPauseTorrents(server *models.DelugeServer, torrentIDs []string) error {
+	for _, torrentID := range torrentIDs {
+		err := h.pauseTorrentOnServer(server, torrentID)
+		if err != nil {
+			return fmt.Errorf("failed to pause torrent %s: %v", torrentID, err)
+		}
+	}
+	return nil
+}
+
+// bulkResumeTorrents resumes multiple torrents
+func (h *DelugeHandler) bulkResumeTorrents(server *models.DelugeServer, torrentIDs []string) error {
+	for _, torrentID := range torrentIDs {
+		err := h.resumeTorrentOnServer(server, torrentID)
+		if err != nil {
+			return fmt.Errorf("failed to resume torrent %s: %v", torrentID, err)
+		}
+	}
+	return nil
+}
+
+// bulkRemoveTorrents removes multiple torrents
+func (h *DelugeHandler) bulkRemoveTorrents(server *models.DelugeServer, torrentIDs []string, removeData bool) error {
+	for _, torrentID := range torrentIDs {
+		err := h.removeTorrentFromServer(server, torrentID, removeData)
+		if err != nil {
+			return fmt.Errorf("failed to remove torrent %s: %v", torrentID, err)
+		}
+	}
+	return nil
+}
+
+// BulkFilebotAction handles bulk filebot actions on multiple torrents
+func (h *DelugeHandler) BulkFilebotAction(c *gin.Context) {
+	torrentIDs := c.PostFormArray("torrent_ids")
+	mode := c.PostForm("mode") // "test" or "process"
+
+	if len(torrentIDs) == 0 {
+		c.HTML(http.StatusOK, "deluge_torrents.html", gin.H{
+			"error": "At least one torrent must be selected",
+		})
+		return
+	}
+
+	// Redirect to filebot form with multiple torrent IDs
+	queryParams := url.Values{}
+	for _, id := range torrentIDs {
+		queryParams.Add("torrent_id", id)
+	}
+	if mode != "" {
+		queryParams.Set("mode", mode)
+	}
+
+	redirectURL := fmt.Sprintf("/filebot/form?%s", queryParams.Encode())
+	c.Header("HX-Redirect", redirectURL)
+	c.Status(http.StatusOK)
+}
