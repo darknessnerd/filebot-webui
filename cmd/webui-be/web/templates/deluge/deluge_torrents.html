@@ -57,20 +57,11 @@
             <!-- Filebot Actions -->
             <div class="filebot-bulk-actions" id="filebot-bulk-actions" style="display: none;">
                 <button type="button"
-                        hx-post="/deluge/bulk-filebot"
-                        hx-vals='{"mode": "test"}'
-                        hx-target="#main-content"
-                        hx-swap="innerHTML"
-                        hx-include="[name='torrent_ids']:checked"
                         onclick="submitFilebotAction('test')"
                         class="btn btn-filebot-test">
                     Test Selected with Filebot
                 </button>
                 <button type="button"
-                        hx-post="/deluge/bulk-filebot"
-                        hx-target="#main-content"
-                        hx-swap="innerHTML"
-                        hx-include="[name='torrent_ids']:checked"
                         onclick="submitFilebotAction('process')"
                         class="btn btn-filebot-process">
                     Process Selected with Filebot

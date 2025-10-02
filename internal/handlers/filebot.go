@@ -435,6 +435,16 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 			Int("error_count", len(errorMessages)).
 			Msg("FileBotExecute: File processing completed")
 
+		// Debug torrent deletion conditions
+		logger.Log.Debug().
+			Bool("delete_torrent", deleteTorrent).
+			Str("torrent_id", torrentID).
+			Int("error_messages_count", len(errorMessages)).
+			Int("processed", processed).
+			Int("total", total).
+			Str("action", action).
+			Msg("FileBotExecute: Checking torrent deletion conditions")
+
 		// Delete the torrent if:
 		// 1. The delete_torrent checkbox was selected
 		// 2. A torrent ID was provided
@@ -485,6 +495,16 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 			} else {
 				logger.Log.Warn().Msg("FileBotExecute: deluge_service type assertion failed")
 			}
+		} else {
+			// Log why torrent deletion was skipped
+			logger.Log.Debug().
+				Bool("delete_torrent_checked", deleteTorrent).
+				Bool("torrent_id_provided", torrentID != "").
+				Bool("no_errors", len(errorMessages) == 0).
+				Bool("all_processed", processed == total).
+				Bool("has_files", total > 0).
+				Bool("is_move_action", action == "move").
+				Msg("FileBotExecute: Torrent deletion skipped - conditions not met")
 		}
 	}
 

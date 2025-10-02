@@ -45,7 +45,35 @@
 
     <main class="main-content" id="main-content">
         {{if .authenticated}}
-            {{template "landing_page.html" .}}
+            {{if eq .content "home.html"}}
+                {{template "home.html" .}}
+            {{else if eq .content "plex_libraries.html"}}
+                {{template "plex_libraries.html" .}}
+            {{else if eq .content "plex_servers.html"}}
+                {{template "plex_servers.html" .}}
+            {{else if eq .content "plex_recently_added.html"}}
+                {{template "plex_recently_added.html" .}}
+            {{else if eq .content "plex_configure.html"}}
+                {{template "plex_configure.html" .}}
+            {{else if eq .content "deluge_configure.html"}}
+                {{template "deluge_configure.html" .}}
+            {{else if eq .content "deluge_servers.html"}}
+                {{template "deluge_servers.html" .}}
+            {{else if eq .content "deluge_home.html"}}
+                {{template "deluge_home.html" .}}
+            {{else if eq .content "deluge_torrents.html"}}
+                {{template "deluge_torrents.html" .}}
+            {{else if eq .content "deluge_server_status.html"}}
+                {{template "deluge_server_status.html" .}}
+            {{else if eq .content "directory_browser.html"}}
+                {{template "directory_browser.html" .}}
+            {{else if eq .content "filebot_form.html"}}
+                {{template "filebot_form.html" .}}
+            {{else if eq .content "directory_browser_embedded.html"}}
+                {{template "directory_browser_embedded.html" .}}
+            {{else}}
+                {{template "landing_page.html" .}}
+            {{end}}
         {{else}}
             {{template "login.html" .}}
         {{end}}
