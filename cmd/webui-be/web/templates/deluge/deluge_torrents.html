@@ -9,7 +9,7 @@
         </div>
     {{else if not .torrents}}
         <div class="alert alert-warning">
-            <div class="alert-icon">���️</div>
+            <div class="alert-icon">�����️</div>
             <div class="alert-content">
                 <p>No torrents found. Add a torrent using the form on the right.</p>
             </div>
@@ -20,7 +20,7 @@
             <div class="content-actions">
                 <button hx-get="/deluge/torrents/htmx" hx-target="#deluge-torrents-widget"
                         class="btn btn-refresh">
-                    <span class="btn-icon">🔄</span> Refresh
+                    <span class="btn-icon">��</span> Refresh
                 </button>
             </div>
         </div>
@@ -299,30 +299,81 @@ function submitFilebotAction(mode) {
     const formData = new FormData();
     formData.append('mode', mode);
 
-    // Add all selected torrent IDs
+    // Add selected torrent IDs
     checkedBoxes.forEach(checkbox => {
         formData.append('torrent_ids', checkbox.value);
     });
 
-    // Submit via fetch and handle redirect
+    // Submit via fetch to filebot bulk action endpoint
     fetch('/deluge/bulk-filebot', {
         method: 'POST',
         body: formData
     })
     .then(response => {
-        // Check for HX-Redirect header
-        const redirectUrl = response.headers.get('HX-Redirect');
-        if (redirectUrl) {
-            // Navigate to the filebot form
-            window.location.href = redirectUrl;
+        if (response.ok) {
+            // Handle redirect from HX-Redirect header
+            const redirectUrl = response.headers.get('HX-Redirect');
+            if (redirectUrl) {
+                window.location.href = redirectUrl;
+            }
         } else {
-            console.error('No redirect URL received');
+            alert('Failed to process filebot action');
         }
     })
     .catch(error => {
-        console.error('Error submitting filebot action:', error);
-        alert('Error processing request. Please try again.');
+        console.error('Error:', error);
+        alert('An error occurred while processing the action');
     });
 }
+
+// Ensure bulk actions form submits properly
+document.addEventListener('DOMContentLoaded', function() {
+    const actionSelect = document.getElementById('bulk-action-select');
+    const removeDataOption = document.getElementById('remove-data-option');
+    const bulkForm = document.getElementById('bulk-actions-form');
+
+    if (actionSelect && removeDataOption) {
+        actionSelect.addEventListener('change', function() {
+            if (this.value === 'remove') {
+                removeDataOption.style.display = 'inline-block';
+            } else {
+                removeDataOption.style.display = 'none';
+            }
+        });
+    }
+
+    // Handle form submission for bulk actions
+    if (bulkForm) {
+        bulkForm.addEventListener('submit', function(e) {
+            const checkedBoxes = document.querySelectorAll('input[name="torrent_ids"]:checked');
+            const action = document.getElementById('bulk-action-select').value;
+
+            if (checkedBoxes.length === 0) {
+                e.preventDefault();
+                alert('Please select at least one torrent');
+                return false;
+            }
+
+            if (!action) {
+                e.preventDefault();
+                alert('Please select an action');
+                return false;
+            }
+
+            // Confirm destructive actions
+            if (action === 'remove') {
+                const removeData = document.querySelector('input[name="remove_data"]:checked');
+                const message = removeData ?
+                    'Are you sure you want to remove the selected torrents and delete their files? This cannot be undone.' :
+                    'Are you sure you want to remove the selected torrents?';
+
+                if (!confirm(message)) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+    }
+});
 </script>
 {{end}}
