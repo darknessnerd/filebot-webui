@@ -22,15 +22,17 @@ type FileBotHandler struct {
 	db          *database.DB
 	authService *auth.Service
 	delugeRepo  *repository.DelugeServerRepository
+	plexRepo    repository.PlexServerRepositoryInterface
 }
 
 // NewFileBotHandler creates a new FileBot handler
-func NewFileBotHandler(config *config.Config, db *database.DB, authService *auth.Service, delugeRepo *repository.DelugeServerRepository) *FileBotHandler {
+func NewFileBotHandler(config *config.Config, db *database.DB, authService *auth.Service, delugeRepo *repository.DelugeServerRepository, plexRepo repository.PlexServerRepositoryInterface) *FileBotHandler {
 	return &FileBotHandler{
 		config:      config,
 		db:          db,
 		authService: authService,
 		delugeRepo:  delugeRepo,
+		plexRepo:    plexRepo,
 	}
 }
 
@@ -64,6 +66,45 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 		"TorrentID":           torrentID,  // Pass the torrent ID to the template (for single torrent compatibility)
 		"TorrentIDs":          torrentIDs, // Pass all torrent IDs for bulk operations
 		"DeleteTorrent":       true,       // Default to true for the delete torrent checkbox
+		"PlexServers":         nil,        // Initialize Plex servers list
+		"SelectedPlexServer":  "",         // Initialize selected Plex server
+	}
+
+	// Get user to load Plex servers
+	userObj, userExists := c.Get("user_obj")
+	if userExists {
+		if user, ok := userObj.(*models.User); ok && h.plexRepo != nil {
+			// Load user's Plex servers
+			plexServers, err := h.plexRepo.GetServersByUser(user.ID)
+			if err == nil && len(plexServers) > 0 {
+				data["PlexServers"] = plexServers
+				logger.Log.Debug().Int("plex_servers_count", len(plexServers)).Msg("FileBotForm: Loaded Plex servers")
+
+				// Set preferred server as default selection if exists
+				for _, server := range plexServers {
+					if server.Preferred {
+						data["SelectedPlexServer"] = server.ID
+						// Set default formats from preferred server
+						if server.MovieFormat != "" {
+							data["DefaultMovieFormat"] = server.MovieFormat
+						}
+						if server.SeriesFormat != "" {
+							data["DefaultSeriesFormat"] = server.SeriesFormat
+						}
+						if server.AnimeFormat != "" {
+							data["DefaultAnimeFormat"] = server.AnimeFormat
+						}
+						if server.MusicFormat != "" {
+							data["DefaultMusicFormat"] = server.MusicFormat
+						}
+						logger.Log.Debug().Int("preferred_server_id", server.ID).Str("server_name", server.Name).Msg("FileBotForm: Set preferred Plex server as default")
+						break
+					}
+				}
+			} else {
+				logger.Log.Debug().Err(err).Int("user_id", user.ID).Msg("FileBotForm: No Plex servers found or error loading")
+			}
+		}
 	}
 
 	// If mode is specified, set it as the action
@@ -449,7 +490,7 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 		// 1. The delete_torrent checkbox was selected
 		// 2. A torrent ID was provided
 		// 3. All files were processed successfully (no errors)
-		// 4. The action was "move" (only makes sense to delete after moving)
+		// 4. The action was "move" (only makes sense to delete after moving, not for test/copy/symlink)
 		if deleteTorrent && torrentID != "" && len(errorMessages) == 0 && processed == total && total > 0 && action == "move" {
 			logger.Log.Info().
 				Str("torrent_id", torrentID).
@@ -553,4 +594,74 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 		Msg("FileBotExecute: Rendering result form")
 
 	RenderWithHTMX(c, "filebot_form.html", data, true)
+}
+
+// GetPlexServerFormats returns the format configuration for a specific Plex server
+func (h *FileBotHandler) GetPlexServerFormats(c *gin.Context) {
+	serverIDStr := c.Param("id")
+	serverID, err := strconv.Atoi(serverIDStr)
+	if err != nil {
+		logger.Log.Debug().Str("server_id", serverIDStr).Err(err).Msg("GetPlexServerFormats: Invalid server ID")
+		c.JSON(400, gin.H{"error": "Invalid server ID"})
+		return
+	}
+
+	userObj, userExists := c.Get("user_obj")
+	if !userExists {
+		logger.Log.Debug().Msg("GetPlexServerFormats: No user object found")
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	user, ok := userObj.(*models.User)
+	if !ok {
+		logger.Log.Debug().Msg("GetPlexServerFormats: Invalid user object")
+		c.JSON(401, gin.H{"error": "Invalid user"})
+		return
+	}
+
+	if h.plexRepo == nil {
+		logger.Log.Debug().Msg("GetPlexServerFormats: Plex repository not available")
+		c.JSON(500, gin.H{"error": "Plex service not available"})
+		return
+	}
+
+	// Get all user's servers to verify ownership
+	servers, err := h.plexRepo.GetServersByUser(user.ID)
+	if err != nil {
+		logger.Log.Debug().Err(err).Int("user_id", user.ID).Msg("GetPlexServerFormats: Error loading user servers")
+		c.JSON(500, gin.H{"error": "Error loading servers"})
+		return
+	}
+
+	// Find the specific server
+	var selectedServer *models.PlexServer
+	for _, server := range servers {
+		if server.ID == serverID {
+			selectedServer = &server
+			break
+		}
+	}
+
+	if selectedServer == nil {
+		logger.Log.Debug().Int("server_id", serverID).Int("user_id", user.ID).Msg("GetPlexServerFormats: Server not found or not owned by user")
+		c.JSON(404, gin.H{"error": "Server not found"})
+		return
+	}
+
+	logger.Log.Debug().
+		Int("server_id", serverID).
+		Str("server_name", selectedServer.Name).
+		Str("movie_format", selectedServer.MovieFormat).
+		Str("series_format", selectedServer.SeriesFormat).
+		Str("anime_format", selectedServer.AnimeFormat).
+		Str("music_format", selectedServer.MusicFormat).
+		Msg("GetPlexServerFormats: Returning server formats")
+
+	c.JSON(200, gin.H{
+		"movie_format":  selectedServer.MovieFormat,
+		"series_format": selectedServer.SeriesFormat,
+		"anime_format":  selectedServer.AnimeFormat,
+		"music_format":  selectedServer.MusicFormat,
+	})
 }

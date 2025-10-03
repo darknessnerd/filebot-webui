@@ -98,6 +98,7 @@ func (s *Server) setupWebRoutes() {
 		webGroup.GET("/filebot/form", s.handlers.FileBot.FileBotForm)
 		webGroup.POST("/filebot/selection", s.handlers.FileBot.FileBotSelection)
 		webGroup.POST("/filebot/execute", s.handlers.FileBot.FileBotExecute)
+		webGroup.GET("/api/plex/servers/:id/formats", s.handlers.FileBot.GetPlexServerFormats)
 		// Directory browser routes
 		webGroup.GET("/directory-browser", s.handlers.Directory.BrowseDirectory)
 		// You can add POST endpoints for selection/collapse if needed

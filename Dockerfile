@@ -1,8 +1,8 @@
 FROM golang:1.25-alpine
 
-# Install required packages: nginx, openjdk11, wget, tar, xz
+# Install required packages: nginx, openjdk11, wget, tar, xz, and MediaInfo libraries
 RUN apk update && \
-    apk add --no-cache nginx openjdk11 wget tar xz gcc libc-dev
+    apk add --no-cache nginx openjdk11 wget tar xz gcc libc-dev mediainfo libmediainfo libzen
 
 # FileBot CLI setup
 ENV CONFIG="/config"

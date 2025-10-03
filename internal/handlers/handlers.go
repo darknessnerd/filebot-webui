@@ -38,7 +38,7 @@ func NewHandlers(config *config.Config, db *database.DB, authService *auth.Servi
 		Auth:        NewAuthHandler(config, db, authService),
 		API:         NewAPIHandler(config, db, authService),
 		Health:      NewHealthHandler(config),
-		FileBot:     NewFileBotHandler(config, db, authService, delugeRepo),
+		FileBot:     NewFileBotHandler(config, db, authService, delugeRepo, plexRepo),
 		Directory:   NewDirectoryHandler(config, db, authService),
 		Home:        NewHomeHandler(config, db, authService),
 		config:      config,

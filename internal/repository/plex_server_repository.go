@@ -16,8 +16,8 @@ func NewPlexServerRepository(db *sql.DB) *PlexServerRepository {
 
 func (r *PlexServerRepository) UpsertPlexServer(user *models.User, server *models.PlexServer) error {
 	query := `INSERT INTO plex_servers (
-		user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported, movie_format, series_format, anime_format, music_format
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(user_id, name) DO UPDATE SET
 		product=excluded.product,
 		product_version=excluded.product_version,
@@ -40,9 +40,13 @@ func (r *PlexServerRepository) UpsertPlexServer(user *models.User, server *model
 		source_title=excluded.source_title,
 		public_address_matches=excluded.public_address_matches,
 		dns_rebinding_protection=excluded.dns_rebinding_protection,
-		nat_loopback_supported=excluded.nat_loopback_supported`
+		nat_loopback_supported=excluded.nat_loopback_supported,
+		movie_format=COALESCE(excluded.movie_format, movie_format),
+		series_format=COALESCE(excluded.series_format, series_format),
+		anime_format=COALESCE(excluded.anime_format, anime_format),
+		music_format=COALESCE(excluded.music_format, music_format)`
 	result, err := r.db.Exec(query,
-		user.ID, server.Name, server.Product, server.ProductVersion, server.ClientIdentifier, server.CreatedAt, server.LastSeenAt, server.Provides, server.PublicAddress, server.AccessToken, server.Owned, server.Home, server.Synced, server.Relay, server.Presence, server.HttpsRequired, server.Preferred, server.Platform, server.PlatformVersion, server.Device, server.OwnerID, server.SourceTitle, server.PublicAddressMatches, server.DNSRebindingProtection, server.NATLoopbackSupported,
+		user.ID, server.Name, server.Product, server.ProductVersion, server.ClientIdentifier, server.CreatedAt, server.LastSeenAt, server.Provides, server.PublicAddress, server.AccessToken, server.Owned, server.Home, server.Synced, server.Relay, server.Presence, server.HttpsRequired, server.Preferred, server.Platform, server.PlatformVersion, server.Device, server.OwnerID, server.SourceTitle, server.PublicAddressMatches, server.DNSRebindingProtection, server.NATLoopbackSupported, server.MovieFormat, server.SeriesFormat, server.AnimeFormat, server.MusicFormat,
 	)
 	if err != nil {
 		return err
@@ -111,9 +115,9 @@ func (r *PlexServerRepository) SetPreferredPlexServer(userID int, serverID int) 
 }
 
 func (r *PlexServerRepository) GetPreferredPlexServer(userID int) (*models.PlexServer, error) {
-	row := r.db.QueryRow("SELECT id, user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported FROM plex_servers WHERE user_id=? AND preferred=1 LIMIT 1", userID)
+	row := r.db.QueryRow("SELECT id, user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported, movie_format, series_format, anime_format, music_format FROM plex_servers WHERE user_id=? AND preferred=1 LIMIT 1", userID)
 	var server models.PlexServer
-	err := row.Scan(&server.ID, &server.UserID, &server.Name, &server.Product, &server.ProductVersion, &server.ClientIdentifier, &server.CreatedAt, &server.LastSeenAt, &server.Provides, &server.PublicAddress, &server.AccessToken, &server.Owned, &server.Home, &server.Synced, &server.Relay, &server.Presence, &server.HttpsRequired, &server.Preferred, &server.Platform, &server.PlatformVersion, &server.Device, &server.OwnerID, &server.SourceTitle, &server.PublicAddressMatches, &server.DNSRebindingProtection, &server.NATLoopbackSupported)
+	err := row.Scan(&server.ID, &server.UserID, &server.Name, &server.Product, &server.ProductVersion, &server.ClientIdentifier, &server.CreatedAt, &server.LastSeenAt, &server.Provides, &server.PublicAddress, &server.AccessToken, &server.Owned, &server.Home, &server.Synced, &server.Relay, &server.Presence, &server.HttpsRequired, &server.Preferred, &server.Platform, &server.PlatformVersion, &server.Device, &server.OwnerID, &server.SourceTitle, &server.PublicAddressMatches, &server.DNSRebindingProtection, &server.NATLoopbackSupported, &server.MovieFormat, &server.SeriesFormat, &server.AnimeFormat, &server.MusicFormat)
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +159,8 @@ func (r *PlexServerRepository) BatchUpsertAndFetchServers(user *models.User, ser
 			Str("client_identifier", server.ClientIdentifier).
 			Msg("Attempting upsert for server")
 		query := `INSERT INTO plex_servers (
-			user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported, movie_format, series_format, anime_format, music_format
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(user_id, name) DO UPDATE SET
 			product=excluded.product,
 			product_version=excluded.product_version,
@@ -179,9 +183,13 @@ func (r *PlexServerRepository) BatchUpsertAndFetchServers(user *models.User, ser
 			source_title=excluded.source_title,
 			public_address_matches=excluded.public_address_matches,
 			dns_rebinding_protection=excluded.dns_rebinding_protection,
-			nat_loopback_supported=excluded.nat_loopback_supported`
+			nat_loopback_supported=excluded.nat_loopback_supported,
+			movie_format=COALESCE(excluded.movie_format, movie_format),
+			series_format=COALESCE(excluded.series_format, series_format),
+			anime_format=COALESCE(excluded.anime_format, anime_format),
+			music_format=COALESCE(excluded.music_format, music_format)`
 		result, err := tx.Exec(query,
-			user.ID, server.Name, server.Product, server.ProductVersion, server.ClientIdentifier, server.CreatedAt, server.LastSeenAt, server.Provides, server.PublicAddress, server.AccessToken, server.Owned, server.Home, server.Synced, server.Relay, server.Presence, server.HttpsRequired, server.Preferred, server.Platform, server.PlatformVersion, server.Device, server.OwnerID, server.SourceTitle, server.PublicAddressMatches, server.DNSRebindingProtection, server.NATLoopbackSupported,
+			user.ID, server.Name, server.Product, server.ProductVersion, server.ClientIdentifier, server.CreatedAt, server.LastSeenAt, server.Provides, server.PublicAddress, server.AccessToken, server.Owned, server.Home, server.Synced, server.Relay, server.Presence, server.HttpsRequired, server.Preferred, server.Platform, server.PlatformVersion, server.Device, server.OwnerID, server.SourceTitle, server.PublicAddressMatches, server.DNSRebindingProtection, server.NATLoopbackSupported, server.MovieFormat, server.SeriesFormat, server.AnimeFormat, server.MusicFormat,
 		)
 		if err != nil {
 			tx.Rollback()
@@ -223,7 +231,7 @@ func (r *PlexServerRepository) BatchUpsertAndFetchServers(user *models.User, ser
 }
 
 func (r *PlexServerRepository) GetServersByUser(userID int) ([]models.PlexServer, error) {
-	rows, err := r.db.Query("SELECT id, user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported FROM plex_servers WHERE user_id=?", userID)
+	rows, err := r.db.Query("SELECT id, user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported, movie_format, series_format, anime_format, music_format FROM plex_servers WHERE user_id=?", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +240,7 @@ func (r *PlexServerRepository) GetServersByUser(userID int) ([]models.PlexServer
 	var servers []models.PlexServer
 	for rows.Next() {
 		var server models.PlexServer
-		err := rows.Scan(&server.ID, &server.UserID, &server.Name, &server.Product, &server.ProductVersion, &server.ClientIdentifier, &server.CreatedAt, &server.LastSeenAt, &server.Provides, &server.PublicAddress, &server.AccessToken, &server.Owned, &server.Home, &server.Synced, &server.Relay, &server.Presence, &server.HttpsRequired, &server.Preferred, &server.Platform, &server.PlatformVersion, &server.Device, &server.OwnerID, &server.SourceTitle, &server.PublicAddressMatches, &server.DNSRebindingProtection, &server.NATLoopbackSupported)
+		err := rows.Scan(&server.ID, &server.UserID, &server.Name, &server.Product, &server.ProductVersion, &server.ClientIdentifier, &server.CreatedAt, &server.LastSeenAt, &server.Provides, &server.PublicAddress, &server.AccessToken, &server.Owned, &server.Home, &server.Synced, &server.Relay, &server.Presence, &server.HttpsRequired, &server.Preferred, &server.Platform, &server.PlatformVersion, &server.Device, &server.OwnerID, &server.SourceTitle, &server.PublicAddressMatches, &server.DNSRebindingProtection, &server.NATLoopbackSupported, &server.MovieFormat, &server.SeriesFormat, &server.AnimeFormat, &server.MusicFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -255,11 +263,28 @@ func (r *PlexServerRepository) GetServersByUser(userID int) ([]models.PlexServer
 	return servers, nil
 }
 
+func (r *PlexServerRepository) UpdateServerFormats(userID int, serverID int, movieFormat, seriesFormat, animeFormat, musicFormat string) error {
+	query := `UPDATE plex_servers SET movie_format=?, series_format=?, anime_format=?, music_format=? WHERE user_id=? AND id=?`
+	result, err := r.db.Exec(query, movieFormat, seriesFormat, animeFormat, musicFormat, userID, serverID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 type PlexServerRepositoryInterface interface {
 	GetPreferredPlexServer(userID int) (*models.PlexServer, error)
 	SetPreferredPlexServer(userID int, serverID int) error
 	BatchUpsertAndFetchServers(user *models.User, servers []models.PlexServer) ([]models.PlexServer, error)
 	GetServersByUser(userID int) ([]models.PlexServer, error)
+	UpdateServerFormats(userID int, serverID int, movieFormat, seriesFormat, animeFormat, musicFormat string) error
 }
 
 // PlexServerRepository already implements GetPreferredPlexServer
