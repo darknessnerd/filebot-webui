@@ -33,6 +33,7 @@ func (r *PlexServerRepository) UpsertPlexServer(user *models.User, server *model
 		relay=excluded.relay,
 		presence=excluded.presence,
 		https_required=excluded.https_required,
+		preferred=excluded.preferred,
 		platform=excluded.platform,
 		platform_version=excluded.platform_version,
 		device=excluded.device,
@@ -158,9 +159,43 @@ func (r *PlexServerRepository) BatchUpsertAndFetchServers(user *models.User, ser
 			Str("server_name", server.Name).
 			Str("client_identifier", server.ClientIdentifier).
 			Msg("Attempting upsert for server")
+
+		// Debug: Log all server values being inserted
+		logger.Log.Debug().
+			Int("user_id", user.ID).
+			Str("name", server.Name).
+			Str("product", server.Product).
+			Str("product_version", server.ProductVersion).
+			Str("client_identifier", server.ClientIdentifier).
+			Interface("created_at", server.CreatedAt).
+			Interface("last_seen_at", server.LastSeenAt).
+			Str("provides", server.Provides).
+			Str("public_address", server.PublicAddress).
+			Str("access_token", server.AccessToken).
+			Bool("owned", server.Owned).
+			Bool("home", server.Home).
+			Bool("synced", server.Synced).
+			Bool("relay", server.Relay).
+			Bool("presence", server.Presence).
+			Bool("https_required", server.HttpsRequired).
+			Bool("preferred", server.Preferred).
+			Str("platform", server.Platform).
+			Str("platform_version", server.PlatformVersion).
+			Str("device", server.Device).
+			Str("owner_id", server.OwnerID).
+			Str("source_title", server.SourceTitle).
+			Bool("public_address_matches", server.PublicAddressMatches).
+			Bool("dns_rebinding_protection", server.DNSRebindingProtection).
+			Bool("nat_loopback_supported", server.NATLoopbackSupported).
+			Str("movie_format", server.MovieFormat).
+			Str("series_format", server.SeriesFormat).
+			Str("anime_format", server.AnimeFormat).
+			Str("music_format", server.MusicFormat).
+			Msg("Server values being inserted")
+
 		query := `INSERT INTO plex_servers (
 			user_id, name, product, product_version, client_identifier, created_at, last_seen_at, provides, public_address, access_token, owned, home, synced, relay, presence, https_required, preferred, platform, platform_version, device, owner_id, source_title, public_address_matches, dns_rebinding_protection, nat_loopback_supported, movie_format, series_format, anime_format, music_format
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(user_id, name) DO UPDATE SET
 			product=excluded.product,
 			product_version=excluded.product_version,
@@ -176,6 +211,7 @@ func (r *PlexServerRepository) BatchUpsertAndFetchServers(user *models.User, ser
 			relay=excluded.relay,
 			presence=excluded.presence,
 			https_required=excluded.https_required,
+			preferred=excluded.preferred,
 			platform=excluded.platform,
 			platform_version=excluded.platform_version,
 			device=excluded.device,
@@ -188,9 +224,23 @@ func (r *PlexServerRepository) BatchUpsertAndFetchServers(user *models.User, ser
 			series_format=COALESCE(excluded.series_format, series_format),
 			anime_format=COALESCE(excluded.anime_format, anime_format),
 			music_format=COALESCE(excluded.music_format, music_format)`
-		result, err := tx.Exec(query,
-			user.ID, server.Name, server.Product, server.ProductVersion, server.ClientIdentifier, server.CreatedAt, server.LastSeenAt, server.Provides, server.PublicAddress, server.AccessToken, server.Owned, server.Home, server.Synced, server.Relay, server.Presence, server.HttpsRequired, server.Preferred, server.Platform, server.PlatformVersion, server.Device, server.OwnerID, server.SourceTitle, server.PublicAddressMatches, server.DNSRebindingProtection, server.NATLoopbackSupported, server.MovieFormat, server.SeriesFormat, server.AnimeFormat, server.MusicFormat,
-		)
+
+		// Debug: Count parameters
+		args := []interface{}{
+			user.ID, server.Name, server.Product, server.ProductVersion, server.ClientIdentifier,
+			server.CreatedAt, server.LastSeenAt, server.Provides, server.PublicAddress, server.AccessToken,
+			server.Owned, server.Home, server.Synced, server.Relay, server.Presence, server.HttpsRequired,
+			server.Preferred, server.Platform, server.PlatformVersion, server.Device, server.OwnerID,
+			server.SourceTitle, server.PublicAddressMatches, server.DNSRebindingProtection,
+			server.NATLoopbackSupported, server.MovieFormat, server.SeriesFormat, server.AnimeFormat,
+			server.MusicFormat,
+		}
+
+		logger.Log.Debug().
+			Int("parameter_count", len(args)).
+			Msg("About to execute query with parameters")
+
+		result, err := tx.Exec(query, args...)
 		if err != nil {
 			tx.Rollback()
 			logger.Log.Error().
@@ -198,6 +248,7 @@ func (r *PlexServerRepository) BatchUpsertAndFetchServers(user *models.User, ser
 				Int("user_id", user.ID).
 				Str("server_name", server.Name).
 				Str("client_identifier", server.ClientIdentifier).
+				Int("parameter_count", len(args)).
 				Err(err).
 				Msgf("Failed to upsert server for user")
 			return nil, err

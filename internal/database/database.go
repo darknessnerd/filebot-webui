@@ -164,10 +164,10 @@ func (db *DB) Migrate() error {
 			public_address_matches BOOLEAN,
 			dns_rebinding_protection BOOLEAN,
 			nat_loopback_supported BOOLEAN,
-			movie_format TEXT DEFAULT '{plex}/Movies/{n} ({y})/{n} ({y}) {vf} {vc} {ac} {af}',
-			series_format TEXT DEFAULT '{plex}/TV Shows/{n}/Season {s.pad(2)}/{n} - {s00e00} - {t} {vf} {vc} {ac} {af}',
-			anime_format TEXT DEFAULT '{plex}/Anime/{n}/Season {s.pad(2)}/{n} - {s00e00} - {t} {vf} {vc} {ac} {af}',
-			music_format TEXT DEFAULT '{plex}/Music/{artist}/{album}/{pi.pad(2)} {artist} - {t}',
+			movie_format TEXT DEFAULT '{ plex }',
+			series_format TEXT DEFAULT '{ plex }',
+			anime_format TEXT DEFAULT '{ plex }',
+			music_format TEXT DEFAULT '{ plex }',
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 			UNIQUE(user_id, name)
 		)`
