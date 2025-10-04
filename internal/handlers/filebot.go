@@ -84,20 +84,19 @@ func (h *FileBotHandler) FileBotForm(c *gin.Context) {
 				for _, server := range plexServers {
 					if server.Preferred {
 						data["SelectedPlexServer"] = server.ID
-						// Set default formats from preferred server
-						if server.MovieFormat != "" {
-							data["DefaultMovieFormat"] = server.MovieFormat
-						}
-						if server.SeriesFormat != "" {
-							data["DefaultSeriesFormat"] = server.SeriesFormat
-						}
-						if server.AnimeFormat != "" {
-							data["DefaultAnimeFormat"] = server.AnimeFormat
-						}
-						if server.MusicFormat != "" {
-							data["DefaultMusicFormat"] = server.MusicFormat
-						}
-						logger.Log.Debug().Int("preferred_server_id", server.ID).Str("server_name", server.Name).Msg("FileBotForm: Set preferred Plex server as default")
+						// Set Plex format preferences for JavaScript
+						data["PlexMovieFormat"] = server.MovieFormat
+						data["PlexSeriesFormat"] = server.SeriesFormat
+						data["PlexAnimeFormat"] = server.AnimeFormat
+						data["PlexMusicFormat"] = server.MusicFormat
+						logger.Log.Debug().
+							Int("preferred_server_id", server.ID).
+							Str("server_name", server.Name).
+							Str("movie_format", server.MovieFormat).
+							Str("series_format", server.SeriesFormat).
+							Str("anime_format", server.AnimeFormat).
+							Str("music_format", server.MusicFormat).
+							Msg("FileBotForm: Set preferred Plex server formats")
 						break
 					}
 				}
