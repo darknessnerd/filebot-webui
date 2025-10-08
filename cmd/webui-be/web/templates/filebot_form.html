@@ -164,6 +164,10 @@
     </div>
     <div class="modal-body" id="directory-browser-container">
       <!-- Directory browser will be loaded here via AJAX -->
+      <div id="directory-browser-loading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>Loading directory browser...</p>
+      </div>
     </div>
   </div>
 </div>
@@ -172,6 +176,80 @@
   // Store selected files and output directory for state management
   window.selectedFiles = {{.FilesJSON}};
   window.selectedOutput = {{.OutputDirectoryJSON}};
+
+  // HTMX Debug Logging
+  document.addEventListener('htmx:oobErrorNoTarget', function(event) {
+    console.error('🔴 HTMX OOB Error: No target found', {
+      detail: event.detail,
+      content: event.detail.content,
+      target: event.detail.target
+    });
+
+    // Try to extract the target selector from the content
+    const contentStr = event.detail.content?.toString() || '';
+    const idMatch = contentStr.match(/id=["']([^"']+)["']/);
+    const targetId = idMatch ? idMatch[1] : 'unknown';
+
+    console.error(`🔍 Missing OOB target: "${targetId}". Content snippet:`,
+      contentStr.substring(0, 100) + (contentStr.length > 100 ? '...' : ''));
+  });
+
+  document.addEventListener('htmx:targetError', function(event) {
+    console.error('🔴 HTMX Target Error:', {
+      target: event.detail.target,
+      elt: event.detail.elt
+    });
+
+    // Show which element triggered the request
+    console.error('🔍 Request source element:', event.detail.elt);
+    console.error(`🔍 Target selector "${event.detail.target}" not found in DOM`);
+  });
+
+  document.addEventListener('htmx:beforeRequest', function(event) {
+    console.log('🔷 HTMX Request Starting:', {
+      url: event.detail.requestConfig.url,
+      target: event.detail.requestConfig.target,
+      indicatorSelector: event.detail.requestConfig.indicatorSelector
+    });
+
+    // Check if the target exists
+    if (event.detail.requestConfig.target) {
+      const targetEl = document.querySelector(event.detail.requestConfig.target);
+      console.log(`🔍 Target "${event.detail.requestConfig.target}" exists:`, !!targetEl);
+    }
+
+    // Check if the indicator exists
+    if (event.detail.requestConfig.indicatorSelector) {
+      const indicatorEl = document.querySelector(event.detail.requestConfig.indicatorSelector);
+      console.log(`🔍 Indicator "${event.detail.requestConfig.indicatorSelector}" exists:`, !!indicatorEl);
+    }
+  });
+
+  document.addEventListener('htmx:beforeSwap', function(event) {
+    console.log('🟡 HTMX Before Swap:', {
+      target: event.detail.target,
+      shouldSwap: event.detail.shouldSwap,
+      serverResponse: event.detail.serverResponse?.status
+    });
+
+    // Check response content type
+    console.log('🔍 Response content type:', event.detail.serverResponse?.headers?.get('Content-Type'));
+  });
+
+  document.addEventListener('htmx:afterSwap', function(event) {
+    console.log('🟢 HTMX After Swap:', {
+      target: event.detail.target?.id || 'unknown'
+    });
+  });
+
+  document.addEventListener('htmx:responseError', function(event) {
+    console.error('🔴 HTMX Response Error:', {
+      error: event.detail.error,
+      xhr: event.detail.xhr,
+      status: event.detail.xhr.status,
+      responseText: event.detail.xhr.responseText?.substring(0, 100) + '...'
+    });
+  });
 
   // Default format mappings based on database selection
   const formatMappings = {
@@ -243,7 +321,8 @@
     // Load the directory browser into the modal
     htmx.ajax('GET', '/directory-browser?embedded=true&torrent_id={{.TorrentID}}&files={{.FilesJSON}}', {
       target: '#directory-browser-container',
-      swap: 'innerHTML'
+      swap: 'innerHTML',
+      indicator: '#directory-browser-loading'
     });
   }
 

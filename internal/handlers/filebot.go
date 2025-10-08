@@ -325,6 +325,19 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 	outputDirectoryJSON := c.PostForm("outputDirectory")
 	torrentID := c.PostForm("torrent_id")
 
+	// Handle multiple torrent IDs for bulk operations
+	torrentIDs := c.PostFormArray("torrent_ids")
+	if len(torrentIDs) == 0 && torrentID != "" {
+		// Fallback to single torrent ID for backward compatibility
+		torrentIDs = []string{torrentID}
+	}
+
+	logger.Log.Debug().
+		Str("torrent_id", torrentID).
+		Strs("torrent_ids", torrentIDs).
+		Int("torrent_ids_count", len(torrentIDs)).
+		Msg("FileBotExecute: Parsed torrent IDs for deletion")
+
 	// Multi-file selection logic: parse filesJSON as CSV or JSON array
 	var filesList []string
 	if filesJSON != "" {
@@ -478,27 +491,29 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 		// Debug torrent deletion conditions
 		logger.Log.Debug().
 			Bool("delete_torrent", deleteTorrent).
-			Str("torrent_id", torrentID).
+			Strs("torrent_ids", torrentIDs).
+			Int("torrent_ids_count", len(torrentIDs)).
 			Int("error_messages_count", len(errorMessages)).
 			Int("processed", processed).
 			Int("total", total).
 			Str("action", action).
 			Msg("FileBotExecute: Checking torrent deletion conditions")
 
-		// Delete the torrent if:
+		// Delete torrents if:
 		// 1. The delete_torrent checkbox was selected
-		// 2. A torrent ID was provided
+		// 2. Torrent IDs were provided
 		// 3. All files were processed successfully (no errors)
 		// 4. The action was "move" (only makes sense to delete after moving, not for test/copy/symlink)
-		if deleteTorrent && torrentID != "" && len(errorMessages) == 0 && processed == total && total > 0 && action == "move" {
+		if deleteTorrent && len(torrentIDs) > 0 && len(errorMessages) == 0 && processed == total && total > 0 && action == "move" {
 			logger.Log.Info().
-				Str("torrent_id", torrentID).
-				Msg("FileBotExecute: Attempting to delete torrent after successful move operation")
+				Strs("torrent_ids", torrentIDs).
+				Int("torrent_count", len(torrentIDs)).
+				Msg("FileBotExecute: Attempting to delete torrents after successful move operation")
 
 			// Get the deluge service from context
 			delugeService, exists := c.Get("deluge_service")
 			if !exists {
-				logger.Log.Warn().Msg("FileBotExecute: deluge_service not found in context, cannot delete torrent")
+				logger.Log.Warn().Msg("FileBotExecute: deluge_service not found in context, cannot delete torrents")
 			} else if delugeHandler, ok := delugeService.(*DelugeHandler); ok {
 				// Get user to get preferred Deluge server
 				userObj, _ := c.Get("user_obj")
@@ -511,25 +526,51 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 						logger.Log.Warn().
 							Err(err).
 							Int("user_id", user.ID).
-							Msg("FileBotExecute: Error getting preferred Deluge server, cannot delete torrent")
+							Msg("FileBotExecute: Error getting preferred Deluge server, cannot delete torrents")
 					} else if server != nil {
-						// Remove the torrent but keep data (since it has been moved by FileBot)
-						// The removeData parameter is false to keep original data
-						err = delugeHandler.removeTorrentFromServer(server, torrentID, true)
-						if err != nil {
-							logger.Log.Warn().
-								Err(err).
-								Str("torrent_id", torrentID).
-								Msg("FileBotExecute: Error deleting torrent after move operation")
-							// Add a warning to the user that torrent deletion failed
-							successMessages = append(successMessages, "Note: Files were moved successfully, but automatic torrent removal failed. You may need to remove the torrent manually.")
-						} else {
-							logger.Log.Info().
-								Str("torrent_id", torrentID).
-								Msg("FileBotExecute: Successfully deleted torrent after move operation")
-							// Add a success message about torrent deletion
-							successMessages = append(successMessages, "Torrent was successfully removed from Deluge after files were moved.")
+						// Track deletion results
+						deletedCount := 0
+						failedCount := 0
+
+						// Remove each torrent
+						for _, currentTorrentID := range torrentIDs {
+							logger.Log.Debug().
+								Str("torrent_id", currentTorrentID).
+								Msg("FileBotExecute: Attempting to delete individual torrent")
+
+							err = delugeHandler.removeTorrentFromServer(server, currentTorrentID, true)
+							if err != nil {
+								failedCount++
+								logger.Log.Warn().
+									Err(err).
+									Str("torrent_id", currentTorrentID).
+									Msg("FileBotExecute: Error deleting torrent after move operation")
+							} else {
+								deletedCount++
+								logger.Log.Info().
+									Str("torrent_id", currentTorrentID).
+									Msg("FileBotExecute: Successfully deleted torrent after move operation")
+							}
 						}
+
+						// Report deletion results
+						if deletedCount > 0 && failedCount == 0 {
+							if deletedCount == 1 {
+								successMessages = append(successMessages, "Torrent was successfully removed from Deluge after files were moved.")
+							} else {
+								successMessages = append(successMessages, fmt.Sprintf("All %d torrents were successfully removed from Deluge after files were moved.", deletedCount))
+							}
+						} else if deletedCount > 0 && failedCount > 0 {
+							successMessages = append(successMessages, fmt.Sprintf("%d of %d torrents were removed successfully. %d failed to delete.", deletedCount, len(torrentIDs), failedCount))
+						} else if failedCount > 0 {
+							successMessages = append(successMessages, "Note: Files were moved successfully, but automatic torrent removal failed. You may need to remove the torrents manually.")
+						}
+
+						logger.Log.Info().
+							Int("deleted_count", deletedCount).
+							Int("failed_count", failedCount).
+							Int("total_torrents", len(torrentIDs)).
+							Msg("FileBotExecute: Torrent deletion completed")
 					}
 				}
 			} else {
@@ -539,7 +580,7 @@ func (h *FileBotHandler) FileBotExecute(c *gin.Context) {
 			// Log why torrent deletion was skipped
 			logger.Log.Debug().
 				Bool("delete_torrent_checked", deleteTorrent).
-				Bool("torrent_id_provided", torrentID != "").
+				Bool("torrent_ids_provided", len(torrentIDs) > 0).
 				Bool("no_errors", len(errorMessages) == 0).
 				Bool("all_processed", processed == total).
 				Bool("has_files", total > 0).

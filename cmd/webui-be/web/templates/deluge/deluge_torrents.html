@@ -18,7 +18,7 @@
         <div class="content-header">
             <h3 class="content-title">Your Torrents</h3>
             <div class="content-actions">
-                <button hx-get="/deluge/torrents/htmx" hx-target="#deluge-torrents-widget"
+                <button hx-get="/deluge/torrents/htmx" hx-target="#torrents-widget"
                         class="btn btn-refresh">
                     <span class="btn-icon">��</span> Refresh
                 </button>
@@ -26,7 +26,7 @@
         </div>
 
         <!-- Bulk Actions Form -->
-        <form id="bulk-actions-form" hx-post="/deluge/bulk-action" hx-target="#deluge-torrents-widget" hx-swap="innerHTML">
+        <form id="bulk-actions-form" hx-post="/deluge/bulk-action" hx-target="#torrents-widget" hx-swap="innerHTML">
             <div class="bulk-actions-bar">
                 <div class="selection-controls">
                     <label class="checkbox-container">
@@ -374,6 +374,90 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+
+// HTMX Debug Logging
+document.addEventListener('htmx:oobErrorNoTarget', function(event) {
+  console.error('🔴 HTMX OOB Error: No target found', {
+    detail: event.detail,
+    content: event.detail.content,
+    target: event.detail.target
+  });
+
+  // Try to extract the target selector from the content
+  const contentStr = event.detail.content?.toString() || '';
+  const idMatch = contentStr.match(/id=["']([^"']+)["']/);
+  const targetId = idMatch ? idMatch[1] : 'unknown';
+
+  console.error(`🔍 Missing OOB target: "${targetId}". Content snippet:`,
+    contentStr.substring(0, 100) + (contentStr.length > 100 ? '...' : ''));
+});
+
+document.addEventListener('htmx:targetError', function(event) {
+  console.error('🔴 HTMX Target Error:', {
+    target: event.detail.target,
+    elt: event.detail.elt
+  });
+
+  // Show which element triggered the request
+  console.error('🔍 Request source element:', event.detail.elt);
+  console.error(`🔍 Target selector "${event.detail.target}" not found in DOM`);
+});
+
+document.addEventListener('htmx:beforeRequest', function(event) {
+  console.log('🔷 HTMX Request Starting:', {
+    url: event.detail.requestConfig.url,
+    target: event.detail.requestConfig.target,
+    indicatorSelector: event.detail.requestConfig.indicatorSelector
+  });
+
+  // Check if the target exists
+  if (event.detail.requestConfig.target) {
+    // Handle both element and selector string cases
+    if (typeof event.detail.requestConfig.target === 'string') {
+      const targetEl = document.querySelector(event.detail.requestConfig.target);
+      console.log(`🔍 Target selector "${event.detail.requestConfig.target}" exists:`, !!targetEl);
+    } else {
+      // If it's an element, just log that it exists
+      console.log(`🔍 Target element exists:`, true, event.detail.requestConfig.target.id ? `(id: ${event.detail.requestConfig.target.id})` : '');
+    }
+  }
+
+  // Check if the indicator exists
+  if (event.detail.requestConfig.indicatorSelector) {
+    if (typeof event.detail.requestConfig.indicatorSelector === 'string') {
+      const indicatorEl = document.querySelector(event.detail.requestConfig.indicatorSelector);
+      console.log(`🔍 Indicator "${event.detail.requestConfig.indicatorSelector}" exists:`, !!indicatorEl);
+    } else {
+      console.log(`🔍 Indicator element exists:`, true);
+    }
+  }
+});
+
+document.addEventListener('htmx:beforeSwap', function(event) {
+  console.log('🟡 HTMX Before Swap:', {
+    target: event.detail.target,
+    shouldSwap: event.detail.shouldSwap,
+    serverResponse: event.detail.serverResponse?.status
+  });
+
+  // Check response content type
+  console.log('🔍 Response content type:', event.detail.serverResponse?.headers?.get('Content-Type'));
+});
+
+document.addEventListener('htmx:afterSwap', function(event) {
+  console.log('🟢 HTMX After Swap:', {
+    target: event.detail.target?.id || 'unknown'
+  });
+});
+
+document.addEventListener('htmx:responseError', function(event) {
+  console.error('🔴 HTMX Response Error:', {
+    error: event.detail.error,
+    xhr: event.detail.xhr,
+    status: event.detail.xhr.status,
+    responseText: event.detail.xhr.responseText?.substring(0, 100) + '...'
+  });
 });
 </script>
 {{end}}
