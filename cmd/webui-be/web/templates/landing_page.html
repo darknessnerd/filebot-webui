@@ -1,5 +1,6 @@
 {{define "landing_page.html"}}
 <div class="home-flex main-content-children home-layout">
+  <!-- Main Dashboard Section -->
   <section x-data="{ open: true }" class="home-main" aria-labelledby="dashboard-heading">
     <h3 id="dashboard-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
       <span>Dashboard Overview</span>
@@ -7,16 +8,15 @@
     </h3>
     <div x-show="open" class="filebot-content" x-transition>
       <!-- Quick Actions Bar -->
-      <div class="action-bar">
-        <!-- Individual Library Refresh Buttons -->
+      <div class="action-bar compact">
+        <h4 class="action-bar-title">Quick Actions</h4>
         <div id="library-refresh-buttons"
              class="library-refresh-container"
              hx-get="/plex/libraries/htmx?layout=horizontal&show_refresh=true&buttons_only=true"
              hx-trigger="load"
              hx-swap="innerHTML">
-          <span class="loading-text">Loading library actions...</span>
+          <span class="loading-text">Loading...</span>
         </div>
-
         <div id="status-message" class="status-message"></div>
       </div>
 
@@ -32,6 +32,7 @@
     </div>
   </section>
 
+  <!-- Sidebar Panels Section -->
   <aside x-data="{ plexOpen: true }" class="filebot-sidebar" :class="{ 'plex-collapsed': !plexOpen }" aria-label="Dashboard Panels">
     <!-- Recently Added Section -->
     <section x-data="{ open: true }" class="filebot-container" aria-labelledby="recent-heading">

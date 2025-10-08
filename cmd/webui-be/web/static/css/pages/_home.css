@@ -7,16 +7,14 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* Base layout - desktop first */
+/* Mobile-first layout */
 .home-flex {
   display: flex;
-  flex-direction: row;
-  gap: var(--spacing-lg);
+  flex-direction: column;
+  gap: var(--spacing-md);
   width: 100%;
-  height: 100%;
   min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
   align-items: stretch;
-  justify-content: stretch;
   overflow: visible;
 }
 
@@ -28,6 +26,7 @@
   min-width: 0;
   min-height: 0; /* allow interior scroll areas to size */
   overflow: hidden;
+  margin-bottom: var(--spacing-md);
 }
 
 .filebot-sidebar {
@@ -36,8 +35,6 @@
   gap: var(--spacing-md);
   overflow-y: auto;
   padding: var(--spacing-xs);
-  flex: 0 0 clamp(300px, 30%, 420px);
-  max-width: clamp(300px, 30%, 420px);
   min-height: 0;
 }
 
@@ -64,8 +61,8 @@
 .filebot-header, .plex-widgets-header {
   color: var(--text-muted);
   margin: 0;
-  padding: 0.5em 0.75em;
-  font-size: 0.9em;
+  padding: 0.75em 1em;  /* Increased padding for better touch targets */
+  font-size: 1em;       /* Slightly larger font size for mobile */
   cursor: pointer;
   user-select: none;
   display: flex;
@@ -77,8 +74,9 @@
 }
 
 .collapse-icon {
-  font-size: 0.8em;
+  font-size: 0.9em;  /* Slightly larger for mobile */
   opacity: 0.7;
+  padding: 0.5em;    /* Add padding to increase touch target size */
 }
 
 /* When plex collapsed still allow filebot to grow */
@@ -86,166 +84,226 @@
   max-height: none;
 }
 
-/* Plex widgets row */
+/* Plex widgets row - mobile-first (vertical) */
 .plex-widgets-row {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: var(--spacing-md);
   padding: var(--spacing-sm);
-  overflow-x: auto;
+  overflow-y: auto;
 }
 
 /* Plex mini widgets */
 .recently-added-mini, #plex-libraries-widget {
   background: var(--bg-primary);
   border-radius: 8px;
-  box-shadow: none;
-  padding: 0.75em;
-  border: 1px solid var(--border-color);
-  min-width: 0;
-  flex: 1;
-  min-width: 200px;
-  margin-bottom: 0;
-  max-height: 300px;
-  overflow-y: auto;
-  opacity: 0.85;
-  transition: opacity 0.3s ease;
+  width: 100%;  /* Take full width on mobile */
 }
 
-.recently-added-mini:hover, #plex-libraries-widget:hover {
-  opacity: 1;
-}
-
-/* Plex Libraries List - Default vertical layout */
-.plex-libraries-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.plex-libraries-list li {
+/* Action bar adjustments for mobile */
+.action-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border-color);
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
 }
 
-.plex-libraries-list li:last-child {
-  border-bottom: none;
+.action-bar-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
 }
 
-/* Plex Libraries Horizontal Layout */
-.plex-libraries-horizontal {
+.action-bar-title {
+  font-size: 1rem;
+  margin: 0;
+  padding: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.library-refresh-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
+  justify-content: flex-start;
 }
 
-.library-card {
+.status-section {
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--spacing-xs);
+}
+
+.status-message {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  padding: var(--spacing-xs);
+}
+
+/* Action bar - compact design */
+.action-bar.compact {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  min-width: fit-content;
-  text-align: center;
-}
-
-.library-type {
-  color: var(--text-secondary);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-sm);
+  box-shadow: var(--shadow-sm);
   font-size: 0.85rem;
-  margin-left: 0.25rem;
 }
 
-/* Library Refresh Buttons for Quick Actions */
-.library-refresh-btn {
-  margin-right: 0.5rem;
+.action-bar.compact .action-bar-title {
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 0 var(--spacing-xs);
+  color: var(--text-muted);
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.library-refresh-btn .btn-icon {
-  margin-right: 0.25rem;
+.action-bar.compact .library-refresh-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  justify-content: flex-start;
+  margin: 0;
+  padding: 0;
 }
 
-/* Empty state styling */
-.empty-state {
-  color: var(--text-secondary);
-  font-style: italic;
-  text-align: center;
-  padding: 1rem;
+.action-bar.compact .status-message {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  padding: 0;
 }
 
-/* RESPONSIVE BREAKPOINTS - CONSOLIDATED */
+/* Compact button styles for the action bar */
+.action-bar.compact .btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  height: 1.5rem;
+  min-height: 1.5rem;
+  line-height: 1;
+}
 
-/* Tablet and below (≤1020px) */
-@media (max-width: 1020px) {
-  /* Change to vertical layout */
-  .home-flex {
-    flex-direction: column;
-    gap: var(--spacing-md);
-    height: auto;
+/* Tablet and up */
+@media (min-width: 768px) {
+  /* Horizontal layout for action bar */
+  .action-bar {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: var(--spacing-md);
   }
 
-  /* Main content first */
-  .home-main {
-    order: 1;
-    width: 100%;
-    flex: 0 0 auto;
-    overflow-y: visible;
-    background: transparent; /* remove debug color */
+  .action-bar-section {
+    width: auto;
   }
 
-  /* Sidebar second - full width */
-  .filebot-sidebar {
-    order: 2;
-    width: 100%;
-    max-width: 100%;
-    flex: 0 0 auto;
-    overflow: visible;
-    border-top: 1px solid var(--border-color);
-    margin-top: var(--spacing-md);
-    padding: var(--spacing-sm);
+  .status-section {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+    border-left: 1px solid var(--border-color);
+    padding-left: var(--spacing-md);
+    margin-left: var(--spacing-md);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
   }
 
-  /* All containers full width */
-  .filebot-container, .plex-widgets-container {
-    width: 100%;
-    max-width: 100%;
+  .library-refresh-container {
+    justify-content: flex-start;
   }
 
-  /* Vertical stacking in Plex widgets row */
+  /* Plex widgets row horizontal on tablet */
   .plex-widgets-row {
-    flex-direction: column;
-    overflow-x: visible;
-    max-height: 60vh;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
-  /* Full width widgets */
-  .plex-widgets-row .recently-added-mini,
-  .plex-widgets-row #plex-libraries-widget {
-    width: 100%;
-    min-width: 0;
+  /* Make Recently Added collapse horizontally on tablet and desktop */
+  .filebot-sidebar .filebot-content {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--spacing-xs); /* Match library-section padding */
+  }
+
+  .recently-added-mini {
     flex: 0 0 auto;
+    max-height: 100%;
+    width: auto; /* Let content determine width */
+    margin-right: var(--spacing-xs); /* Space between items */
+    scroll-snap-align: start; /* Improve scroll behavior */
   }
 
-  /* Content height caps */
-  .filebot-content {
-    max-height: 45vh;
+  /* Align with existing plex recently added styling */
+  .library-section {
+    margin-bottom: 0; /* Remove bottom margin when in horizontal layout */
+    transition: transform var(--transition-fast);
   }
 
-  /* When Plex widgets are collapsed */
-  .plex-collapsed .filebot-expanded .filebot-content {
-    max-height: 60vh;
+  .library-section:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .filebot-sidebar .filebot-content {
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .action-bar.compact {
+    padding: var(--spacing-xs) var(--spacing-sm);
   }
 }
 
-/* Mobile (≤768px) */
-@media (max-width: 768px) {
-  .filebot-content {
-    max-height: 70vh;
+/* Desktop and up */
+@media (min-width: 1024px) {
+  .home-flex {
+    flex-direction: row;
+    gap: var(--spacing-lg);
   }
 
-  .plex-collapsed .filebot-expanded .filebot-content {
-    max-height: 70vh;
+  .filebot-sidebar {
+    flex: 0 0 clamp(300px, 30%, 420px);
+    max-width: clamp(300px, 30%, 420px);
+  }
+
+  .recently-added-mini, #plex-libraries-widget {
+    width: auto; /* Reset width for larger screens */
+  }
+
+  /* Enhanced horizontal scrolling for Recently Added on desktop */
+  .filebot-sidebar .filebot-content::-webkit-scrollbar {
+    height: 4px; /* Match existing thin scrollbar style */
+  }
+
+  .filebot-sidebar .filebot-content::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 2px;
+  }
+
+  .filebot-sidebar .filebot-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+    border: 1px solid var(--bg-secondary);
+  }
+
+  .filebot-sidebar .filebot-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
   }
 }
