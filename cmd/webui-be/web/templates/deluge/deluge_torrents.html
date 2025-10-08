@@ -9,7 +9,7 @@
         </div>
     {{else if not .torrents}}
         <div class="alert alert-warning">
-            <div class="alert-icon">�����️</div>
+            <div class="alert-icon">⚠️</div>
             <div class="alert-content">
                 <p>No torrents found. Add a torrent using the form on the right.</p>
             </div>
@@ -20,7 +20,7 @@
             <div class="content-actions">
                 <button hx-get="/deluge/torrents/htmx" hx-target="#torrents-widget"
                         class="btn btn-refresh">
-                    <span class="btn-icon">��</span> Refresh
+                    <span class="btn-icon">🔄</span> Refresh
                 </button>
             </div>
         </div>
@@ -128,7 +128,38 @@
         </div>
 
         <!-- Desktop/Tablet Table Layout (hidden on mobile) -->
-        <div class="table-container">
+        <div class="table-container" x-data="{
+            sortColumn: 'name',
+            sortDirection: 'asc',
+            sortBy(column) {
+                this.sortDirection = (this.sortColumn === column) ? (this.sortDirection === 'asc' ? 'desc' : 'asc') : 'asc';
+                this.sortColumn = column;
+            },
+            getSortDirection(column) {
+                return this.sortColumn === column ? this.sortDirection : '';
+            },
+            getSortIcon(column) {
+                if(this.sortColumn !== column) return '↕️';
+                return this.sortDirection === 'asc' ? '↑' : '↓';
+            },
+            sortTable() {
+                const rows = Array.from(this.$refs.tbody.querySelectorAll('tr'));
+                rows.sort((a, b) => {
+                    const aValue = a._data[this.sortColumn];
+                    const bValue = b._data[this.sortColumn];
+
+                    let comparison = 0;
+                    if (typeof aValue === 'number' && typeof bValue === 'number') {
+                        comparison = aValue - bValue;
+                    } else {
+                        comparison = String(aValue).localeCompare(String(bValue));
+                    }
+
+                    return this.sortDirection === 'asc' ? comparison : -comparison;
+                })
+                .forEach(tr => this.$refs.tbody.appendChild(tr));
+            }
+        }" x-init="$nextTick(() => sortTable())">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -138,15 +169,51 @@
                                 <span class="checkmark"></span>
                             </label>
                         </th>
-                        <th>Name</th>
-                        <th>Size</th>
-                        <th>Progress</th>
-                        <th>Status</th>
-                        <th>Speed</th>
-                        <th>ETA</th>
+                        <th @click="sortBy('name')" class="sortable">
+                            Name <span class="sort-icon" x-text="getSortIcon('name')"></span>
+                        </th>
+                        <th @click="sortBy('size')" class="sortable">
+                            Size <span class="sort-icon" x-text="getSortIcon('size')"></span>
+                        </th>
+                        <th @click="sortBy('progress')" class="sortable">
+                            Progress <span class="sort-icon" x-text="getSortIcon('progress')"></span>
+                        </th>
+                        <th @click="sortBy('status')" class="sortable">
+                            Status <span class="sort-icon" x-text="getSortIcon('status')"></span>
+                        </th>
+                        <th @click="sortBy('speed')" class="sortable">
+                            Speed <span class="sort-icon" x-text="getSortIcon('speed')"></span>
+                        </th>
+                        <th @click="sortBy('eta')" class="sortable">
+                            ETA <span class="sort-icon" x-text="getSortIcon('eta')"></span>
+                        </th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody x-init="$el.querySelectorAll('tr').forEach(row => row._data = {
+                    name: row.querySelector('.torrent-name')?.textContent || '',
+                    size: row.querySelector('.torrent-size')?.dataset?.rawSize || row.querySelector('.torrent-size')?.textContent || '',
+                    progress: parseFloat(row.querySelector('.progress-percentage')?.textContent || '0'),
+                    status: row.querySelector('.torrent-status')?.textContent || '',
+                    speed: row.querySelector('.speed-download')?.dataset?.rawSpeed || '0',
+                    eta: row.querySelector('.torrent-eta')?.dataset?.rawEta || row.querySelector('.torrent-eta')?.textContent || ''
+                })"
+                x-effect="
+                    Array.from($el.querySelectorAll('tr'))
+                        .sort((a, b) => {
+                            const aValue = a._data[sortColumn];
+                            const bValue = b._data[sortColumn];
+
+                            let comparison = 0;
+                            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                                comparison = aValue - bValue;
+                            } else {
+                                comparison = String(aValue).localeCompare(String(bValue));
+                            }
+
+                            return sortDirection === 'asc' ? comparison : -comparison;
+                        })
+                        .forEach(tr => $el.appendChild(tr))
+                ">
                     {{range .torrents}}
                     <tr>
                         <td>
@@ -156,7 +223,7 @@
                             </label>
                         </td>
                         <td class="torrent-name">{{.Name}}</td>
-                        <td class="torrent-size">{{formatBytes .Size}}</td>
+                        <td class="torrent-size" data-raw-size="{{.Size}}">{{formatBytes .Size}}</td>
                         <td class="torrent-progress">
                             <div class="progress-container">
                                 <div class="progress-bar" data-progress="{{.Progress}}">
@@ -184,13 +251,13 @@
                         </td>
                         <td class="torrent-speed">
                             {{if or (eq .State "Downloading") (eq .State "Seeding")}}
-                                <div class="speed-download">↓ {{formatBytes .DownloadSpeed}}/s</div>
-                                <div class="speed-upload">↑ {{formatBytes .UploadSpeed}}/s</div>
+                                <div class="speed-download" data-raw-speed="{{.DownloadSpeed}}">↓ {{formatBytes .DownloadSpeed}}/s</div>
+                                <div class="speed-upload" data-raw-speed="{{.UploadSpeed}}">↑ {{formatBytes .UploadSpeed}}/s</div>
                             {{else}}
                                 -
                             {{end}}
                         </td>
-                        <td class="torrent-eta">
+                        <td class="torrent-eta" data-raw-eta="{{.ETA}}">
                             {{if eq .ETA -1}}
                                 -
                             {{else}}
@@ -460,4 +527,22 @@ document.addEventListener('htmx:responseError', function(event) {
   });
 });
 </script>
+
+<style>
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.8em;
+}
+</style>
 {{end}}
