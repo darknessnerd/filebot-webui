@@ -15,16 +15,6 @@
             </div>
         </div>
     {{else}}
-        <div class="content-header">
-            <h3 class="content-title">Your Torrents</h3>
-            <div class="content-actions">
-                <button hx-get="/deluge/torrents/htmx" hx-target="#torrents-widget"
-                        class="btn btn-refresh">
-                    <span class="btn-icon">🔄</span> Refresh
-                </button>
-            </div>
-        </div>
-
         <!-- Bulk Actions Form -->
         <form id="bulk-actions-form" hx-post="/deluge/bulk-action" hx-target="#torrents-widget" hx-swap="innerHTML">
             <div class="bulk-actions-bar">
@@ -50,6 +40,10 @@
                     </label>
                     <button type="submit" class="btn btn-primary" disabled id="bulk-action-btn">
                         Apply Action
+                    </button>
+                    <button type="button" hx-get="/deluge/torrents/htmx" hx-target="#torrents-widget"
+                            class="btn btn-refresh">
+                        <span class="btn-icon">🔄</span> Refresh
                     </button>
                 </div>
             </div>

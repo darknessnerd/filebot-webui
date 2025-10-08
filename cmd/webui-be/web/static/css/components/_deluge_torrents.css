@@ -11,25 +11,6 @@
   overflow-x: hidden;
 }
 
-.content-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-}
-
-.content-title {
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.content-actions {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
 /* Alerts */
 .alert {
   display: flex;
@@ -60,6 +41,38 @@
 .alert-content p {
   margin: 0;
   font-size: var(--font-size-sm);
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.selection-controls,
+.action-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.selection-count {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  background-color: var(--bg-tertiary);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
 }
 
 /* Table Styles */
@@ -105,6 +118,23 @@
 
 .data-table tr:hover {
   background-color: rgba(0, 255, 0, 0.05);
+}
+
+/* Sortable Column Styles */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sortable:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sort-icon {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.8em;
 }
 
 /* Torrent Specific Styles */
@@ -219,74 +249,129 @@
   color: #51cf66;
 }
 
-/* Action Buttons */
-.torrent-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px; /* Reduced from var(--spacing-xs) */
-}
-
-.btn-resume,
-.btn-pause,
-.btn-remove,
-.btn-filebot-test,
-.btn-filebot-process {
-  font-size: var(--font-size-xs);
-  padding: 2px 4px; /* Much more compact */
-  border-radius: 2px; /* Smaller border radius */
-  line-height: 1;
-  min-width: auto;
-  white-space: nowrap;
-}
-
-.btn-resume {
-  background-color: var(--success-color);
-  color: var(--bg-primary);
-  border-color: var(--success-color);
-}
-
-.btn-pause {
-  background-color: var(--warning-color);
-  color: var(--bg-primary);
-  border-color: var(--warning-color);
-}
-
-.btn-remove {
-  background-color: var(--error-color);
-  color: var(--bg-primary);
-  border-color: var(--error-color);
-}
-
-.btn-filebot-test {
-  background-color: rgba(0, 255, 0, 0.1);
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-}
-
-.btn-filebot-process {
-  background-color: var(--accent-primary);
-  color: var(--bg-primary);
-  border-color: var(--accent-primary);
-}
-
+/* Buttons */
 .btn-refresh {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
   font-size: var(--font-size-sm);
-  padding: var(--spacing-xs) var(--spacing-sm); /* Keep refresh button normal size */
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  transition: all 0.2s ease;
 }
 
-.action-buttons {
+.btn-refresh:hover {
+  background-color: var(--bg-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-refresh .btn-icon {
+  font-size: 1.1em;
+}
+
+/* Select styling */
+#bulk-action-select {
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#bulk-action-select:hover {
+  border-color: var(--accent-primary);
+}
+
+#bulk-action-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2);
+}
+
+/* Action button styling */
+#bulk-action-btn {
+  padding: 0.35rem 0.75rem;
+  background-color: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#bulk-action-btn:hover:not(:disabled) {
+  background-color: var(--accent-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+#bulk-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+/* Checkbox container styling */
+.checkbox-container {
   display: flex;
-  gap: 2px; /* Very tight spacing */
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+/* Filebot actions */
+.filebot-bulk-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: rgba(var(--accent-primary-rgb), 0.05);
+  border-radius: var(--border-radius-md);
+  border: 1px dashed var(--accent-primary);
   flex-wrap: wrap;
 }
 
-/* Mobile-first approach: Card layout for small screens */
-.table-container {
-  width: 100%;
-  overflow-x: auto;
+.btn-filebot-test {
+  background-color: rgba(var(--accent-primary-rgb), 0.1);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-filebot-process {
+  background-color: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-filebot-test:hover,
+.btn-filebot-process:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-filebot-process:hover {
+  background-color: var(--accent-secondary);
 }
 
 /* Mobile Card Layout Styles */
@@ -368,75 +453,14 @@
   align-items: center;
 }
 
-.torrent-card-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.primary-actions,
-.filebot-actions {
-  display: flex;
-  gap: var(--spacing-xs);
-}
-
-.primary-actions .btn {
-  flex: 1;
-  font-size: var(--font-size-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
-}
-
-.filebot-actions .btn {
-  flex: 1;
-  font-size: var(--font-size-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
-}
-
 /* Mobile: Hide table, show cards */
 @media (max-width: 767px) {
-  .data-table {
+  .data-table, .table-container {
     display: none;
   }
 
   .torrent-cards {
     display: flex;
-  }
-
-  .table-container {
-    display: none;
-  }
-
-  /* Optimize card layout for very small screens */
-  .torrent-card-header {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-  }
-
-  .torrent-card-name {
-    margin-bottom: var(--spacing-xs);
-    -webkit-line-clamp: 3;
-  }
-
-  .torrent-info-item {
-    font-size: var(--font-size-xs);
-  }
-
-  .primary-actions {
-    flex-direction: column;
-    gap: var(--spacing-xs);
-  }
-
-  .filebot-actions {
-    flex-direction: column;
-    gap: var(--spacing-xs);
-  }
-
-  .primary-actions .btn,
-  .filebot-actions .btn {
-    width: 100%;
-    padding: var(--spacing-xs);
-    font-size: var(--font-size-xs);
   }
 }
 
@@ -448,18 +472,6 @@
 
   .data-table {
     display: table;
-    width: 100%;
-    border-collapse: collapse;
-    background-color: var(--bg-secondary);
-    border-radius: var(--border-radius-md);
-    overflow: hidden;
-    box-shadow: var(--shadow);
-  }
-
-  .content-header {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
   }
 }
 
@@ -474,283 +486,4 @@
   .torrent-name {
     max-width: 200px;
   }
-
-  .action-buttons {
-    flex-direction: row; /* Changed from column to row */
-    gap: 1px; /* Minimal gap */
-    flex-wrap: wrap;
-  }
-
-  .btn-filebot-test,
-  .btn-filebot-process,
-  .btn-resume,
-  .btn-pause,
-  .btn-remove {
-    font-size: var(--font-size-xs);
-    padding: 1px 3px; /* Ultra compact for tablet */
-    border-radius: 1px;
-  }
-
-  /* Hide ETA column on tablet */
-  .data-table th:nth-child(6),
-  .data-table td:nth-child(6) {
-    display: none;
-  }
-}
-
-/* Desktop optimizations - More compact design */
-@media (min-width: 1024px) {
-  .data-table th,
-  .data-table td {
-    padding: var(--spacing-xs) var(--spacing-sm); /* Reduced from var(--spacing-sm) var(--spacing-md) */
-    font-size: var(--font-size-xs); /* Reduced font size */
-  }
-
-  .torrent-name {
-    max-width: 300px; /* Reduced from 400px */
-    font-size: var(--font-size-sm);
-  }
-
-  .action-buttons {
-    flex-direction: row;
-    gap: 1px; /* Minimal gap */
-    flex-wrap: wrap;
-  }
-
-  .btn-filebot-test,
-  .btn-filebot-process,
-  .btn-resume,
-  .btn-pause,
-  .btn-remove {
-    font-size: var(--font-size-xs);
-    padding: 1px 2px; /* Ultra compact for desktop */
-    border-radius: 1px;
-    min-height: 16px; /* Ensure minimum touch target */
-  }
-
-  .content-container {
-    padding: var(--spacing-sm); /* Reduced from var(--spacing-md) */
-  }
-
-  .content-header {
-    margin-bottom: var(--spacing-md); /* Reduced from var(--spacing-lg) */
-  }
-
-  .progress-bar {
-    height: 6px; /* Reduced from 8px */
-  }
-
-  .status-label {
-    padding: var(--spacing-xs); /* More compact status labels */
-    font-size: var(--font-size-xs);
-  }
-
-  .speed-download,
-  .speed-upload {
-    font-size: var(--font-size-xs);
-  }
-}
-
-/* Very small screens (< 576px) */
-@media (max-width: 575px) {
-  .torrent-card {
-    padding: var(--spacing-sm);
-  }
-
-  .torrent-card-name {
-    font-size: var(--font-size-xs);
-  }
-
-  .speed-info {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: var(--spacing-xs);
-  }
-}
-
-/* Bulk Actions Bar */
-.bulk-actions-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.selection-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.selection-count {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.action-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.action-controls select {
-    min-width: 150px;
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--bg-color);
-    color: var(--text-primary);
-}
-
-/* Checkbox Styling */
-.checkbox-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    user-select: none;
-}
-
-.checkbox-container input[type="checkbox"] {
-    position: absolute;
-    opacity: 0;
-    cursor: pointer;
-    height: 0;
-    width: 0;
-}
-
-.checkmark {
-    height: 18px;
-    width: 18px;
-    background-color: var(--bg-color);
-    border: 2px solid var(--border-color);
-    border-radius: 3px;
-    position: relative;
-    transition: all 0.2s ease;
-}
-
-.checkbox-container:hover .checkmark {
-    border-color: var(--primary-color);
-}
-
-.checkbox-container input:checked ~ .checkmark {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.checkbox-container input:indeterminate ~ .checkmark {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.checkmark:after {
-    content: "";
-    position: absolute;
-    display: none;
-}
-
-.checkbox-container input:checked ~ .checkmark:after {
-    display: block;
-}
-
-.checkbox-container input:indeterminate ~ .checkmark:after {
-    display: block;
-    left: 6px;
-    top: 2px;
-    width: 6px;
-    height: 2px;
-    background: white;
-}
-
-.checkbox-container .checkmark:after {
-    left: 5px;
-    top: 1px;
-    width: 4px;
-    height: 8px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-}
-
-/* Filebot Bulk Actions */
-.filebot-bulk-actions {
-    display: flex;
-    gap: 0.75rem;
-    padding: 1rem;
-    background: var(--surface-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-}
-
-/* Torrent Card Selection */
-.torrent-card-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.torrent-select {
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-}
-
-.torrent-card-name {
-    flex: 1;
-    margin: 0;
-}
-
-/* Table Selection Column */
-.data-table th:first-child,
-.data-table td:first-child {
-    text-align: center;
-    padding: 0.5rem;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-    .bulk-actions-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .selection-controls,
-    .action-controls {
-        justify-content: center;
-    }
-
-    .action-controls {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .action-controls select {
-        width: 100%;
-    }
-
-    .filebot-bulk-actions {
-        flex-direction: column;
-    }
-
-    .filebot-bulk-actions .btn {
-        width: 100%;
-    }
-}
-
-/* Disabled State */
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    pointer-events: none;
 }
