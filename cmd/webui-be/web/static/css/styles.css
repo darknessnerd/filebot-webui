@@ -29,6 +29,9 @@
 @import url('components/_filebot_sidebar.css');
 @import url('components/_deluge_torrents.css');
 @import url('components/_plex_recently_added.css');
+@import url('components/_plex_libraries.css');
+@import url("components/_mobile_optimizations.css");
+@import url("components/_quick_actions.css");
 
 /* 4. LAYOUT */
 @import url('layout/_header.css');
@@ -134,7 +137,7 @@ body.fullpage-app {
 
 /* Mobile responsiveness for main content */
 @media (max-width: 768px) {
-  body { overflow: auto; }
+  body { overflow: hidden; }
   .main-content { padding: 0; margin-top: var(--header-height); }
   .main-content-children.home-layout { flex-direction: column; }
   .main-content-children { padding: var(--spacing-xs); border-radius: 0; gap: var(--spacing-sm); }
