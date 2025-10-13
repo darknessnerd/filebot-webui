@@ -82,7 +82,6 @@
 }
 
 .data-table {
-  display: table;
   width: 100%;
   border-collapse: collapse;
   background-color: var(--bg-secondary);
@@ -272,7 +271,7 @@
   font-size: 1.1em;
 }
 
-/* Select styling */
+/* Form Control Styling */
 #bulk-action-select {
   padding: 0.35rem 0.75rem;
   border-radius: var(--border-radius-sm);
@@ -319,7 +318,7 @@
   color: var(--text-muted);
 }
 
-/* Checkbox container styling */
+/* Checkbox styling */
 .checkbox-container {
   display: flex;
   align-items: center;
@@ -374,9 +373,9 @@
   background-color: var(--accent-secondary);
 }
 
-/* Mobile Card Layout Styles */
+/* Mobile Card Layout */
 .torrent-cards {
-  display: none; /* Hidden by default, shown on mobile via media query */
+  display: none;
   gap: var(--spacing-md);
   flex-direction: column;
 }
@@ -453,9 +452,10 @@
   align-items: center;
 }
 
-/* Mobile: Hide table, show cards */
+/* Responsive styles */
 @media (max-width: 767px) {
-  .data-table, .table-container {
+  .data-table,
+  .table-container {
     display: none;
   }
 
@@ -464,7 +464,6 @@
   }
 }
 
-/* Tablet and up: Show table */
 @media (min-width: 768px) {
   .torrent-cards {
     display: none;
