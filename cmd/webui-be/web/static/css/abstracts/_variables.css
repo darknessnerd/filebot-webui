@@ -4,15 +4,19 @@
     --bg-primary: var(--background-color, #fff);
     --bg-secondary: var(--background-color, #fff);
     --bg-tertiary: var(--background-color, #fff);
+    --bg-hover: rgba(0, 0, 0, 0.02);
     --text-primary: var(--text-color, #2e3436);
     --text-secondary: var(--text-color, #2e3436);
     --text-muted: var(--text-color, #2e3436);
     --accent-primary: var(--text-color-green, #4e9a06);
     --accent-secondary: var(--text-color-blue, #06989a);
+    --accent-primary-rgb: 78, 154, 6;
     --border-color: var(--text-color, #2e3436);
     --error-color: var(--text-color-red, #c00);
     --warning-color: var(--text-color-orange, #c85000);
     --success-color: var(--text-color-green, #4e9a06);
+    --primary-color: var(--text-color-green, #4e9a06);
+    --primary-hover: #3d7a05;
 
     /* Typography */
     --font-family-main: 'Roboto Mono', monospace;
