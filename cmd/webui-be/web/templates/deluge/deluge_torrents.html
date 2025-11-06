@@ -16,51 +16,42 @@
         </div>
     {{else}}
         <!-- Bulk Actions Form -->
-        <form id="bulk-actions-form" hx-post="/deluge/bulk-action" hx-target="#torrents-widget" hx-swap="innerHTML">
-            <div class="bulk-actions-bar">
-                <div class="selection-controls">
-                    <label class="checkbox-container">
-                        <input type="checkbox" id="select-all" onchange="toggleAllSelection()">
-                        <span class="checkmark"></span>
-                        Select All
-                    </label>
-                    <span id="selection-count" class="selection-count">0 selected</span>
-                </div>
-                <div class="action-controls">
-                    <select name="action" id="bulk-action-select" required>
-                        <option value="">Select Action</option>
-                        <option value="pause">Pause Selected</option>
-                        <option value="resume">Resume Selected</option>
-                        <option value="remove">Remove Selected</option>
-                    </select>
-                    <label class="checkbox-container" id="remove-data-option" style="display: none;">
-                        <input type="checkbox" name="remove_data" value="true">
-                        <span class="checkmark"></span>
-                        Delete Files
-                    </label>
-                    <button type="submit" class="btn btn-primary" disabled id="bulk-action-btn">
-                        Apply Action
-                    </button>
-                    <button type="button" hx-get="/deluge/torrents/htmx" hx-target="#torrents-widget"
-                            class="btn btn-refresh">
-                        <span class="btn-icon">🔄</span> Refresh
-                    </button>
-                </div>
-            </div>
+        <form id="bulk-actions-form" hx-post="/deluge/bulk-action" hx-target="#torrents-widget" hx-swap="innerHTML" class="bulk-actions-bar">
+            <label class="checkbox-container" title="Select all torrents">
+                <input type="checkbox" id="select-all" onchange="toggleAllSelection()" aria-label="Select all torrents">
+                <span class="checkmark"></span>
+            </label>
 
-            <!-- Filebot Actions -->
-            <div class="filebot-bulk-actions" id="filebot-bulk-actions" style="display: none;">
-                <button type="button"
-                        onclick="submitFilebotAction('test')"
-                        class="btn btn-filebot-test">
-                    Test Selected with Filebot
-                </button>
-                <button type="button"
-                        onclick="submitFilebotAction('process')"
-                        class="btn btn-filebot-process">
-                    Process Selected with Filebot
-                </button>
-            </div>
+            <span id="selection-count" class="selection-count" role="status" aria-live="polite">0 selected</span>
+
+            <select name="action" id="bulk-action-select" required aria-label="Select bulk action" onchange="handleActionChange(this.value)">
+                <option value="">Action</option>
+                <option value="pause">⏸️ Pause</option>
+                <option value="resume">▶️ Resume</option>
+                <option value="remove">🗑️ Remove</option>
+            </select>
+
+            <label class="checkbox-container" id="remove-data-option" style="display: none;" aria-hidden="true" title="Delete files from disk">
+                <input type="checkbox" name="remove_data" value="true" aria-label="Delete files from disk">
+                <span class="checkmark"></span>
+                <small>Del Files</small>
+            </label>
+
+            <button type="submit" class="btn btn-icon-only btn-primary" disabled id="bulk-action-btn" aria-disabled="true" title="Apply selected action" aria-label="Apply action">
+                ✓
+            </button>
+
+            <button type="button" hx-get="/deluge/torrents/htmx" hx-target="#torrents-widget" hx-indicator="#refresh-spinner" class="btn btn-icon-only btn-refresh" title="Refresh torrent list" aria-label="Refresh torrent list">
+                🔄
+            </button>
+
+            <!-- Filebot Actions (shown when completed torrents selected) -->
+            <button type="button" onclick="submitFilebotAction('test')" class="btn btn-icon-only btn-filebot-test" id="filebot-test-btn" style="display: none;" title="Test selected with Filebot" aria-label="Test with Filebot">
+                🧪
+            </button>
+            <button type="button" onclick="submitFilebotAction('process')" class="btn btn-icon-only btn-filebot-process" id="filebot-process-btn" style="display: none;" title="Process selected with Filebot" aria-label="Process with Filebot">
+                ⚡
+            </button>
 
         <!-- Mobile Card Layout (hidden on tablet+) -->
         <div class="torrent-cards">
@@ -301,18 +292,23 @@ function updateSelection() {
     const actionBtn = document.getElementById('bulk-action-btn');
     if (actionBtn) {
         actionBtn.disabled = count === 0;
+        actionBtn.setAttribute('aria-disabled', count === 0 ? 'true' : 'false');
     }
 
     // Show/hide filebot actions for completed torrents
-    const filebotActions = document.getElementById('filebot-bulk-actions');
-    if (filebotActions) {
+    const filebotTestBtn = document.getElementById('filebot-test-btn');
+    const filebotProcessBtn = document.getElementById('filebot-process-btn');
+
+    if (filebotTestBtn && filebotProcessBtn) {
         const hasCompletedSelected = Array.from(checkedBoxes).some(checkbox => {
             // Check if the torrent row has completed status (this is a simplified check)
             const row = checkbox.closest('tr') || checkbox.closest('.torrent-card');
             return row && row.textContent.includes('100.0%');
         });
 
-        filebotActions.style.display = hasCompletedSelected ? 'block' : 'none';
+        const displayValue = hasCompletedSelected ? 'inline-flex' : 'none';
+        filebotTestBtn.style.display = displayValue;
+        filebotProcessBtn.style.display = displayValue;
     }
 
     // Update select-all checkbox state
@@ -332,17 +328,27 @@ function updateSelection() {
 }
 
 // Show/hide remove data option based on action
-document.addEventListener('DOMContentLoaded', function() {
-    const actionSelect = document.getElementById('bulk-action-select');
+function handleActionChange(value) {
     const removeDataOption = document.getElementById('remove-data-option');
 
-    if (actionSelect && removeDataOption) {
+    if (removeDataOption) {
+        if (value === 'remove') {
+            removeDataOption.style.display = 'inline-block';
+            removeDataOption.setAttribute('aria-hidden', 'false');
+        } else {
+            removeDataOption.style.display = 'none';
+            removeDataOption.setAttribute('aria-hidden', 'true');
+        }
+    }
+}
+
+// Fallback for direct event listener if onchange attribute is removed
+document.addEventListener('DOMContentLoaded', function() {
+    const actionSelect = document.getElementById('bulk-action-select');
+
+    if (actionSelect) {
         actionSelect.addEventListener('change', function() {
-            if (this.value === 'remove') {
-                removeDataOption.style.display = 'inline-block';
-            } else {
-                removeDataOption.style.display = 'none';
-            }
+            handleActionChange(this.value);
         });
     }
 });

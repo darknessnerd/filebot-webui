@@ -1,22 +1,22 @@
 /* CSS Custom Properties (Variables) */
 :root {
-    /* Colors */
-    --bg-primary: #1a1a1a;
-    --bg-secondary: #2a2a2a;
-    --bg-tertiary: #232323;
-    --text-primary: #39ff14;
-    --text-secondary: #cccccc;
-    --text-muted: #888888;
-    --accent-primary: #00ff00;
-    --accent-secondary: #00cc00;
-    --border-color: #333333;
-    --error-color: #ff4444;
-    --warning-color: #ffaa00;
-    --success-color: #44ff44;
+    /* Colors - Aligned with new theme */
+    --bg-primary: var(--background-color, #fff);
+    --bg-secondary: var(--background-color, #fff);
+    --bg-tertiary: var(--background-color, #fff);
+    --text-primary: var(--text-color, #2e3436);
+    --text-secondary: var(--text-color, #2e3436);
+    --text-muted: var(--text-color, #2e3436);
+    --accent-primary: var(--text-color-green, #4e9a06);
+    --accent-secondary: var(--text-color-blue, #06989a);
+    --border-color: var(--text-color, #2e3436);
+    --error-color: var(--text-color-red, #c00);
+    --warning-color: var(--text-color-orange, #c85000);
+    --success-color: var(--text-color-green, #4e9a06);
 
     /* Typography */
-    --font-family-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    --font-family-mono: 'Courier New', monospace;
+    --font-family-main: 'Roboto Mono', monospace;
+    --font-family-mono: 'Roboto Mono', monospace;
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
     --font-size-base: 1rem;
@@ -47,6 +47,7 @@
     --header-height: 60px;
     --footer-height: 40px;
     --sidebar-width: 280px;
+    --nav-gap: 1rem;
 
     /* Transitions */
     --transition-fast: 0.15s ease-in-out;
@@ -60,16 +61,18 @@
     --breakpoint-xl: 1200px;
 }
 
-/* Dark theme support */
+/* Dark theme support - aligned with new theme */
 @media (prefers-color-scheme: dark) {
     :root {
-        --bg-primary: #121212;
-        --bg-secondary: #1e1e1e;
-        --bg-tertiary: #2d2d2d;
-        --text-primary: #ffffff;
-        --text-secondary: #b3b3b3;
-        --text-muted: #6c6c6c;
-        --border-color: #404040;
+        --bg-primary: var(--background-color, #2e3436);
+        --bg-secondary: var(--background-color, #2e3436);
+        --bg-tertiary: var(--background-color, #2e3436);
+        --text-primary: var(--text-color, #d3d7cf);
+        --text-secondary: var(--text-color, #d3d7cf);
+        --text-muted: var(--text-color, #d3d7cf);
+        --accent-primary: var(--text-color-green, #8ae234);
+        --accent-secondary: var(--text-color-blue, #34e2e2);
+        --border-color: var(--text-color, #d3d7cf);
     }
 }
 

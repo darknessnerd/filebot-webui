@@ -150,8 +150,30 @@
   /* Mobile optimized bulk actions */
   .bulk-actions-bar {
     padding: var(--spacing-xs);
-    justify-content: center;
-    height: 40px; /* Fixed height for consistent offset */
+    gap: 0.25rem;
+    height: auto;
+    min-height: 40px;
+  }
+
+  .bulk-actions-bar .selection-count {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .bulk-actions-bar #bulk-action-select {
+    min-width: 90px;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .bulk-actions-bar .btn-icon-only {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.9rem;
+  }
+
+  .bulk-actions-bar #remove-data-option small {
+    font-size: 0.65rem;
   }
 
   .filebot-bulk-actions {
@@ -160,7 +182,6 @@
     justify-content: center;
   }
 
-  .bulk-actions-bar button,
   .filebot-bulk-actions button {
     padding: 0.4em 0.6em;
     font-size: 0.85em;
