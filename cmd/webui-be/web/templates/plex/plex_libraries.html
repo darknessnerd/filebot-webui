@@ -1,0 +1,58 @@
+{{define "plex_libraries.html"}}
+{{if .buttons_only}}
+  <!-- Only show refresh buttons for quick actions -->
+  {{range .libraries}}
+    <button class="btn btn-sm btn-secondary library-refresh-btn"
+            hx-post="/api/v1/plex/libraries/{{.Key}}/refresh"
+            hx-trigger="click"
+            hx-target="#status-message"
+            hx-swap="innerHTML"
+            hx-indicator=".refresh-spinner-{{.Key}}">
+      <span class="btn-icon">🔄</span> {{.Title}}
+      <span class="refresh-spinner-{{.Key}} htmx-indicator"></span>
+    </button>
+  {{else}}
+    <span class="empty-state">No libraries found.</span>
+  {{end}}
+{{else if eq .layout "horizontal"}}
+  <!-- Compact horizontal layout -->
+  <div class="plex-libraries-horizontal">
+    {{range .libraries}}
+      {{if $.show_refresh}}
+        <button class="btn btn-xs btn-secondary library-refresh-btn"
+                hx-post="/api/v1/plex/libraries/{{.Key}}/refresh"
+                hx-trigger="click"
+                hx-target="#status-message"
+                hx-swap="innerHTML"
+                hx-indicator=".refresh-spinner-{{.Key}}">
+          <span class="btn-icon">🔄</span> {{.Title}}
+          <span class="refresh-spinner-{{.Key}} htmx-indicator"></span>
+        </button>
+      {{else}}
+        <div class="library-card"><strong>{{.Title}}</strong><span class="library-type">({{.Type}})</span></div>
+      {{end}}
+    {{else}}
+      <span class="empty-state">No libraries found.</span>
+    {{end}}
+  </div>
+{{else}}
+  <!-- Default vertical list layout -->
+  <ul class="plex-libraries-list">
+    {{range .libraries}}
+    <li>
+      <strong>{{.Title}}</strong> ({{.Type}})
+      {{if $.show_refresh}}
+        <button class="btn btn-sm btn-warning"
+                hx-post="/api/v1/plex/libraries/{{.Key}}/refresh"
+                hx-trigger="click"
+                hx-swap="none">
+          Refresh
+        </button>
+      {{end}}
+    </li>
+    {{else}}
+    <li>No libraries found.</li>
+    {{end}}
+  </ul>
+{{end}}
+{{end}}

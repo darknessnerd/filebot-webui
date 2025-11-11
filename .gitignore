@@ -1,34 +1,48 @@
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Go build and dependency files
+/bin/
+/build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace files
+*.db
+*.log
+*.tmp
+
+# Dependency directories
+vendor/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# Node.js / frontend assets
+node_modules/
+dist/
+
+# Environment and secrets
+.env
+.env.*
+
+# OS generated files
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-**/database.sqlite
-**/.vscode/*
-**/!.vscode/extensions.json
-**/.idea
-**/.DS_Store
-**/*.suo
-**/*.ntvs*
-**/*.njsproj
-**/*.sln
-**/*.sw?
+Thumbs.db
 
-# Logs
-**/logs
-**/*.log
-**/npm-debug.log*
-**/yarn-debug.log*
-**/yarn-error.log*
-**/pnpm-debug.log*
-**/lerna-debug.log*
+# Temporary files
+/tmp/
 
-**/node_modules
-**/dist
-**/dist-ssr
-**/*.local
+# Coverage files
+coverage*
+*.coverprofile
+
+# Others
+main
+

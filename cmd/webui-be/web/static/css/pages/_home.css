@@ -1,0 +1,309 @@
+/* Home Page Styles */
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Mobile-first layout */
+.home-flex {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: 100%;
+  min-height: calc(100vh - var(--header-height) - var(--footer-height) - 2rem);
+  align-items: stretch;
+  overflow: visible;
+}
+
+/* Column sizing and scroll management */
+.home-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0; /* allow interior scroll areas to size */
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+.filebot-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+  min-height: 0;
+}
+
+/* Widget containers */
+.filebot-container, .plex-widgets-container {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto; /* natural height */
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+/* Content areas */
+.filebot-content, .plex-widgets-row {
+  flex: 1 1 auto;
+  min-height: 0; /* allow scrolling within */
+  overflow-y: auto;
+}
+
+/* Widget headers */
+.filebot-header, .plex-widgets-header {
+  color: var(--text-muted);
+  margin: 0;
+  padding: 0.75em 1em;  /* Increased padding for better touch targets */
+  font-size: 1em;       /* Slightly larger font size for mobile */
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  opacity: 0.9;
+}
+
+.collapse-icon {
+  font-size: 0.9em;  /* Slightly larger for mobile */
+  opacity: 0.7;
+  padding: 0.5em;    /* Add padding to increase touch target size */
+}
+
+/* When plex collapsed still allow filebot to grow */
+.plex-collapsed .filebot-expanded .filebot-content {
+  max-height: none;
+}
+
+/* Plex widgets row - mobile-first (vertical) */
+.plex-widgets-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm);
+  overflow-y: auto;
+}
+
+/* Plex mini widgets */
+.recently-added-mini, #plex-libraries-widget {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  width: 100%;  /* Take full width on mobile */
+}
+
+/* Action bar adjustments for mobile */
+.action-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.action-bar-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.action-bar-title {
+  font-size: 1rem;
+  margin: 0;
+  padding: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.library-refresh-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  justify-content: flex-start;
+}
+
+.status-section {
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--spacing-xs);
+}
+
+.status-message {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  padding: var(--spacing-xs);
+}
+
+/* Action bar - compact design */
+.action-bar.compact {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-sm);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.85rem;
+}
+
+.action-bar.compact .action-bar-title {
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 0 var(--spacing-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.action-bar.compact .library-refresh-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  justify-content: flex-start;
+  margin: 0;
+  padding: 0;
+}
+
+.action-bar.compact .status-message {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  padding: 0;
+}
+
+/* Compact button styles for the action bar */
+.action-bar.compact .btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  height: 1.5rem;
+  min-height: 1.5rem;
+  line-height: 1;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  /* Horizontal layout for action bar */
+  .action-bar {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+  }
+
+  .action-bar-section {
+    width: auto;
+  }
+
+  .status-section {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+    border-left: 1px solid var(--border-color);
+    padding-left: var(--spacing-md);
+    margin-left: var(--spacing-md);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+  }
+
+  .library-refresh-container {
+    justify-content: flex-start;
+  }
+
+  /* Plex widgets row horizontal on tablet */
+  .plex-widgets-row {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  /* Make Recently Added collapse horizontally on tablet and desktop */
+  .filebot-sidebar .filebot-content {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--spacing-xs); /* Match library-section padding */
+  }
+
+  .recently-added-mini {
+    flex: 0 0 auto;
+    max-height: 100%;
+    width: auto; /* Let content determine width */
+    margin-right: var(--spacing-xs); /* Space between items */
+    scroll-snap-align: start; /* Improve scroll behavior */
+  }
+
+  /* Align with existing plex recently added styling */
+  .library-section {
+    margin-bottom: 0; /* Remove bottom margin when in horizontal layout */
+    transition: transform var(--transition-fast);
+  }
+
+  .library-section:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .filebot-sidebar .filebot-content {
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .action-bar.compact {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+/* Desktop and up */
+@media (min-width: 1024px) {
+  .home-flex {
+    flex-direction: row;
+    gap: var(--spacing-lg);
+  }
+
+  .filebot-sidebar {
+    flex: 0 0 clamp(300px, 30%, 420px);
+    max-width: clamp(300px, 30%, 420px);
+  }
+
+  .recently-added-mini, #plex-libraries-widget {
+    width: auto; /* Reset width for larger screens */
+  }
+
+  /* Enhanced horizontal scrolling for Recently Added on desktop */
+  .filebot-sidebar .filebot-content::-webkit-scrollbar {
+    height: 4px; /* Match existing thin scrollbar style */
+  }
+
+  .filebot-sidebar .filebot-content::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 2px;
+  }
+
+  .filebot-sidebar .filebot-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+    border: 1px solid var(--bg-secondary);
+  }
+
+  .filebot-sidebar .filebot-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+}

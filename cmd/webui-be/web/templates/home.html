@@ -1,0 +1,118 @@
+{{define "home.html"}}
+<div class="home-flex main-content-children home-layout">
+    <section x-data="{ open: true }" class="home-main" aria-labelledby="directory-browser-heading">
+        <h3 id="directory-browser-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
+            <span>Directory Browser</span>
+            <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
+        </h3>
+        <div x-show="open" class="filebot-content" x-transition>
+            <div id="directory-browser-widget"
+                 class="main-browser"
+                 hx-get="/directory-browser"
+                 hx-trigger="load"
+                 hx-target="#directory-browser-widget"
+                 hx-swap="innerHTML"
+                 aria-label="Directory Browser">
+                <span>Loading file browser...</span>
+            </div>
+        </div>
+    </section>
+    <aside x-data="{ plexOpen: true }" class="filebot-sidebar" :class="{ 'plex-collapsed': !plexOpen }" aria-label="Sidebar Panels">
+        <section x-data="{ open: true }" class="filebot-container" :class="{ 'filebot-expanded': !plexOpen }" aria-labelledby="filebot-form-heading">
+            <h3 id="filebot-form-heading" @click="open = !open" class="filebot-header" role="button" tabindex="0">
+                <span>FileBot Execute</span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
+            </h3>
+            <div x-show="open" class="filebot-content" x-transition>
+                <div id="filebot-form-widget"
+                     class="filebot-form-mini"
+                     hx-get="/filebot/form"
+                     hx-trigger="load"
+                     hx-target="#filebot-form-widget"
+                     hx-swap="innerHTML"
+                     x-init="
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const filePath = urlParams.get('file_path');
+                        const mode = urlParams.get('mode');
+                        if (filePath) {
+                            $el.setAttribute('hx-get', `/filebot/form?file_path=${encodeURIComponent(filePath)}${mode ? '&mode=' + mode : ''}`);
+                        }"
+                     aria-label="FileBot Form">
+                    <span>Loading FileBot form...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- New Interactive Terminal Console -->
+        <section x-data="terminalConsole()" class="filebot-container terminal-shell" aria-labelledby="terminal-heading">
+            <div class="terminal-header">
+                <h3 id="terminal-heading" class="terminal-title">Interactive Console</h3>
+                <button type="button" class="btn btn-sm btn-outline" @click="clear()" aria-label="Clear console">Clear</button>
+            </div>
+            <div class="terminal-body" x-ref="body" aria-live="polite">
+                <template x-for="(l,i) in lines" :key="i">
+                    <div class="terminal-line" x-text="l"></div>
+                </template>
+            </div>
+            <form @submit.prevent="run()" class="terminal-prompt-line" aria-label="Console Input">
+                <span class="prompt-label">></span>
+                <input type="text" x-model="current" class="terminal-input" placeholder="Type command..." @keydown.enter.prevent="run()" aria-label="Command input" />
+            </form>
+        </section>
+
+        <section x-data="{ open: true }"
+             x-init="$watch('open', value => { plexOpen = value })"
+             class="plex-widgets-container" aria-labelledby="plex-widgets-heading">
+            <h3 id="plex-widgets-heading" @click="open = !open" class="plex-widgets-header" role="button" tabindex="0">
+                <span>Plex Widgets</span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon" aria-hidden="true"></span>
+            </h3>
+            <div x-show="open" class="plex-widgets-row" x-transition>
+                <div id="plex-recently-added-widget"
+                     class="recently-added-mini"
+                     hx-get="/plex/recently-added/htmx"
+                     hx-trigger="load"
+                     hx-target="#plex-recently-added-widget"
+                     hx-swap="innerHTML"
+                     aria-label="Recently Added to Plex">
+                    <span>Loading recently added...</span>
+                </div>
+                <div id="plex-libraries-widget"
+                     hx-get="/plex/libraries/htmx"
+                     hx-trigger="load"
+                     hx-target="#plex-libraries-widget"
+                     hx-swap="innerHTML"
+                     aria-label="Plex Libraries">
+                    <span>Loading libraries...</span>
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>
+<script>
+    console.log('🏠 [Home] home.html rendered');
+    document.addEventListener('alpine:init', () => {
+        if (!Alpine.store('terminalRegistered')) {
+            Alpine.store('terminalRegistered', true);
+            Alpine.data('terminalConsole', () => ({
+                lines: ['Console ready. Type a command.'],
+                current: '',
+                run() {
+                    const cmd = this.current.trim();
+                    if (!cmd) return;
+                    this.lines.push('> ' + cmd);
+                    // Placeholder echo logic - replace with backend call if needed
+                    // Example future endpoint: fetch('/api/console', { method:'POST', body: JSON.stringify({cmd}) })
+                    this.lines.push('echo: ' + cmd);
+                    this.current = '';
+                    this.$nextTick(() => { this.$refs.body.scrollTop = this.$refs.body.scrollHeight; });
+                },
+                clear() {
+                    this.lines = ['Console cleared.'];
+                    this.$nextTick(() => { this.$refs.body.scrollTop = this.$refs.body.scrollHeight; });
+                }
+            }));
+        }
+    });
+</script>
+{{end}}

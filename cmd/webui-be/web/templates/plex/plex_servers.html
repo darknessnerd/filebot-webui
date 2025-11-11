@@ -1,0 +1,78 @@
+<!-- plex_servers.html: HTMX component for listing Plex servers and setting preferred server -->
+<div id="plex-servers-list">
+  <h2>Plex Servers</h2>
+  {{ if not .hasPreferredServer }}
+    <div class="alert alert-warning">No preferred server is set. Please select one below.</div>
+  {{ end }}
+  <form hx-post="/plex/set-preferred-server" hx-target="#preferred-server-status" hx-swap="outerHTML" method="POST">
+    <ul style="list-style:none; padding:0;" x-data="{}">
+      {{ range .servers }}
+        <li style="margin-bottom:1em;">
+          <div style="border:1px solid var(--border-color); border-radius:var(--border-radius-md); padding:var(--spacing-sm); background:var(--bg-secondary); color:var(--text-primary);" x-data="{ open: false }">
+            <button type="button" @click="open = !open" style="background:none; border:none; width:100%; text-align:left; font-size:var(--font-size-lg); padding:var(--spacing-sm) 0; color:var(--text-primary);">
+              <span style="font-size:var(--font-size-xl);">🖥️</span> <strong>{{ .Name }}</strong>
+              <span style="color:var(--text-muted);">({{ .Product }} {{ .ProductVersion }})</span>
+              {{ if .Preferred }}<span class="badge bg-success" style="background:var(--success-color); color:var(--bg-primary);">⭐ Preferred</span>{{ end }}
+              {{ if .Owned }}<span class="badge bg-info" style="background:var(--info-color); color:var(--bg-primary);">👤 Owned</span>{{ end }}
+              {{ if .Home }}<span class="badge bg-primary" style="background:var(--accent-primary); color:var(--bg-primary);">🏠 Home</span>{{ end }}
+              {{ if .Synced }}<span class="badge bg-warning" style="background:var(--warning-color); color:var(--bg-primary);">🔄 Synced</span>{{ end }}
+              {{ if .Relay }}<span class="badge bg-secondary" style="background:var(--accent-secondary); color:var(--bg-primary);">📡 Relay</span>{{ end }}
+              {{ if .Presence }}<span class="badge bg-dark" style="background:var(--bg-tertiary); color:var(--accent-primary);">🟢 Presence</span>{{ end }}
+              {{ if .HttpsRequired }}<span class="badge bg-danger" style="background:var(--error-color); color:var(--bg-primary);">🔒 HTTPS Required</span>{{ end }}
+            </button>
+            <div x-show="open" x-transition style="margin-top:var(--spacing-xs); background:var(--bg-tertiary); color:var(--text-primary); border-radius:var(--border-radius-md); padding:var(--spacing-sm); border: 1px solid var(--border-color);">
+              <label style="display:block; margin-bottom:var(--spacing-xs);">
+                <input type="radio" name="server_id" value="{{ .ID }}" {{ if eq $.preferredServer .ID }}checked{{ end }} hx-post="/plex/set-preferred-server" hx-target="#preferred-server-status" hx-swap="outerHTML"> <span style="font-size:var(--font-size-lg);">🎯</span> Set as preferred
+              </label>
+              <div style="margin-top:var(--spacing-xs); font-size:var(--font-size-base);">
+                <div><span style="color:var(--text-muted);">🆔</span> <strong>ID:</strong> {{ .ClientIdentifier }}</div>
+                <div><span style="color:var(--text-muted);">🌐</span> <strong>Address:</strong> {{ .PublicAddress }}</div>
+                <div><span style="color:var(--text-muted);">💻</span> <strong>Platform:</strong> {{ .Platform }}</div>
+                <div><span style="color:var(--text-muted);">🔢</span> <strong>Platform Version:</strong> {{ .PlatformVersion }}</div>
+                <div><span style="color:var(--text-muted);">🖥️</span> <strong>Device:</strong> {{ .Device }}</div>
+                <div><span style="color:var(--text-muted);">👑</span> <strong>Owner ID:</strong> {{ .OwnerID }}</div>
+                <div><span style="color:var(--text-muted);">🏷️</span> <strong>Source Title:</strong> {{ .SourceTitle }}</div>
+                <div><span style="color:var(--text-muted);">🔗</span> <strong>Public Address Matches:</strong> {{ .PublicAddressMatches }}</div>
+                <div><span style="color:var(--text-muted);">🛡️</span> <strong>DNS Rebinding Protection:</strong> {{ .DNSRebindingProtection }}</div>
+                <div><span style="color:var(--text-muted);">🔁</span> <strong>NAT Loopback Supported:</strong> {{ .NATLoopbackSupported }}</div>
+                {{ if .Connections }}
+                  <div x-data="{ showConn: false }" style="margin-top:var(--spacing-md);">
+                    <button type="button" @click="showConn = !showConn" style="background:var(--accent-secondary); color:var(--bg-primary); border:none; border-radius:var(--border-radius-md); padding:var(--spacing-xs) var(--spacing-md); font-size:var(--font-size-base); font-weight:bold; margin-bottom:var(--spacing-xs); cursor:pointer; transition:background var(--transition-fast); display:flex; align-items:center; gap:var(--spacing-xs);">
+                      <span style="font-size:var(--font-size-lg);">🛠️</span>
+                      <span x-text="showConn ? 'Hide Connections' : 'Show Connections'"></span>
+                    </button>
+                    <ul class="plex-connections-list" x-show="showConn" x-transition style="margin-top:var(--spacing-xs); padding-left:var(--spacing-md); background:var(--bg-secondary); border-radius:var(--border-radius-md); box-shadow:var(--shadow-sm);">
+                      {{ range .Connections }}
+                        <li style="margin-bottom:var(--spacing-xs); padding:var(--spacing-xs); border-bottom:1px solid var(--border-color);">
+                          <span style="color:var(--accent-secondary); font-weight:bold;">🔌 Protocol:</span> <span style="color:var(--text-primary);">{{ .Protocol }}</span>
+                          <span style="color:var(--accent-secondary); font-weight:bold; margin-left:var(--spacing-md);">🌐 Address:</span> <span style="color:var(--text-primary);">{{ .Address }}</span>
+                          <span style="color:var(--accent-secondary); font-weight:bold; margin-left:var(--spacing-md);">📍 Port:</span> <span style="color:var(--text-primary);">{{ .Port }}</span>
+                          <span style="color:var(--accent-secondary); font-weight:bold; margin-left:var(--spacing-md);">🔗 URI:</span> <span style="color:var(--text-primary);">{{ .URI }}</span>
+                          <span style="color:var(--accent-secondary); font-weight:bold; margin-left:var(--spacing-md);">🏠 Local:</span> <span style="color:var(--text-primary);">{{ .Local }}</span>
+                          <span style="color:var(--accent-secondary); font-weight:bold; margin-left:var(--spacing-md);">📡 Relay:</span> <span style="color:var(--text-primary);">{{ .Relay }}</span>
+                          <span style="color:var(--accent-secondary); font-weight:bold; margin-left:var(--spacing-md);">🧬 IPv6:</span> <span style="color:var(--text-primary);">{{ .IPv6 }}</span>
+                        </li>
+                      {{ end }}
+                    </ul>
+                  </div>
+                {{ end }}
+              </div>
+            </div>
+          </div>
+        </li>
+      {{ end }}
+    </ul>
+    <div id="preferred-server-status"></div>
+  </form>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const radios = document.querySelectorAll('input[name="server_id"]');
+    const btn = document.getElementById('set-preferred-server-btn');
+    function updateBtn() {
+      btn.disabled = !Array.from(radios).some(r => r.checked);
+    }
+    radios.forEach(r => r.addEventListener('change', updateBtn));
+    updateBtn();
+  });
+</script>

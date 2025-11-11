@@ -18,55 +18,69 @@ jobs:
   build_test:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [22.x]
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-      - name: setup node
-        uses: actions/setup-node@master
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
         with:
-          node-version: ${{ matrix.node-version }}
-      # FE BUILD
-      - name: Install dependencies
-        working-directory: ./fb-fe
+          go-version: 'stable'
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Install Go dependencies
         run: |
-          npm install
-          npm ci
-      # build and test the apps
-      - name: build
-        working-directory: ./fb-fe
+          go mod tidy
+          go mod download
+      - name: Run golint (linting)
         run: |
-          npm run build
-#          npm run test
+          go install golang.org/x/lint/golint@latest
+          golint ./... || true
+      - name: Ensure static asset directories and styles.css exist
+        run: |
+          # Create required directories
+          for dir in abstracts base components layout pages themes vendors newdir; do
+            mkdir -p cmd/webui-be/web/static/css/$dir
+          done
+          # Ensure styles.css exists
+          if [ ! -f cmd/webui-be/web/static/css/styles.css ]; then
+            touch cmd/webui-be/web/static/css/styles.css
+          fi
+          # Ensure every subdirectory under css has at least one file
+          find cmd/webui-be/web/static/css -type d | while read subdir; do
+            if [ -z "$(ls -A "$subdir")" ]; then
+              touch "$subdir/.keep"
+            fi
+          done
+      - name: Run go vet (static analysis)
+        run: go vet ./... || true
+      - name: Run tests with coverage
+        run: |
+          go test -v -coverprofile=coverage.out ./cmd/webui-be/...
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+      - name: Build Go backend
+        run: go build -v ./cmd/webui-be/...
   push_to_Docker_Hub:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [ 22.x ]
     # build docker image and push to docker hub
     # only if the app build and test successfully
     needs: [build_test]
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
-      - name: setup node
-        uses: actions/setup-node@master
-        with:
-          node-version: ${{ matrix.node-version }}
-      # FE BUILD
-      - name: Install dependencies
-        working-directory: ./fb-fe
-        run: |
-          npm install
-          npm ci
-      - name: build
-        working-directory: ./fb-fe
-        run: |
-          npm run build
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
@@ -98,8 +112,8 @@ jobs:
       - name: Build and push Docker image with SemVer
         uses: docker/build-push-action@v6
         with:
-          context: ./fb-be
-          file: ./fb-be/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:${{ env.VERSION }}

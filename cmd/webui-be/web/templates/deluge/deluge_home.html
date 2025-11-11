@@ -1,0 +1,88 @@
+{{define "deluge_home.html"}}
+<div class="card home-flex main-content-children">
+    <div class="home-main">
+        <div id="deluge-torrents-widget"
+             class="main-browser"
+             hx-get="/deluge/torrents/htmx"
+             hx-trigger="load"
+             hx-target="#deluge-torrents-widget"
+             hx-swap="innerHTML"
+             aria-label="Deluge Torrents">
+            <span>Loading torrents...</span>
+        </div>
+    </div>
+    <div class="filebot-sidebar">
+        <div x-data="{ open: true }" class="filebot-container">
+            <h3 @click="open = !open" class="filebot-header">
+                <span>Add Torrent</span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+            </h3>
+            <div x-show="open" class="filebot-content">
+                <div id="add-torrent-form" class="filebot-form-mini">
+                    <form hx-post="/deluge/add-torrent" hx-target="#deluge-torrents-widget">
+                        <div class="form-group">
+                            <label for="torrent_url" class="form-label">Torrent URL or Magnet Link</label>
+                            <input type="text" id="torrent_url" name="torrent_url" required
+                                   class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="download_location" class="form-label">Download Location (optional)</label>
+                            <input type="text" id="download_location" name="download_location"
+                                   class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn">
+                                Add Torrent
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div x-data="{ open: true }" class="filebot-container">
+            <h3 @click="open = !open" class="filebot-header">
+                <span>Deluge Server</span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+            </h3>
+            <div x-show="open" class="filebot-content">
+                <div id="deluge-server-widget"
+                     class="filebot-form-mini"
+                     hx-get="/deluge/server-status/htmx"
+                     hx-trigger="load"
+                     hx-target="#deluge-server-widget"
+                     hx-swap="innerHTML"
+                     aria-label="Deluge Server Status">
+                    <span>Loading server status...</span>
+                </div>
+            </div>
+        </div>
+
+        <div x-data="{ open: true }" class="filebot-container">
+            <h3 @click="open = !open" class="filebot-header">
+                <span>Global Actions</span>
+                <span x-text="open ? '▼' : '►'" class="collapse-icon"></span>
+            </h3>
+            <div x-show="open" class="filebot-content">
+                <div class="filebot-form-mini">
+                    <div class="form-group">
+                        <button hx-post="/deluge/pause-all" hx-target="#deluge-torrents-widget"
+                                class="btn" style="background-color: var(--warning-color); color: white; width: 100%;">
+                            Pause All
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <button hx-post="/deluge/resume-all" hx-target="#deluge-torrents-widget"
+                                class="btn" style="background-color: var(--success-color); color: white; width: 100%;">
+                            Resume All
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    console.log('🧲 [Deluge] deluge_home.html rendered');
+</script>
+{{end}}

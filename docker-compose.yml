@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  filebot-webui:
+    image: darknessnerd/filebot-webui:0.0.0-d014c86
+    container_name: filebot-webui
+    ports:
+      - "8888:8080"
+    volumes:
+      - /media/media4/movies:/movies
+      - /media/media0/deluge/donwloads:/downloads
+      - /media/media4/tv_shows:/tv_shows
+      - /media/media4/anime:/anime
+      - /media/media4/home/filebot/fileb.psm:/app/filebot.psm
+    environment:
+      - JWT_SECRET=1c2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a
+      - JWT_EXPIRES_IN=24h
+      - JWT_ISSUER=webui-skeleton
+      - PLEX_CLIENT_ID=FilebotWebui
+      - PLEX_CLIENT_SECRET=
+      - PLEX_REDIRECT_URL=http://192.168.1.57:8888/auth/plex/forward
+      - ENABLE_PLEX_AUTH=true
+      - AUTH_PROVIDER=plex
+      - SESSION_SECRET=dev-session-secret
+      - DEBUG=true
+      - LOG_LEVEL=info
+      - DIRECTORY_PRESETS=Downloads:/downloads,Movies:/movies,TV Shows:/tv_shows,Anime:/anime
+      - FILEBOT_LICENSE_PATH=/app/filebot.psm
+    restart: unless-stopped

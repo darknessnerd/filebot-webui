@@ -1,0 +1,371 @@
+/* Plex Recently Added Component - Responsive Design */
+
+/* Container and Layout - More compact */
+.library-section {
+  margin-bottom: var(--spacing-xs); /* Reduced from var(--spacing-sm) */
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); /* Smaller radius */
+  padding: var(--spacing-xs); /* Reduced from var(--spacing-sm) */
+  box-shadow: var(--shadow-sm);
+}
+
+.library-header {
+  color: var(--text-primary); /* Changed from var(--text-muted) for better visibility */
+  margin-top: 0;
+  margin-bottom: 2px; /* Reduced from var(--spacing-xs) */
+  font-size: var(--font-size-xs); /* Reduced from var(--font-size-sm) */
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  opacity: 1; /* Increased from 0.9 for clarity */
+  font-weight: 600; /* Increased from 500 */
+  letter-spacing: 0.02em; /* Slightly increased for clarity */
+  transition: opacity var(--transition-fast);
+}
+
+.library-header:hover {
+  opacity: 1;
+  color: var(--accent-primary); /* Added hover color */
+}
+
+.library-title {
+  font-weight: 600; /* Increased from 500 */
+  letter-spacing: 0.02em; /* Increased for clarity */
+}
+
+.library-toggle {
+  font-size: var(--font-size-xs);
+  margin-left: 0;
+  opacity: 0.8; /* Slightly increased from 0.7 */
+  transition: transform var(--transition-fast);
+}
+
+.library-content {
+  transition: max-height var(--transition-normal);
+  overflow: hidden;
+  padding-top: 2px; /* Small top padding for separation */
+}
+
+/* Recently Added Scroll Container */
+.recently-added-scroll-container {
+  overflow-x: auto;
+  white-space: nowrap;
+  position: relative;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) var(--bg-primary);
+  opacity: 0.9;
+  padding: var(--spacing-xs) 0;
+}
+
+/* WebKit scrollbar styling */
+.recently-added-scroll-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.recently-added-scroll-container::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: var(--border-radius-sm);
+}
+
+.recently-added-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: var(--border-radius-sm);
+}
+
+.recently-added-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Plex Items List - More compact and clear */
+.plex-recently-added-list {
+  display: flex;
+  gap: 2px; /* Reduced from var(--spacing-xs) for tighter spacing */
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.plex-item {
+  display: inline-block;
+  vertical-align: top;
+  min-width: 70px; /* Reduced from 80px */
+  max-width: 80px; /* Reduced from 90px */
+  background: transparent;
+  border-radius: var(--border-radius-sm);
+  padding: 2px; /* Reduced from var(--spacing-xs) */
+  text-align: center;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.plex-item:hover {
+  transform: scale(1.03); /* Reduced from 1.05 for subtler effect */
+  opacity: 1;
+}
+
+.plex-item-image {
+  width: 28px; /* Reduced from 36px for compactness */
+  height: 42px; /* Reduced from 54px, maintaining aspect ratio */
+  object-fit: cover;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 2px; /* Reduced from var(--spacing-xs) */
+  opacity: 0.95; /* Slightly increased for clarity */
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast);
+}
+
+.plex-item:hover .plex-item-image {
+  box-shadow: var(--shadow);
+  opacity: 1;
+}
+
+.plex-item-title {
+  font-weight: 600; /* Increased from 500 for better readability */
+  font-size: var(--font-size-xs);
+  color: var(--text-primary); /* Changed from var(--text-secondary) for better contrast */
+  margin-bottom: 1px; /* Reduced margin */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.1; /* Tighter line height */
+}
+
+.plex-item-year {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  opacity: 0.9; /* Slightly increased for clarity */
+  margin-bottom: 1px; /* Reduced margin */
+  line-height: 1;
+}
+
+.plex-item-library {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  opacity: 0.8; /* Slightly increased from 0.7 */
+  margin-bottom: 2px; /* Reduced margin */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.plex-item-button {
+  font-size: var(--font-size-xs);
+  padding: 1px 3px; /* More compact padding */
+  margin-top: 2px; /* Reduced margin */
+  opacity: 0.9; /* Increased from 0.8 for clarity */
+  background-color: var(--bg-tertiary);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 2px; /* Smaller border radius */
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1;
+  font-weight: 500; /* Added for better readability */
+}
+
+.plex-item-button:hover {
+  background-color: var(--accent-primary);
+  color: var(--bg-primary);
+  opacity: 1;
+}
+
+/* Mobile Card Layout - More compact */
+.plex-cards {
+  display: none;
+  gap: var(--spacing-sm); /* Reduced from var(--spacing-md) */
+  flex-direction: column;
+}
+
+.plex-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); /* Reduced from var(--border-radius-md) */
+  padding: var(--spacing-sm); /* Reduced from var(--spacing-md) */
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: var(--spacing-sm); /* Reduced from var(--spacing-md) */
+  align-items: flex-start;
+}
+
+.plex-card-image {
+  flex-shrink: 0;
+  width: 45px; /* Reduced from 60px */
+  height: 68px; /* Reduced from 90px, maintaining aspect ratio */
+  object-fit: cover;
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.plex-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* Reduced from var(--spacing-xs) */
+}
+
+.plex-card-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2; /* Tighter line height */
+}
+
+.plex-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px; /* Reduced from var(--spacing-xs) */
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.plex-card-actions {
+  margin-top: var(--spacing-xs); /* Reduced from var(--spacing-sm) */
+}
+
+.plex-card-button {
+  background-color: var(--accent-primary);
+  color: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-xs); /* Reduced padding */
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-weight: 500; /* Added for clarity */
+}
+
+/* Responsive Design */
+
+/* Mobile: Show cards, hide horizontal scroll */
+@media (max-width: 767px) {
+  .library-section {
+    padding: var(--spacing-sm); /* Reverted from 2px */
+    margin-bottom: var(--spacing-md); /* Reverted from var(--spacing-xs) */
+  }
+
+  .recently-added-scroll-container {
+    display: none;
+  }
+
+  .plex-cards {
+    display: flex;
+  }
+
+  .library-header {
+    font-size: var(--font-size-sm); /* Reverted from var(--font-size-xs) */
+    margin-bottom: var(--spacing-sm); /* Reverted from 2px */
+  }
+
+  .plex-card {
+    padding: var(--spacing-sm); /* Reverted from 2px */
+  }
+
+  .plex-card-image {
+    width: 50px; /* Reverted from 20px */
+    height: 75px; /* Reverted from 30px */
+  }
+}
+
+/* Tablet: Compact horizontal scroll */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .plex-cards {
+    display: none;
+  }
+
+  .recently-added-scroll-container {
+    display: block;
+    width: 100%;
+    max-width: 500px; /* Reverted from 400px */
+  }
+
+  .plex-item {
+    min-width: 70px; /* Reverted from 35px */
+    max-width: 80px; /* Reverted from 45px */
+    padding: var(--spacing-xs); /* Reverted from 1px */
+  }
+
+  .plex-item-image {
+    width: 32px; /* Reverted from 14px */
+    height: 48px; /* Reverted from 21px */
+  }
+
+  .plex-item-title,
+  .plex-item-year,
+  .plex-item-library {
+    font-size: var(--font-size-xs);
+  }
+
+  .library-section {
+    padding: var(--spacing-xs); /* Reverted from 2px */
+  }
+}
+
+/* Desktop: Compact horizontal scroll with more items visible */
+@media (min-width: 1024px) {
+  .plex-cards {
+    display: none;
+  }
+
+  .recently-added-scroll-container {
+    display: block;
+    width: 100%;
+    max-width: 600px; /* Reverted from 450px */
+  }
+
+  .plex-item {
+    min-width: 65px; /* Reverted from 32px */
+    max-width: 75px; /* Reverted from 42px */
+    padding: var(--spacing-xs); /* Reverted from 1px */
+  }
+
+  .plex-item-image {
+    width: 30px; /* Reverted from 12px */
+    height: 45px; /* Reverted from 18px */
+  }
+
+  .plex-item-title,
+  .plex-item-year,
+  .plex-item-library {
+    font-size: var(--font-size-xs);
+  }
+
+  .plex-item-button {
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs); /* Reverted from 1px */
+    line-height: 1.2; /* Reverted from 1 */
+  }
+
+  .library-section {
+    padding: var(--spacing-xs); /* Reverted from 2px */
+    margin-bottom: var(--spacing-xs); /* Reverted from 2px */
+  }
+
+  .library-header {
+    font-size: var(--font-size-xs);
+    margin-bottom: var(--spacing-xs); /* Reverted from 1px */
+  }
+}
+
+/* Very small screens */
+@media (max-width: 575px) {
+  .plex-card {
+    flex-direction: column;
+    text-align: center;
+    padding: var(--spacing-xs); /* Reverted from 2px */
+  }
+
+  .plex-card-image {
+    align-self: center;
+    width: 80px; /* Reverted from 24px */
+    height: 120px; /* Reverted from 36px */
+  }
+
+  .plex-card-content {
+    align-items: center;
+  }
+}

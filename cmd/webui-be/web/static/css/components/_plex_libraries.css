@@ -1,0 +1,45 @@
+/* Plex Libraries Component */
+.plex-libraries-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.plex-libraries-horizontal .library-card {
+  padding: 0.2rem 0.35rem;
+  background-color: var(--bg-secondary);
+  border-radius: 2px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  border: 1px solid var(--border-color);
+  line-height: 1;
+}
+
+.plex-libraries-horizontal .library-card strong {
+  margin-right: 0.1rem;
+}
+
+.plex-libraries-horizontal .library-type {
+  color: var(--text-muted);
+  font-size: 0.6rem;
+}
+
+.plex-libraries-horizontal .empty-state {
+  font-style: italic;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Extra small button styling for plex libraries */
+.plex-libraries-horizontal .library-refresh-btn.btn-xs {
+  padding: 0.15rem 0.3rem;
+  font-size: 0.65rem;
+  line-height: 1;
+  border-radius: 2px;
+  height: auto;
+}
+
+.plex-libraries-horizontal .btn-icon {
+  font-size: 0.6rem;
+  margin-right: 0.1rem;
+}
