@@ -1,0 +1,68 @@
+{{define "torrents"}}
+{{if .Error}}
+  <div class="alert alert-error" style="margin:16px">{{.Error}}</div>
+{{else if not .Torrents}}
+  <div class="empty">No completed torrents found.</div>
+{{else}}
+<div x-data="{selected: []}" style="padding-bottom:12px">
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:32px">
+            <input type="checkbox"
+              @change="selected = $event.target.checked ? {{range .Torrents}}'{{.ID}}',{{end}} [] : []">
+          </th>
+          <th>Name</th>
+          <th>Size</th>
+          <th>Progress</th>
+          <th>State</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Torrents}}
+        <tr>
+          <td class="center">
+            <input type="checkbox" :value="'{{.ID}}'"
+              x-model="selected">
+          </td>
+          <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{.Name}}">{{.Name}}</td>
+          <td>{{formatBytes .Size}}</td>
+          <td>
+            <div class="progress">
+              <div class="progress-fill" style="width:{{printf "%.0f" .Progress}}%"></div>
+            </div>
+          </td>
+          <td>
+            {{if .IsFinished}}
+              <span class="badge badge-success">Done</span>
+            {{else}}
+              <span class="badge badge-info">{{.State}}</span>
+            {{end}}
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+    <button
+      class="btn btn-primary"
+      :disabled="selected.length === 0"
+      @click="
+        const params = new URLSearchParams();
+        selected.forEach(id => params.append('torrent_ids', id));
+        htmx.ajax('GET', '/filebot?' + params.toString(), {target: '#filebot-slot', swap: 'innerHTML'})
+      "
+    >
+      Process with FileBot
+      <span x-show="selected.length > 0" x-text="'(' + selected.length + ')'" style="opacity:.8"></span>
+    </button>
+  </div>
+
+</div>
+{{end}}
+{{end}}

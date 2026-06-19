@@ -1,0 +1,47 @@
+{{template "base" .}}
+
+{{define "title"}}Dashboard — FileBot WebUI{{end}}
+
+{{define "content"}}
+<h1 class="page-title">Dashboard</h1>
+
+<div class="two-col">
+
+  <!-- Left: torrent list -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Completed Torrents</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="htmx-indicator" class="spinner"></span>
+        <button
+          class="btn btn-ghost btn-sm"
+          hx-get="/torrents"
+          hx-target="#torrent-list"
+          hx-swap="innerHTML"
+          hx-indicator="#htmx-indicator"
+        >Refresh</button>
+      </div>
+    </div>
+    <div
+      id="torrent-list"
+      hx-get="/torrents"
+      hx-trigger="load, every 30s"
+      hx-swap="innerHTML"
+      hx-indicator="#htmx-indicator"
+    >
+      <div class="empty"><span class="spinner"></span></div>
+    </div>
+  </div>
+
+  <!-- Right: FileBot form slot -->
+  <div id="filebot-slot">
+    <div class="card">
+      <div class="card-header"><span class="card-title">FileBot</span></div>
+      <div class="card-body">
+        <p style="color:var(--muted);font-size:13px">Select completed torrents, then click <strong style="color:var(--text)">Process with FileBot</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{{end}}

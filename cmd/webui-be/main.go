@@ -1,8 +1,11 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
+	"io/fs"
 	"net/http"
 	"os"
 
@@ -15,6 +18,9 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/service/filebot"
 	"github.com/darknessnerd/filebot-webui/internal/service/plex"
 )
+
+//go:embed web/templates/* web/static/css/app.css
+var webFS embed.FS
 
 func main() {
 	cfg, err := config.Load()
@@ -37,6 +43,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Parse templates with helper funcs
+	funcMap := template.FuncMap{
+		"formatBytes": formatBytes,
+		"or": func(a, b string) string {
+			if a != "" {
+				return a
+			}
+			return b
+		},
+		"list": func(args ...string) []string { return args },
+	}
+	tmpl, err := template.New("").Funcs(funcMap).ParseFS(webFS,
+		"web/templates/base.html",
+		"web/templates/dashboard.html",
+		"web/templates/torrents.html",
+		"web/templates/filebot_form.html",
+		"web/templates/filebot_result.html",
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to parse templates")
+		os.Exit(1)
+	}
+
 	// Services
 	userRepo := repository.NewUserRepository(db)
 	authSvc := auth.New(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn, cfg.JWTIssuer, cfg.PlexClientID, log)
@@ -47,19 +76,35 @@ func main() {
 	// Middleware
 	authMiddleware := handler.RequireAuth(authSvc, userRepo, log)
 
-	// Handlers
+	// Handlers (now template-aware)
 	authH := handler.NewAuthHandler(authSvc, cfg.PlexRedirectURL, log)
-	torrentH := handler.NewTorrentHandler(delugeSvc, log)
-	fileBotH := handler.NewFileBotHandler(fbExecutor, delugeSvc, plexSvc, log)
+	torrentH := handler.NewTorrentHandler(delugeSvc, tmpl, log)
+	fileBotH := handler.NewFileBotHandler(fbExecutor, delugeSvc, plexSvc, tmpl, cfg.MediaRoot, log)
 
 	mux := http.NewServeMux()
+
+	// Static files — strip the "web/" prefix so /static/css/app.css maps correctly
+	staticFS, err := fs.Sub(webFS, "web")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to sub static FS")
+		os.Exit(1)
+	}
+	mux.Handle("GET /static/", http.FileServer(http.FS(staticFS)))
 
 	// Public routes
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
-	mux.HandleFunc("GET /login", authH.LoginPage)
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+		data, err := webFS.ReadFile("web/templates/login.html")
+		if err != nil {
+			http.Error(w, "not found", 404)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(data)
+	})
 	mux.HandleFunc("GET /auth/plex/start", authH.PlexStart)
 	mux.HandleFunc("GET /auth/plex/forward", authH.PlexForward)
 	mux.HandleFunc("POST /auth/logout", authH.Logout)
@@ -76,4 +121,17 @@ func main() {
 		log.Error().Err(err).Msg("server error")
 		os.Exit(1)
 	}
+}
+
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }

@@ -2,9 +2,10 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"html/template"
 	"net/http"
+
 	"github.com/darknessnerd/filebot-webui/internal/domain"
 	"github.com/darknessnerd/filebot-webui/internal/logger"
 )
@@ -22,21 +23,29 @@ type plexSvc interface {
 }
 
 type FileBotHandler struct {
-	fb    fileBotService
-	del   delugeSvc
-	plex  plexSvc
-	log   logger.Logger
+	fb        fileBotService
+	del       delugeSvc
+	plex      plexSvc
+	tmpl      *template.Template
+	mediaRoot string
+	log       logger.Logger
 }
 
-func NewFileBotHandler(fb fileBotService, del delugeSvc, plex plexSvc, log logger.Logger) *FileBotHandler {
-	return &FileBotHandler{fb: fb, del: del, plex: plex, log: log}
+func NewFileBotHandler(fb fileBotService, del delugeSvc, plex plexSvc, tmpl *template.Template, mediaRoot string, log logger.Logger) *FileBotHandler {
+	return &FileBotHandler{fb: fb, del: del, plex: plex, tmpl: tmpl, mediaRoot: mediaRoot, log: log}
 }
 
 func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
-	// Sprint 3 renders filebot_form.html; placeholder for now.
 	torrentIDs := r.URL.Query()["torrent_ids"]
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"page": "filebot_form", "torrent_ids": torrentIDs})
+	user, _ := UserFromContext(r.Context())
+	w.Header().Set("Content-Type", "text/html")
+	if err := h.tmpl.ExecuteTemplate(w, "filebot_form", map[string]any{
+		"TorrentIDs": torrentIDs,
+		"MediaRoot":  h.mediaRoot,
+		"User":       user,
+	}); err != nil {
+		h.log.Error().Err(err).Msg("filebot form render")
+	}
 }
 
 func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
@@ -66,33 +75,33 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.log.Error().Err(err).Msg("FileBotHandler.Execute")
-		http.Error(w, "filebot execution failed", http.StatusInternalServerError)
-		return
 	}
 
 	plexRefreshed := false
-	if job.Action == "move" && len(result.Errors) == 0 {
+	if job.Action == "move" && len(result.Errors) == 0 && err == nil {
 		for _, id := range job.TorrentIDs {
-			if err := h.del.DeleteTorrent(r.Context(), id); err != nil {
-				h.log.Warn().Err(err).Str("torrent_id", id).Msg("delete torrent failed")
+			if derr := h.del.DeleteTorrent(r.Context(), id); derr != nil {
+				h.log.Warn().Err(derr).Str("torrent_id", id).Msg("delete torrent failed")
 			}
 		}
 
 		user, ok := UserFromContext(r.Context())
 		if ok && user.PlexToken != "" {
-			if err := h.plex.RefreshLibraries(r.Context(), user.PlexToken); err != nil {
-				h.log.Warn().Err(err).Msg("plex refresh failed")
+			if perr := h.plex.RefreshLibraries(r.Context(), user.PlexToken); perr != nil {
+				h.log.Warn().Err(perr).Msg("plex refresh failed")
 			} else {
 				plexRefreshed = true
 			}
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"successes":      result.Successes,
-		"errors":         result.Errors,
-		"raw_output":     result.RawOutput,
-		"plex_refreshed": plexRefreshed,
-	})
+	w.Header().Set("Content-Type", "text/html")
+	if err := h.tmpl.ExecuteTemplate(w, "filebot_result", map[string]any{
+		"Successes":     result.Successes,
+		"Errors":        result.Errors,
+		"RawOutput":     result.RawOutput,
+		"PlexRefreshed": plexRefreshed,
+	}); err != nil {
+		h.log.Error().Err(err).Msg("filebot result render")
+	}
 }
