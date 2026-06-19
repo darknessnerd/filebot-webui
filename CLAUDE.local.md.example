@@ -1,0 +1,21 @@
+# Claude Configuration — Personal (NOT committed)
+
+Copy this file, remove `.example` suffix, then customize.
+`CLAUDE.local.md` is gitignored — safe to put personal details here.
+
+## Personal Preferences
+
+- Preferred response style: concise / verbose
+- Preferred language for comments: EN / other
+
+## Local Overrides
+
+> Paths, ports, or flags that differ on your machine.
+
+## Personal MCP Overrides
+
+> Extra MCP servers or env var overrides not in team `.mcp.json`.
+
+## Notes
+
+> Scratch space — reminders to yourself about this repo.

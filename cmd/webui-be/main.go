@@ -1,46 +1,53 @@
 package main
 
 import (
-	"embed"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 
-	"webui-skeleton/internal/app"
-	"webui-skeleton/internal/logger"
+	"github.com/darknessnerd/filebot-webui/internal/config"
+	"github.com/darknessnerd/filebot-webui/internal/logger"
+	"github.com/darknessnerd/filebot-webui/internal/repository"
+	"github.com/darknessnerd/filebot-webui/internal/service/auth"
 )
 
-//go:embed web/templates/*
-var TemplateFS embed.FS
-
-//go:embed web/static/css/*/* web/static/css/styles.css
-var StaticFiles embed.FS
-
 func main() {
-	logger.Log.Info().Msg("Starting application...")
-	// Log DIRECTORY_PRESETS value for debugging
-	directoryPresets := os.Getenv("DIRECTORY_PRESETS")
-	logger.Log.Info().Msgf("DIRECTORY_PRESETS value: %s", directoryPresets)
-	if directoryPresets == "" {
-		logger.Log.Error().Msg("Fatal: DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
-		fmt.Fprintln(os.Stderr, "Fatal: DIRECTORY_PRESETS environment variable must be set. Example: DIRECTORY_PRESETS=Downloads:/downloads,Media Library:/media")
-		os.Exit(1)
-	}
-	// Create and initialize application
-	application := app.New(TemplateFS, StaticFiles)
-	defer application.Cleanup()
-
-	// Initialize all components
-	if err := application.Initialize(); err != nil {
-		logger.Log.Error().Err(err).Msg("❌ Failed to initialize application")
-		fmt.Fprintln(os.Stderr, "❌ Failed to initialize application:", err)
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "config: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Run the application
-	if err := application.Run(); err != nil {
-		logger.Log.Error().Err(err).Msg("❌ Application failed to run")
-		fmt.Fprintln(os.Stderr, "❌ Application failed to run:", err)
-		logger.Log.Error().Msgf("❌ Application exited with code: 1")
+	log := logger.New(cfg.LogLevel, cfg.Debug)
+
+	db, err := repository.Open(cfg)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to open database")
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := repository.RunMigrations(db); err != nil {
+		log.Error().Err(err).Msg("failed to run migrations")
+		os.Exit(1)
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	authSvc := auth.New(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn, cfg.JWTIssuer, cfg.PlexClientID, log)
+	_ = authSvc // used in Sprint 2 handlers
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+
+	addr := cfg.ServerHost + ":" + cfg.ServerPort
+	log.Info().Str("addr", addr).Msg("starting server")
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		log.Error().Err(err).Msg("server error")
 		os.Exit(1)
 	}
 }

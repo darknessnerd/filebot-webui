@@ -1,48 +1,26 @@
-# Go build and dependency files
-/bin/
-/build/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
-
-# Go workspace files
-*.db
-*.log
-*.tmp
-
-# Dependency directories
-vendor/
-
-# IDE/editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*.bak
-
-# Node.js / frontend assets
-node_modules/
-dist/
-
-# Environment and secrets
-.env
-.env.*
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Temporary files
+# binaries
+/webui-be
 /tmp/
+*.db
+*.db-shm
+*.db-wal
+/data/
 
-# Coverage files
-coverage*
-*.coverprofile
+# secrets
+.env
+.env.local
+CLAUDE.local.md
 
-# Others
+# build
+/dist/
 main
 
+# ide
+.idea/
+.vscode/
+
+# logs
+.claude/logs/
+
+# go
+vendor/
