@@ -1,5 +1,6 @@
 # binaries
 /webui-be
+/bin/
 /tmp/
 *.db
 *.db-shm

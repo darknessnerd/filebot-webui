@@ -1,32 +1,23 @@
-# This is a basic workflow to help you get started with Actions
-name: CI-CD
-# Controls when the action will run.
+name: CI
+
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
-    # Include pushes to tags
-    tags:
-      - 'v*'        # Match version tags like v1.0.0, v2.1.0, etc.
+    branches: [main]
+    tags: ["v*"]
   pull_request:
-    branches: [ main ]
-  # Allows you to run this workflow manually from the Actions tab
+    branches: [main]
   workflow_dispatch:
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+
 jobs:
-  # This workflow contains multiple jobs
-  build_test:
-    # The type of runner that the job will run on
+  test:
     runs-on: ubuntu-latest
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version-file: go.mod
+
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -34,94 +25,52 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Install Go dependencies
-        run: |
-          go mod tidy
-          go mod download
-      - name: Run golint (linting)
-        run: |
-          go install golang.org/x/lint/golint@latest
-          golint ./... || true
-      - name: Ensure static asset directories and styles.css exist
-        run: |
-          # Create required directories
-          for dir in abstracts base components layout pages themes vendors newdir; do
-            mkdir -p cmd/webui-be/web/static/css/$dir
-          done
-          # Ensure styles.css exists
-          if [ ! -f cmd/webui-be/web/static/css/styles.css ]; then
-            touch cmd/webui-be/web/static/css/styles.css
-          fi
-          # Ensure every subdirectory under css has at least one file
-          find cmd/webui-be/web/static/css -type d | while read subdir; do
-            if [ -z "$(ls -A "$subdir")" ]; then
-              touch "$subdir/.keep"
-            fi
-          done
-      - name: Run go vet (static analysis)
-        run: go vet ./... || true
-      - name: Run tests with coverage
-        run: |
-          go test -v -coverprofile=coverage.out ./cmd/webui-be/...
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.out
-      - name: Build Go backend
-        run: go build -v ./cmd/webui-be/...
-  push_to_Docker_Hub:
-    # The type of runner that the job will run on
+          restore-keys: ${{ runner.os }}-go-
+
+      - run: go mod download
+
+      - name: vet
+        run: go vet ./...
+
+      - name: test (race)
+        env:
+          JWT_SECRET: ci-test-secret
+          MEDIA_ROOT: /tmp
+        run: go test -race ./...
+
+      - name: build
+        run: CGO_ENABLED=1 go build -o /dev/null ./cmd/webui-be
+
+  docker:
     runs-on: ubuntu-latest
-    # build docker image and push to docker hub
-    # only if the app build and test successfully
-    needs: [build_test]
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - name: checkout repo
-        uses: actions/checkout@v3
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      # Step 3: Set up Docker Buildx for building images
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Extract the version from the Git tag or fallback to the commit SHA
-      - name: Get the version
-        id: get_version
-        run: |
-          # Try to get the latest tag, fallback to 0.0.0 if no tag found
-          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          # If on an untagged commit, append a commit hash to the version (optional)
-          if [ "$TAG" = "v0.0.0" ]; then
-            HASH=$(git rev-parse --short HEAD)
-            VERSION="${TAG#v}-$HASH"
-          else
-            VERSION=${TAG#"v"}
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Version is $VERSION"
 
-      - name: Build and push Docker image with SemVer
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
           push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:${{ env.VERSION }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:latest
-
-      - name: Run the image in a container
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ${{ secrets.DOCKERHUB_USERNAME }}/filebot-webui:${{ env.VERSION }}
-          run: |
-            echo "Running the Docker image with version ${{ env.VERSION }}"
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

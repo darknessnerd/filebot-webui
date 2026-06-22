@@ -1,13 +1,19 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
 	"os"
+	"os/exec"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/darknessnerd/filebot-webui/internal/config"
 	"github.com/darknessnerd/filebot-webui/internal/handler"
@@ -66,6 +72,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// FILEBOT_LICENSE_PATH: register license once at boot if configured
+	if cfg.FilebotLicensePath != "" {
+		registerCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		out, regErr := exec.CommandContext(registerCtx, cfg.FilebotPath, "--license", cfg.FilebotLicensePath).CombinedOutput()
+		cancel()
+		if regErr != nil {
+			log.Warn().Err(regErr).Str("output", string(out)).Msg("filebot license registration failed — continuing")
+		} else {
+			log.Info().Msg("filebot license registered")
+		}
+	}
+
 	// Services
 	userRepo := repository.NewUserRepository(db)
 	authSvc := auth.New(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn, cfg.JWTIssuer, cfg.PlexClientID, log)
@@ -116,10 +134,32 @@ func main() {
 	mux.Handle("POST /filebot/execute", authMiddleware(http.HandlerFunc(fileBotH.Execute)))
 
 	addr := cfg.ServerHost + ":" + cfg.ServerPort
-	log.Info().Str("addr", addr).Msg("starting server")
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Error().Err(err).Msg("server error")
-		os.Exit(1)
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		log.Info().Str("addr", addr).Msg("starting server")
+		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			log.Error().Err(err).Msg("server error")
+			os.Exit(1)
+		}
+	}()
+
+	<-sigCtx.Done()
+	log.Info().Msg("shutting down")
+
+	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutCtx); err != nil {
+		log.Error().Err(err).Msg("graceful shutdown failed")
 	}
 }
 

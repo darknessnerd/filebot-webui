@@ -41,13 +41,14 @@ func (h *AuthHandler) PlexStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ttl := 5 * time.Minute
+	secure := isSecure(r)
 	http.SetCookie(w, &http.Cookie{
 		Name: "plex_pin_id", Value: strconv.FormatInt(pinID, 10),
-		Path: "/", MaxAge: int(ttl.Seconds()), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Path: "/", MaxAge: int(ttl.Seconds()), HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name: "plex_pin_code", Value: pinCode,
-		Path: "/", MaxAge: int(ttl.Seconds()), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Path: "/", MaxAge: int(ttl.Seconds()), HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -87,20 +88,21 @@ func (h *AuthHandler) PlexForward(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clear PIN cookies.
+	secure := isSecure(r)
 	for _, name := range []string{"plex_pin_id", "plex_pin_code"} {
-		http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/", MaxAge: -1})
+		http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/", MaxAge: -1, Secure: secure})
 	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name: "auth_token", Value: token,
-		Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Path: "/", HttpOnly: true, Secure: isSecure(r), SameSite: http.SameSiteLaxMode,
 	})
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name: "auth_token", Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
+		Name: "auth_token", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: isSecure(r),
 	})
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
