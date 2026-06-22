@@ -23,6 +23,10 @@ main
 .idea/
 .vscode/
 
+# local tooling
+.claude/
+.mcp.json
+
 # logs
 .claude/logs/
 
