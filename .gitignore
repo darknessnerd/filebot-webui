@@ -2,10 +2,13 @@
 /webui-be
 /bin/
 /tmp/
+/tmp/webui-be
 *.db
 *.db-shm
 *.db-wal
 /data/
+/media/*
+!/media/.gitkeep
 
 # secrets
 .env
