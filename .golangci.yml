@@ -1,0 +1,64 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # --- non-negotiable baseline ---
+    - errcheck       # unchecked errors
+    - govet          # suspicious constructs
+    - staticcheck    # comprehensive static analysis
+    - unused         # unused exported identifiers
+    - gosec          # security issues
+    - errorlint      # incorrect errors.Is / errors.As usage
+    - ineffassign    # assignments whose values are never used
+    - gofumpt        # strict formatting (superset of gofmt)
+
+    # --- strongly recommended ---
+    - revive         # go style rules (replaces golint)
+    - bodyclose      # unclosed HTTP response bodies
+    - noctx          # http.NewRequest without context
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true   # flag ignored type assertion failures
+    check-blank: true             # flag _ = someFunc() patterns
+
+  govet:
+    enable-all: false
+    enable:
+      - shadow                    # shadowed variables
+      - printf                    # format string mismatches
+
+  gosec:
+    excludes:
+      - G104   # errors unhandled — covered more precisely by errcheck
+
+  gofumpt:
+    extra-rules: true
+
+  revive:
+    rules:
+      - name: exported            # comment on every exported identifier
+      - name: error-return        # error last in return values
+      - name: error-strings       # no capitalised error messages
+      - name: var-naming          # Go naming conventions
+
+issues:
+  exclude-rules:
+    # Test files: relax some rules that are noisy in tests
+    - path: "_test\\.go$"
+      linters:
+        - gosec      # G404 weak random ok in tests
+        - errcheck   # ignored errors in test helpers are acceptable
+
+    # Generated files: skip entirely
+    - path: "mock_.*\\.go$"
+      linters:
+        - all
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
+  tests: true
