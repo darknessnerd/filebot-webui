@@ -1,15 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ─── Variables ─────────────────────────────────────────────────── */
 :root {
-  --bg:        #0f0f13;
-  --surface:   #1a1a24;
-  --surface2:  #22222f;
-  --border:    #2a2a3a;
-  --accent:    #7c5cbf;
-  --accent-hi: #a07ce0;
-  --text:      #e2e2e8;
-  --muted:     #8b8b9e;
+  --bg:        #080c08;
+  --surface:   #0f140f;
+  --surface2:  #151c15;
+  --border:    #1e281e;
+  --accent:    #00e676;
+  --accent-hi: #69ff47;
+  --text:      #dde8dd;
+  --muted:     #5e7a5e;
   --success:   #4ade80;
   --error:     #f87171;
   --warn:      #fbbf24;
@@ -21,7 +21,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
   font-size: 14px;
   background: var(--bg);
   color: var(--text);
@@ -29,8 +29,8 @@ body {
   display: flex;
   flex-direction: column;
 }
-a { color: var(--accent-hi); text-decoration: none; }
-a:hover { color: var(--text); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hi); }
 
 /* ─── Nav ────────────────────────────────────────────────────────── */
 .nav {
@@ -44,14 +44,15 @@ a:hover { color: var(--text); }
   flex-shrink: 0;
 }
 .nav-brand {
+  font-family: 'Bricolage Grotesque', 'Space Grotesk', system-ui, sans-serif;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.nav-brand svg { color: var(--accent-hi); }
+.nav-brand svg { color: var(--accent); }
 .nav-right { display: flex; align-items: center; gap: 12px; }
 .nav-avatar {
   width: 30px; height: 30px;
@@ -64,8 +65,9 @@ a:hover { color: var(--text); }
 /* ─── Layout ─────────────────────────────────────────────────────── */
 .main { flex: 1; padding: 24px; }
 .page-title {
+  font-family: 'Bricolage Grotesque', 'Space Grotesk', system-ui, sans-serif;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 20px;
   color: var(--text);
 }
@@ -104,7 +106,7 @@ a:hover { color: var(--text); }
   padding: 7px 16px;
   border-radius: var(--radius);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   border: none;
   transition: opacity .15s, background .15s;
@@ -113,7 +115,7 @@ a:hover { color: var(--text); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: #080c08;
 }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hi); }
 .btn-ghost {
@@ -219,13 +221,13 @@ td.center { text-align: center; }
 .badge-success { background: rgba(74,222,128,.15); color: var(--success); }
 .badge-error   { background: rgba(248,113,113,.15); color: var(--error); }
 .badge-warn    { background: rgba(251,191,36,.15);  color: var(--warn); }
-.badge-info    { background: rgba(124,92,191,.2);   color: var(--accent-hi); }
+.badge-info    { background: rgba(0,230,118,.15);   color: var(--accent); }
 
 /* ─── Spinner ────────────────────────────────────────────────────── */
 .spinner {
   width: 20px; height: 20px;
   border: 2px solid var(--border);
-  border-top-color: var(--accent-hi);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin .7s linear infinite;
   display: inline-block;
@@ -269,16 +271,21 @@ td.center { text-align: center; }
 }
 .login-logo {
   width: 48px; height: 48px;
-  background: rgba(124,92,191,.2);
+  background: rgba(0,230,118,.15);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px;
-  color: var(--accent-hi);
+  color: var(--accent);
   font-size: 24px;
 }
-.login-title { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+.login-title {
+  font-family: 'Bricolage Grotesque', 'Space Grotesk', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
 .login-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
 .login-btn {
   width: 100%;
@@ -317,6 +324,7 @@ details.raw-output pre {
   overflow-x: auto;
   white-space: pre-wrap;
   color: var(--muted);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* ─── HTMX loading indicator ─────────────────────────────────────── */

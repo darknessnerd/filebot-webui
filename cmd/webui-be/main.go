@@ -60,13 +60,17 @@ func main() {
 		},
 		"list": func(args ...string) []string { return args },
 	}
-	tmpl, err := template.New("").Funcs(funcMap).ParseFS(webFS,
+	tmpFiles := []string{
 		"web/templates/base.html",
 		"web/templates/dashboard.html",
 		"web/templates/torrents.html",
 		"web/templates/filebot_form.html",
 		"web/templates/filebot_result.html",
-	)
+	}
+	if cfg.Debug {
+		tmpFiles = append(tmpFiles, "web/templates/playground.html")
+	}
+	tmpl, err := template.New("").Funcs(funcMap).ParseFS(webFS, tmpFiles...)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to parse templates")
 		os.Exit(1)
@@ -126,6 +130,22 @@ func main() {
 	mux.HandleFunc("GET /auth/plex/start", authH.PlexStart)
 	mux.HandleFunc("GET /auth/plex/forward", authH.PlexForward)
 	mux.HandleFunc("POST /auth/logout", authH.Logout)
+
+	// Playground — only in debug mode, localhost only
+	if cfg.Debug {
+		mux.HandleFunc("GET /playground", func(w http.ResponseWriter, r *http.Request) {
+			host := r.Host
+			if host != "localhost" && host != "localhost:"+cfg.ServerPort && host != "127.0.0.1" && host != "127.0.0.1:"+cfg.ServerPort {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if err := tmpl.ExecuteTemplate(w, "playground", nil); err != nil {
+				http.Error(w, err.Error(), 500)
+			}
+		})
+		log.Info().Msg("CSS playground enabled at /playground (debug mode)")
+	}
 
 	// Protected routes
 	mux.Handle("GET /", authMiddleware(http.HandlerFunc(torrentH.Dashboard)))

@@ -34,6 +34,56 @@
   {{block "content" .}}{{end}}
 </main>
 
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  var COLORS=['#00e676','#69ff47','#69ff47','#4ade80'];
+  function burst(x,y){
+    var svg=document.createElementNS(NS,'svg');
+    var R=36;
+    svg.setAttribute('viewBox',-R+' '+-R+' '+(R*2)+' '+(R*2));
+    svg.style.cssText='position:fixed;left:'+(x-R)+'px;top:'+(y-R)+'px;width:'+(R*2)+'px;height:'+(R*2)+'px;pointer-events:none;z-index:99999;overflow:visible;';
+    var count=3+Math.floor(Math.random()*3);
+    for(var i=0;i<count;i++){
+      var angle=(Math.PI*2/count)*i+Math.random()*0.6;
+      var dist=16+Math.random()*14;
+      var nx=Math.cos(angle)*dist, ny=Math.sin(angle)*dist;
+      var col=COLORS[Math.floor(Math.random()*COLORS.length)];
+      var line=document.createElementNS(NS,'line');
+      line.setAttribute('x1','0'); line.setAttribute('y1','0');
+      line.setAttribute('x2',''+nx); line.setAttribute('y2',''+ny);
+      line.setAttribute('stroke',col); line.setAttribute('stroke-width','1.5');
+      line.setAttribute('stroke-linecap','round'); line.setAttribute('opacity','0.7');
+      svg.appendChild(line);
+      var dot=document.createElementNS(NS,'circle');
+      dot.setAttribute('cx',''+nx); dot.setAttribute('cy',''+ny);
+      dot.setAttribute('r','2.5'); dot.setAttribute('fill',col);
+      svg.appendChild(dot);
+    }
+    var hub=document.createElementNS(NS,'circle');
+    hub.setAttribute('cx','0'); hub.setAttribute('cy','0');
+    hub.setAttribute('r','3'); hub.setAttribute('fill','#00e676');
+    svg.appendChild(hub);
+    document.body.appendChild(svg);
+    svg.animate(
+      [{opacity:1,transform:'scale(0.4)'},{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(1.1)'}],
+      {duration:520,easing:'ease-out',fill:'forwards'}
+    ).onfinish=function(){svg.remove();};
+  }
+  var SKIP='a,button,input,select,textarea,label,[role="button"]';
+  document.addEventListener('click',function(e){
+    if(e.target.closest(SKIP)) return;
+    burst(e.clientX,e.clientY);
+  });
+  var _tx=0,_ty=0;
+  document.addEventListener('touchstart',function(e){_tx=e.touches[0].clientX;_ty=e.touches[0].clientY;},{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(e.target.closest(SKIP)) return;
+    var t=e.changedTouches[0];
+    if(Math.hypot(t.clientX-_tx,t.clientY-_ty)<10) burst(t.clientX,t.clientY);
+  },{passive:true});
+})();
+</script>
 </body>
 </html>
 {{end}}
