@@ -6,9 +6,9 @@
 [![Go Version](https://img.shields.io/badge/go-1.24-blue)](go.mod)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> Because manually renaming `The.Dune.2024.1080p.BluRay.x264-YIFY.mkv` to `Dune Part Two (2024).mkv` like an animal is not the way.
+> Your download finished. FileBot knows what to do. This UI makes sure you never have to open a terminal to tell it.
 
-Self-hosted web UI that connects **Deluge + FileBot + Plex** into a single workflow — pick completed torrents, rename and move them to your media library, delete the torrent, refresh Plex. One click. No terminal. No shame.
+Self-hosted web UI that connects **Deluge + FileBot + Plex** into a single workflow — pick completed torrents, rename and move them to your media library, delete the torrent, refresh Plex. One click.
 
 ---
 

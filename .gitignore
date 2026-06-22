@@ -3,6 +3,12 @@
 /bin/
 /tmp/
 /tmp/webui-be
+
+# media files
+*.mkv
+*.mp4
+*.avi
+*.mov
 *.db
 *.db-shm
 *.db-wal
