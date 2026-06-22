@@ -7,12 +7,14 @@
 <div x-data="{selected: []}" style="padding-bottom:12px">
 
   <div class="table-wrap">
-    <table>
+    <table class="torrent-table">
       <thead>
         <tr>
-          <th style="width:32px">
-            <input type="checkbox"
-              @change="selected = $event.target.checked ? {{range .Torrents}}'{{.ID}}',{{end}} [] : []">
+          <th>
+            <label class="check-label">
+              <input type="checkbox"
+                @change="selected = $event.target.checked ? [{{range .Torrents}}'{{.ID}}',{{end}}] : []">
+            </label>
           </th>
           <th>Name</th>
           <th>Size</th>
@@ -24,14 +26,14 @@
         {{range .Torrents}}
         <tr>
           <td class="center">
-            <input type="checkbox" :value="'{{.ID}}'"
-              x-model="selected">
+            <label class="check-label">
+              <input type="checkbox" :value="'{{.ID}}'" x-model="selected">
+            </label>
           </td>
-          <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-              title="{{.Name}}">{{.Name}}</td>
+          <td class="col-name" title="{{.Name}}">{{.Name}}</td>
           <td>{{formatBytes .Size}}</td>
-          <td>
-            <div class="progress">
+          <td class="col-progress">
+            <div class="progress" role="progressbar" aria-valuenow="{{printf "%.0f" .Progress}}" aria-valuemin="0" aria-valuemax="100">
               <div class="progress-fill" style="width:{{printf "%.0f" .Progress}}%"></div>
             </div>
           </td>
