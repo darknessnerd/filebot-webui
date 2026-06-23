@@ -94,6 +94,8 @@ services:
     restart: unless-stopped
 ```
 
+> **FileBot is bundled in the image** — no separate install needed. FileBot 5.1.7 (portable) + OpenJDK 11 are included. License registration runs in `docker/start.sh` at container startup — mount your `license.psm` and set `FILEBOT_LICENSE_PATH` to its container path. If no license is found, the app starts anyway (community features only).
+
 > **Critical:** Deluge and filebot-webui must mount the **same paths** at the same container paths. If Deluge stores files at `/downloads/Movie.mkv`, filebot-webui must also see `/downloads/Movie.mkv`. Mismatch = FileBot "file not found" sadness.
 
 ---
@@ -101,7 +103,8 @@ services:
 ## Local Development
 
 ```bash
-# prereqs: Go 1.24+, filebot binary (or stub), Deluge running somewhere
+# prereqs: Go 1.24+, filebot binary installed on host (or stub), Deluge running somewhere
+# note: Docker image bundles FileBot — local dev requires it separately
 cp .env.example .env
 # edit .env — minimum: JWT_SECRET, MEDIA_ROOT, DELUGE_HOST, DELUGE_PASSWORD
 
@@ -211,7 +214,7 @@ handler → service → domain ← repository
 | Auth | Plex PIN OAuth + JWT HS256 (HttpOnly cookie) |
 | Database | SQLite (default) / PostgreSQL |
 | Logging | zerolog behind injected interface |
-| FileBot | `exec.CommandContext` with allowlisted arg builder |
+| FileBot | `exec.CommandContext` with allowlisted arg builder; bundled in Docker image (v5.1.7 portable + OpenJDK 11) |
 
 ---
 
@@ -245,6 +248,7 @@ CI builds and pushes `:1.0.0`, `:1.0`, and `:latest` to Docker Hub.
 | `MEDIA_ROOT is required` at startup | Env var missing | Set `MEDIA_ROOT` |
 | Torrents not showing | Deluge unreachable | Check `DELUGE_HOST`, `DELUGE_PORT`, `DELUGE_PASSWORD` |
 | FileBot "file not found" | Volume mount mismatch | Mirror paths between Deluge and filebot-webui containers |
+| FileBot license not applied | `FILEBOT_LICENSE_PATH` unset or wrong path | Mount `license.psm` and set `FILEBOT_LICENSE_PATH` to its container path |
 | FileBot "outside MEDIA_ROOT" | Output path rejected | Ensure `--output` is under `MEDIA_ROOT` |
 | Login loop | JWT cookie not set | Check `PLEX_REDIRECT_URL` matches actual app URL exactly |
 | Plex refresh fails | Server unreachable or wrong token | Check Plex server reachable from container network |

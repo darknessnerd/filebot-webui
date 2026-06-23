@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -74,18 +73,6 @@ func main() {
 	if err != nil {
 		log.Error().Err(err).Msg("failed to parse templates")
 		os.Exit(1)
-	}
-
-	// FILEBOT_LICENSE_PATH: register license once at boot if configured
-	if cfg.FilebotLicensePath != "" {
-		registerCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		out, regErr := exec.CommandContext(registerCtx, cfg.FilebotPath, "--license", cfg.FilebotLicensePath).CombinedOutput()
-		cancel()
-		if regErr != nil {
-			log.Warn().Err(regErr).Str("output", string(out)).Msg("filebot license registration failed — continuing")
-		} else {
-			log.Info().Msg("filebot license registered")
-		}
 	}
 
 	// Services
