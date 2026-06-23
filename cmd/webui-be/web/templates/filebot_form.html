@@ -78,7 +78,7 @@
           Execute
         </button>
         <button type="button" class="btn btn-ghost"
-          @click="htmx.ajax('GET', '/', {target: '#filebot-slot', swap: 'innerHTML'})">
+          @click="htmx.ajax('GET', '/', {target: '#filebot-slot', swap: 'innerHTML'}); document.querySelector('.dashboard')?.dispatchEvent(new CustomEvent('close-drawer'))">
           Cancel
         </button>
       </div>

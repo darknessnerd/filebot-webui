@@ -57,7 +57,10 @@
       @click="
         const params = new URLSearchParams();
         selected.forEach(id => params.append('torrent_ids', id));
-        htmx.ajax('GET', '/filebot?' + params.toString(), {target: '#filebot-slot', swap: 'innerHTML'})
+        htmx.ajax('GET', '/filebot?' + params.toString(), {target: '#filebot-slot', swap: 'innerHTML'});
+        const dash = document.querySelector('.dashboard');
+        if (dash && dash._x_dataStack) Alpine.store;
+        if (dash) dash.dispatchEvent(new CustomEvent('open-drawer'));
       "
     >
       Process with FileBot

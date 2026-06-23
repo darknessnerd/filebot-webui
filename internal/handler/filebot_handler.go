@@ -43,6 +43,13 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 		"TorrentIDs": torrentIDs,
 		"MediaRoot":  h.mediaRoot,
 		"User":       user,
+		"Action":     "",
+		"DB":         "",
+		"Conflict":   "",
+		"LogLevel":   "",
+		"Format":     "",
+		"Output":     "",
+		"Recursive":  false,
 	}); err != nil {
 		h.log.Error().Err(err).Msg("filebot form render")
 	}
