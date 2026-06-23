@@ -4,7 +4,7 @@
 {{else if not .Torrents}}
   <div class="empty">No completed torrents found.</div>
 {{else}}
-<div x-data="{selected: []}" style="padding-bottom:12px">
+<div x-data style="padding-bottom:12px">
 
   <div class="table-wrap">
     <table class="torrent-table">
@@ -13,7 +13,7 @@
           <th>
             <label class="check-label">
               <input type="checkbox"
-                @change="selected = $event.target.checked ? [{{range .Torrents}}'{{.ID}}',{{end}}] : []">
+                @change="$store.torrentPicks.selected = $event.target.checked ? [{{range .Torrents}}'{{.ID}}',{{end}}] : []">
             </label>
           </th>
           <th>Name</th>
@@ -27,7 +27,7 @@
         <tr>
           <td class="center">
             <label class="check-label">
-              <input type="checkbox" :value="'{{.ID}}'" x-model="selected">
+              <input type="checkbox" :value="'{{.ID}}'" x-model="$store.torrentPicks.selected">
             </label>
           </td>
           <td class="col-name" title="{{.Name}}">{{.Name}}</td>
@@ -53,18 +53,17 @@
   <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
     <button
       class="btn btn-primary"
-      :disabled="selected.length === 0"
+      :disabled="$store.torrentPicks.selected.length === 0"
       @click="
         const params = new URLSearchParams();
-        selected.forEach(id => params.append('torrent_ids', id));
+        $store.torrentPicks.selected.forEach(id => params.append('torrent_ids', id));
         htmx.ajax('GET', '/filebot?' + params.toString(), {target: '#filebot-slot', swap: 'innerHTML'});
         const dash = document.querySelector('.dashboard');
-        if (dash && dash._x_dataStack) Alpine.store;
         if (dash) dash.dispatchEvent(new CustomEvent('open-drawer'));
       "
     >
       Process with FileBot
-      <span x-show="selected.length > 0" x-text="'(' + selected.length + ')'" style="opacity:.8"></span>
+      <span x-show="$store.torrentPicks.selected.length > 0" x-text="'(' + $store.torrentPicks.selected.length + ')'" style="opacity:.8"></span>
     </button>
   </div>
 

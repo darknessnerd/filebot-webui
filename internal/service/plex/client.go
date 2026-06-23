@@ -51,18 +51,23 @@ func (c *Client) RefreshLibraries(ctx context.Context, plexToken string) error {
 }
 
 func (c *Client) resolveServerURL(ctx context.Context, plexToken string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://plex.tv/api/v2/resources", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://plex.tv/api/v2/resources?includeHttps=1", nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Plex-Token", plexToken)
+	req.Header.Set("X-Plex-Client-Identifier", "filebot-webui")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("plex resources returned %d", resp.StatusCode)
+	}
 
 	var resources []struct {
 		Provides    string `json:"provides"`

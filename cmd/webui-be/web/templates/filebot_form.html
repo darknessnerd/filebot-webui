@@ -1,5 +1,5 @@
 {{define "filebot_form"}}
-<div class="card" x-data="{action: '{{or .Action "move"}}'}">
+<div class="card" x-data="{action: '{{or .Action "move"}}', fmt: '{{or .Format "{plex}"}}'}">
   <div class="card-header">
     <span class="card-title">FileBot</span>
     <span class="badge badge-info">{{len .TorrentIDs}} torrent(s)</span>
@@ -21,7 +21,7 @@
 
       <div class="form-group">
         <label>Database</label>
-        <select name="db">
+        <select name="db" @change="fmt = '{plex}'">
           {{range $db := list "TheMovieDB" "TheMovieDB::TV" "TheTVDB" "AniDB" "AcoustID" "OMDb"}}
           <option value="{{$db}}" {{if eq $db (or $.DB "TheMovieDB")}}selected{{end}}>{{$db}}</option>
           {{end}}
@@ -56,8 +56,9 @@
       </div>
 
       <div class="form-group">
-        <label>Format <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(optional)</span></label>
-        <input type="text" name="format" value="{{.Format}}" placeholder="{n} ({y})/{fn}">
+        <label>Format</label>
+        <input type="text" name="format" x-model="fmt" placeholder="{plex}">
+        <small style="color:var(--muted);font-size:.75rem">FileBot format expression — <code>{plex}</code> uses Plex naming convention</small>
       </div>
 
       <div class="form-group">

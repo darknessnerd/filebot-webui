@@ -28,6 +28,10 @@
         hx-trigger="load, every 30s"
         hx-swap="innerHTML"
         hx-indicator="#htmx-indicator"
+        @htmx:after-swap="
+          const ids = new Set([...document.querySelectorAll('#torrent-list input[type=checkbox][value]')].map(el => el.value));
+          Alpine.store('torrentPicks').selected = Alpine.store('torrentPicks').selected.filter(id => ids.has(id));
+        "
       >
         <div class="empty"><span class="spinner"></span></div>
       </div>

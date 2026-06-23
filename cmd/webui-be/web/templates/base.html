@@ -6,6 +6,11 @@
   <title>{{block "title" .}}FileBot WebUI{{end}}</title>
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <script>
+    document.addEventListener('alpine:init', function() {
+      Alpine.store('torrentPicks', { selected: [] });
+    });
+  </script>
   <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
 </head>
 <body>
