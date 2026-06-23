@@ -28,8 +28,14 @@ func (s *stubFBSvc) Execute(_ context.Context, _ domain.FileBotJob) (domain.File
 	return s.result, s.err
 }
 
-type stubDelSvc struct{ err error }
+type stubDelSvc struct {
+	err      error
+	torrents []domain.Torrent
+}
 
+func (s *stubDelSvc) ListCompleted(_ context.Context) ([]domain.Torrent, error) {
+	return s.torrents, s.err
+}
 func (s *stubDelSvc) DeleteTorrent(_ context.Context, _ string) error { return s.err }
 
 type stubPlexSvc struct{ err error }
@@ -71,8 +77,12 @@ func newFBHandler(fb *stubFBSvc, del *stubDelSvc, px *stubPlexSvc) *handler.File
 // ── Form ───────────────────────────────────────────────────────────
 
 func TestFileBotForm_PassesTorrentIDs(t *testing.T) {
+	del := &stubDelSvc{torrents: []domain.Torrent{
+		{ID: "abc", Name: "Movie.A", DownloadPath: "/downloads"},
+		{ID: "def", Name: "Movie.B", DownloadPath: "/downloads"},
+	}}
 	h := handler.NewFileBotHandler(
-		&stubFBSvc{}, &stubDelSvc{}, &stubPlexSvc{},
+		&stubFBSvc{}, del, &stubPlexSvc{},
 		fbTmpl(t), "/media", logger.New("error", false),
 	)
 	w := httptest.NewRecorder()
@@ -191,6 +201,9 @@ func TestFileBotExecute_NoMoveAction_SkipsDeleteAndRefresh(t *testing.T) {
 
 type captureDelSvc struct{ called *bool }
 
+func (c *captureDelSvc) ListCompleted(_ context.Context) ([]domain.Torrent, error) {
+	return nil, nil
+}
 func (c *captureDelSvc) DeleteTorrent(_ context.Context, _ string) error {
 	*c.called = true
 	return nil

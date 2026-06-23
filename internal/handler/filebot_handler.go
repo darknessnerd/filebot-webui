@@ -5,6 +5,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"path/filepath"
 
 	"github.com/darknessnerd/filebot-webui/internal/domain"
 	"github.com/darknessnerd/filebot-webui/internal/logger"
@@ -15,6 +16,7 @@ type fileBotService interface {
 }
 
 type delugeSvc interface {
+	ListCompleted(ctx context.Context) ([]domain.Torrent, error)
 	DeleteTorrent(ctx context.Context, id string) error
 }
 
@@ -38,18 +40,39 @@ func NewFileBotHandler(fb fileBotService, del delugeSvc, plex plexSvc, tmpl *tem
 func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 	torrentIDs := r.URL.Query()["torrent_ids"]
 	user, _ := UserFromContext(r.Context())
+
+	idSet := make(map[string]bool, len(torrentIDs))
+	for _, id := range torrentIDs {
+		idSet[id] = true
+	}
+
+	torrents, err := h.del.ListCompleted(r.Context())
+	if err != nil {
+		h.log.Error().Err(err).Msg("filebot form: list torrents")
+		http.Error(w, "failed to fetch torrents", http.StatusBadGateway)
+		return
+	}
+
+	var sourcePaths []string
+	for _, t := range torrents {
+		if idSet[t.ID] {
+			sourcePaths = append(sourcePaths, filepath.Join(t.DownloadPath, t.Name))
+		}
+	}
+
 	w.Header().Set("Content-Type", "text/html")
 	if err := h.tmpl.ExecuteTemplate(w, "filebot_form", map[string]any{
-		"TorrentIDs": torrentIDs,
-		"MediaRoot":  h.mediaRoot,
-		"User":       user,
-		"Action":     "",
-		"DB":         "",
-		"Conflict":   "",
-		"LogLevel":   "",
-		"Format":     "",
-		"Output":     "",
-		"Recursive":  false,
+		"TorrentIDs":  torrentIDs,
+		"SourcePaths": sourcePaths,
+		"MediaRoot":   h.mediaRoot,
+		"User":        user,
+		"Action":      "",
+		"DB":          "",
+		"Conflict":    "",
+		"LogLevel":    "",
+		"Format":      "",
+		"Output":      "",
+		"Recursive":   false,
 	}); err != nil {
 		h.log.Error().Err(err).Msg("filebot form render")
 	}
