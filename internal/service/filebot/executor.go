@@ -48,6 +48,11 @@ func (e *Executor) Execute(ctx context.Context, job domain.FileBotJob) (domain.F
 
 	args := e.buildArgs(job)
 	e.log.Debug().Strs("args", args).Msg("filebot execute")
+	e.log.Info().
+		Str("action", job.Action).
+		Str("db", job.DB).
+		Int("source_count", len(job.SourcePaths)).
+		Msg("filebot: starting job")
 
 	cmd := exec.CommandContext(ctx, e.filebotPath, args...)
 	out, err := cmd.CombinedOutput()
@@ -55,9 +60,14 @@ func (e *Executor) Execute(ctx context.Context, job domain.FileBotJob) (domain.F
 	result := domain.FileBotResult{RawOutput: string(out)}
 	if err != nil {
 		result.Errors = []string{fmt.Sprintf("filebot exited with error: %v\n%s", err, string(out))}
+		e.log.Warn().Err(err).Str("action", job.Action).Msg("filebot: job failed")
 		return result, fmt.Errorf("%w: %v", domain.ErrFileBotFailed, err)
 	}
 	result.Successes = []string{string(out)}
+	e.log.Info().
+		Str("action", job.Action).
+		Int("source_count", len(job.SourcePaths)).
+		Msg("filebot: job complete")
 	return result, nil
 }
 

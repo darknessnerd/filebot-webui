@@ -1,0 +1,19 @@
+{{define "filebot_not_found"}}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">FileBot</span>
+    <span class="badge badge-error">Not found</span>
+  </div>
+  <div class="card-body">
+    <div class="alert alert-error" style="margin-bottom:16px">
+      Selected torrent(s) are no longer present in Deluge. The list may have changed since you last refreshed.
+    </div>
+    <button class="btn btn-ghost btn-sm"
+      hx-get="/torrents"
+      hx-target="#torrent-list"
+      hx-swap="innerHTML"
+      onclick="document.getElementById('filebot-slot').innerHTML = '<div class=\'card\'><div class=\'card-header\'><span class=\'card-title\'>FileBot</span></div><div class=\'card-body\'><p style=\'color:var(--muted);font-size:13px\'>Select completed torrents, then click Process with FileBot.</p></div></div>'"
+    >Refresh &amp; reset</button>
+  </div>
+</div>
+{{end}}

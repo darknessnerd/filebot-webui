@@ -44,6 +44,7 @@ func RequireAuth(validator tokenValidator, loader userLoader, log logger.Logger)
 				return
 			}
 
+			log.Debug().Str("plex_id", plexID).Str("path", r.URL.Path).Msg("auth: request authorized")
 			next.ServeHTTP(w, r.WithContext(WithUser(r.Context(), u)))
 		})
 	}

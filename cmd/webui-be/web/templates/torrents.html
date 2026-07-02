@@ -4,7 +4,7 @@
 {{else if not .Torrents}}
   <div class="empty">No completed torrents found.</div>
 {{else}}
-<div x-data style="padding-bottom:12px">
+<div x-data style="adpadding-bottom:12px">
 
   <div class="table-wrap">
     <table class="torrent-table">
@@ -13,7 +13,10 @@
           <th>
             <label class="check-label">
               <input type="checkbox"
-                @change="$store.torrentPicks.selected = $event.target.checked ? [{{range .Torrents}}'{{.ID}}',{{end}}] : []">
+                @change="
+                  $store.torrentPicks.selected = $event.target.checked ? [{{range .Torrents}}'{{.ID}}',{{end}}] : [];
+                  window.Log && window.Log.debug('torrent: select-all ' + ($event.target.checked ? 'checked' : 'cleared'), { store: $store.torrentPicks.selected.slice() });
+                ">
             </label>
           </th>
           <th>Name</th>
@@ -27,7 +30,8 @@
         <tr>
           <td class="center">
             <label class="check-label">
-              <input type="checkbox" :value="'{{.ID}}'" x-model="$store.torrentPicks.selected">
+              <input type="checkbox" value="{{.ID}}" x-model="$store.torrentPicks.selected"
+                @change="window.Log && window.Log.debug(($event.target.checked ? '☑' : '☐') + ' torrent: {{.ID}}  {{.Name}}', { store: $store.torrentPicks.selected.slice() })">
             </label>
           </td>
           <td class="col-name" title="{{.Name}}">{{.Name}}</td>

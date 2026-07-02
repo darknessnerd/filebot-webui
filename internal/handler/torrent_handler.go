@@ -14,19 +14,23 @@ type torrentService interface {
 }
 
 type TorrentHandler struct {
-	svc  torrentService
-	tmpl *template.Template
-	log  logger.Logger
+	svc   torrentService
+	tmpl  *template.Template
+	log   logger.Logger
+	debug bool
 }
 
-func NewTorrentHandler(svc torrentService, tmpl *template.Template, log logger.Logger) *TorrentHandler {
-	return &TorrentHandler{svc: svc, tmpl: tmpl, log: log}
+func NewTorrentHandler(svc torrentService, tmpl *template.Template, log logger.Logger, debug bool) *TorrentHandler {
+	return &TorrentHandler{svc: svc, tmpl: tmpl, log: log, debug: debug}
 }
 
 func (h *TorrentHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	user, _ := UserFromContext(r.Context())
 	w.Header().Set("Content-Type", "text/html")
-	if err := h.tmpl.ExecuteTemplate(w, "base", map[string]any{"User": user}); err != nil {
+	if err := h.tmpl.ExecuteTemplate(w, "base", map[string]any{
+		"User":  user,
+		"Debug": h.debug,
+	}); err != nil {
 		h.log.Error().Err(err).Msg("Dashboard render")
 	}
 }
@@ -37,6 +41,8 @@ func (h *TorrentHandler) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Error().Err(err).Msg("TorrentHandler.List")
 		data["Error"] = "Failed to fetch torrents from Deluge."
+	} else {
+		h.log.Debug().Int("count", len(torrents)).Msg("torrents: list served")
 	}
 	w.Header().Set("Content-Type", "text/html")
 	if err := h.tmpl.ExecuteTemplate(w, "torrents", data); err != nil {

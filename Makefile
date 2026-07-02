@@ -1,8 +1,9 @@
 .PHONY: run test test-race lint build docker-build
 
 run:
-	JWT_SECRET=$${JWT_SECRET:?JWT_SECRET required} \
-	MEDIA_ROOT=$${MEDIA_ROOT:?MEDIA_ROOT required} \
+	@set -a; [ -f .env ] && . ./.env; set +a; \
+	: "$${JWT_SECRET:?JWT_SECRET required}"; \
+	: "$${MEDIA_ROOT:?MEDIA_ROOT required}"; \
 	go run ./cmd/webui-be
 
 test:

@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/darknessnerd/filebot-webui/internal/domain"
 	"github.com/darknessnerd/filebot-webui/internal/handler"
@@ -60,8 +62,9 @@ func getFBTmpl() *template.Template {
 		"or":          func(a, b string) string { if a != "" { return a }; return b },
 		"list":        func(args ...string) []string { return args },
 	}).Parse(`
-{{define "filebot_form"}}FORM:{{range .TorrentIDs}}{{.}},{{end}}{{end}}
+{{define "filebot_form"}}FORM:{{range .TorrentIDs}}{{.}},{{end}}PATHS:{{range .SourcePaths}}{{.}},{{end}}{{end}}
 {{define "filebot_result"}}RESULT:{{range .Successes}}OK{{end}}{{range .Errors}}ERR{{end}}:plex={{.PlexRefreshed}}{{end}}
+{{define "filebot_not_found"}}NOT_FOUND{{end}}
 `)
 	if err != nil {
 		panic(err)
@@ -195,6 +198,110 @@ func TestFileBotExecute_NoMoveAction_SkipsDeleteAndRefresh(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.False(t, *del.called, "DeleteTorrent should NOT have been called for action=test")
 	assert.False(t, *px.called, "RefreshLibraries should NOT have been called for action=test")
+}
+
+// ── Form: missing torrents ─────────────────────────────────────────
+
+func TestFileBotForm_AllIDsMissingFromDeluge_Returns422NotFound(t *testing.T) {
+	// Deluge returns empty list — all requested IDs are gone.
+	del := &stubDelSvc{torrents: []domain.Torrent{}}
+	h := handler.NewFileBotHandler(
+		&stubFBSvc{}, del, &stubPlexSvc{},
+		fbTmpl(t), "/media", logger.New("error", false),
+	)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/filebot?torrent_ids=gone1&torrent_ids=gone2", nil)
+	h.Form(w, r)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), "NOT_FOUND")
+}
+
+func TestFileBotForm_SomeIDsMissingFromDeluge_RendersOnlyFoundPaths(t *testing.T) {
+	// Deluge has "present" but not "gone".
+	del := &stubDelSvc{torrents: []domain.Torrent{
+		{ID: "present", Name: "Movie.mkv", DownloadPath: "/downloads"},
+	}}
+	h := handler.NewFileBotHandler(
+		&stubFBSvc{}, del, &stubPlexSvc{},
+		fbTmpl(t), "/media", logger.New("error", false),
+	)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/filebot?torrent_ids=present&torrent_ids=gone", nil)
+	h.Form(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+	assert.Contains(t, body, "/downloads/Movie.mkv", "found torrent path must appear")
+	// PATHS section must not contain the missing ID — extract it and check.
+	pathsIdx := strings.Index(body, "PATHS:")
+	require.NotEqual(t, -1, pathsIdx, "template must render PATHS section")
+	pathsSection := body[pathsIdx:]
+	assert.NotContains(t, pathsSection, "gone", "missing ID must not appear in source paths")
+}
+
+func TestFileBotForm_DelugeError_Returns502(t *testing.T) {
+	del := &stubDelSvc{err: errors.New("deluge unreachable")}
+	h := handler.NewFileBotHandler(
+		&stubFBSvc{}, del, &stubPlexSvc{},
+		fbTmpl(t), "/media", logger.New("error", false),
+	)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/filebot?torrent_ids=abc", nil)
+	h.Form(w, r)
+
+	assert.Equal(t, http.StatusBadGateway, w.Code)
+}
+
+// ── Execute: empty source_paths guard ─────────────────────────────
+
+func TestFileBotExecute_EmptySourcePaths_Returns422(t *testing.T) {
+	h := newFBHandler(&stubFBSvc{}, &stubDelSvc{}, &stubPlexSvc{})
+
+	fields := validForm()
+	delete(fields, "source_paths")
+
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+// ── Execute: HX-Trigger toast header ──────────────────────────────
+
+func TestFileBotExecute_Success_SetsSuccessToastHeader(t *testing.T) {
+	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
+	h := newFBHandler(fb, &stubDelSvc{}, &stubPlexSvc{})
+
+	w := httptest.NewRecorder()
+	r := postForm(validForm())
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	hxTrigger := w.Header().Get("HX-Trigger")
+	assert.Contains(t, hxTrigger, "showToast")
+	assert.Contains(t, hxTrigger, "success")
+}
+
+func TestFileBotExecute_FileBotFailed_SetsErrorToastHeader(t *testing.T) {
+	fb := &stubFBSvc{
+		result: domain.FileBotResult{Errors: []string{"rename failed"}},
+		err:    fmt.Errorf("wrap: %w", domain.ErrFileBotFailed),
+	}
+	h := newFBHandler(fb, &stubDelSvc{}, &stubPlexSvc{})
+
+	w := httptest.NewRecorder()
+	r := postForm(validForm())
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	hxTrigger := w.Header().Get("HX-Trigger")
+	assert.Contains(t, hxTrigger, "showToast")
+	assert.Contains(t, hxTrigger, "error")
 }
 
 // ── capture stubs ──────────────────────────────────────────────────

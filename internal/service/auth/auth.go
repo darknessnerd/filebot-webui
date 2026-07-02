@@ -51,6 +51,7 @@ func (s *Service) StartPlexPIN(ctx context.Context, forwardURL string) (authAppU
 		return "", 0, "", fmt.Errorf("auth.StartPlexPIN: %w", err)
 	}
 	authAppURL = plexAuthAppURL(s.plexClientID, pinCode, s.plexClientID, forwardURL)
+	s.log.Info().Int64("pin_id", pinID).Msg("plex PIN created")
 	return authAppURL, pinID, pinCode, nil
 }
 
@@ -73,7 +74,12 @@ func (s *Service) CompleteAuth(ctx context.Context, pinID int64, pinCode string)
 		PlexAvatar:   info.avatar,
 		PlexToken:    token,
 	}
-	return s.store.Upsert(ctx, u)
+	saved, err := s.store.Upsert(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	s.log.Info().Str("plex_username", saved.PlexUsername).Str("plex_id", saved.PlexID).Msg("user authenticated")
+	return saved, nil
 }
 
 // IssueJWT signs a JWT for the given user.
@@ -89,6 +95,7 @@ func (s *Service) IssueJWT(u *domain.User) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("auth.IssueJWT: %w", err)
 	}
+	s.log.Debug().Str("plex_id", u.PlexID).Msg("JWT issued")
 	return signed, nil
 }
 
@@ -113,6 +120,7 @@ func (s *Service) ValidateJWT(tokenStr string) (plexID string, err error) {
 	if !ok || sub == "" {
 		return "", fmt.Errorf("auth.ValidateJWT: missing sub claim")
 	}
+	s.log.Debug().Str("plex_id", sub).Msg("JWT validated")
 	return sub, nil
 }
 

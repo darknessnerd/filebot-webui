@@ -65,6 +65,7 @@ func main() {
 		"web/templates/torrents.html",
 		"web/templates/filebot_form.html",
 		"web/templates/filebot_result.html",
+		"web/templates/filebot_not_found.html",
 	}
 	if cfg.Debug {
 		tmpFiles = append(tmpFiles, "web/templates/playground.html")
@@ -87,8 +88,9 @@ func main() {
 
 	// Handlers (now template-aware)
 	authH := handler.NewAuthHandler(authSvc, cfg.PlexRedirectURL, log)
-	torrentH := handler.NewTorrentHandler(delugeSvc, tmpl, log)
+	torrentH := handler.NewTorrentHandler(delugeSvc, tmpl, log, cfg.Debug)
 	fileBotH := handler.NewFileBotHandler(fbExecutor, delugeSvc, plexSvc, tmpl, cfg.MediaRoot, log)
+	plexH := handler.NewPlexHandler(plexSvc, log)
 
 	mux := http.NewServeMux()
 
@@ -139,6 +141,7 @@ func main() {
 	mux.Handle("GET /torrents", authMiddleware(http.HandlerFunc(torrentH.List)))
 	mux.Handle("GET /filebot", authMiddleware(http.HandlerFunc(fileBotH.Form)))
 	mux.Handle("POST /filebot/execute", authMiddleware(http.HandlerFunc(fileBotH.Execute)))
+	mux.Handle("POST /plex/refresh", authMiddleware(http.HandlerFunc(plexH.Refresh)))
 
 	addr := cfg.ServerHost + ":" + cfg.ServerPort
 	srv := &http.Server{

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"html/template"
 	"net/http"
@@ -54,10 +55,33 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var sourcePaths []string
-	for _, t := range torrents {
-		if idSet[t.ID] {
-			sourcePaths = append(sourcePaths, filepath.Join(t.DownloadPath, t.Name))
+	var missing []string
+	for id := range idSet {
+		found := false
+		for _, t := range torrents {
+			if t.ID == id {
+				sourcePaths = append(sourcePaths, filepath.Join(t.DownloadPath, t.Name))
+				found = true
+				break
+			}
 		}
+		if !found {
+			missing = append(missing, id)
+		}
+	}
+
+	if len(missing) > 0 {
+		h.log.Warn().Strs("missing_ids", missing).Msg("filebot form: torrent IDs not found in Deluge")
+	}
+
+	if len(sourcePaths) == 0 {
+		h.log.Warn().Strs("requested_ids", torrentIDs).Msg("filebot form: no torrents resolved — all missing from Deluge")
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		if err := h.tmpl.ExecuteTemplate(w, "filebot_not_found", nil); err != nil {
+			h.log.Error().Err(err).Msg("filebot not_found render")
+		}
+		return
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -84,6 +108,12 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(r.Form["source_paths"]) == 0 {
+		h.log.Warn().Msg("filebot execute: no source_paths in request")
+		http.Error(w, "no source paths — torrents may have been removed from Deluge", http.StatusUnprocessableEntity)
+		return
+	}
+
 	job := domain.FileBotJob{
 		TorrentIDs:  r.Form["torrent_ids"],
 		SourcePaths: r.Form["source_paths"],
@@ -98,6 +128,12 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		Output:      r.FormValue("output"),
 	}
 
+	h.log.Info().
+		Str("action", job.Action).
+		Str("db", job.DB).
+		Int("torrent_count", len(job.TorrentIDs)).
+		Msg("filebot: execute request")
+
 	result, err := h.fb.Execute(r.Context(), job)
 	if err != nil {
 		if errors.Is(err, domain.ErrInvalidArg) {
@@ -105,6 +141,7 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.log.Error().Err(err).Msg("FileBotHandler.Execute")
+		setToast(w, "error", "FileBot failed: "+err.Error())
 	}
 
 	plexRefreshed := false
@@ -125,6 +162,10 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if err == nil && len(result.Errors) == 0 {
+		setToast(w, "success", "FileBot complete")
+	}
+
 	w.Header().Set("Content-Type", "text/html")
 	if err := h.tmpl.ExecuteTemplate(w, "filebot_result", map[string]any{
 		"Successes":     result.Successes,
@@ -134,4 +175,16 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		h.log.Error().Err(err).Msg("filebot result render")
 	}
+}
+
+// setToast writes an HX-Trigger header so the frontend toast listener fires.
+func setToast(w http.ResponseWriter, level, msg string) {
+	type toastPayload struct {
+		Level string `json:"level"`
+		Msg   string `json:"msg"`
+	}
+	payload, _ := json.Marshal(map[string]toastPayload{
+		"showToast": {Level: level, Msg: msg},
+	})
+	w.Header().Set("HX-Trigger", string(payload))
 }

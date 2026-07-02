@@ -30,6 +30,7 @@ func NewClient(host, port, password string, log logger.Logger) *Client {
 }
 
 func (c *Client) ListCompleted(ctx context.Context) ([]domain.Torrent, error) {
+	c.log.Debug().Msg("deluge: authenticating")
 	cookie, err := c.authenticate(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("deluge.ListCompleted: %w", err)
@@ -39,6 +40,7 @@ func (c *Client) ListCompleted(ctx context.Context) ([]domain.Torrent, error) {
 		"name", "state", "progress", "total_size",
 		"download_location", "is_finished", "completed_time",
 	}
+	c.log.Debug().Msg("deluge: fetching torrent list")
 	resp, err := c.rpc(ctx, cookie, "web.update_ui", []any{fields, map[string]any{}})
 	if err != nil {
 		return nil, fmt.Errorf("deluge.ListCompleted: %w", err)
@@ -71,10 +73,12 @@ func (c *Client) ListCompleted(ctx context.Context) ([]domain.Torrent, error) {
 			CompletedOn:  time.Unix(int64(completedUnix), 0),
 		})
 	}
+	c.log.Info().Int("count", len(out)).Msg("deluge: completed torrents fetched")
 	return out, nil
 }
 
 func (c *Client) DeleteTorrent(ctx context.Context, id string) error {
+	c.log.Debug().Str("torrent_id", id).Msg("deluge: deleting torrent")
 	cookie, err := c.authenticate(ctx)
 	if err != nil {
 		return fmt.Errorf("deluge.DeleteTorrent: %w", err)
@@ -86,6 +90,7 @@ func (c *Client) DeleteTorrent(ctx context.Context, id string) error {
 	if resp["error"] != nil {
 		return fmt.Errorf("deluge.DeleteTorrent: %v", resp["error"])
 	}
+	c.log.Info().Str("torrent_id", id).Msg("deluge: torrent deleted")
 	return nil
 }
 

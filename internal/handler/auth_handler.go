@@ -33,6 +33,7 @@ func (h *AuthHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) PlexStart(w http.ResponseWriter, r *http.Request) {
+	h.log.Info().Msg("auth: plex PIN flow started")
 	authURL, pinID, pinCode, err := h.svc.StartPlexPIN(r.Context(), h.redirectURL)
 	if err != nil {
 		h.log.Error().Err(err).Msg("PlexStart: StartPlexPIN failed")
@@ -97,10 +98,12 @@ func (h *AuthHandler) PlexForward(w http.ResponseWriter, r *http.Request) {
 		Name: "auth_token", Value: token,
 		Path: "/", HttpOnly: true, Secure: isSecure(r), SameSite: http.SameSiteLaxMode,
 	})
+	h.log.Info().Str("plex_username", user.PlexUsername).Msg("auth: user logged in")
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	h.log.Info().Msg("auth: user logged out")
 	http.SetCookie(w, &http.Cookie{
 		Name: "auth_token", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: isSecure(r),
 	})

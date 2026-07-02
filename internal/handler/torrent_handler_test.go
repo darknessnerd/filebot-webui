@@ -47,7 +47,7 @@ func minimalTmpl(t *testing.T) *template.Template {
 func TestTorrentList_Happy(t *testing.T) {
 	svc := &stubTorrentSvc{torrents: []domain.Torrent{{ID: "a1", Name: "Movie.mkv"}}}
 	tmpl := minimalTmpl(t)
-	h := handler.NewTorrentHandler(svc, tmpl, logger.New("error", false))
+	h := handler.NewTorrentHandler(svc, tmpl, logger.New("error", false), false)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/torrents", nil)
@@ -61,7 +61,7 @@ func TestTorrentList_Happy(t *testing.T) {
 func TestTorrentList_ServiceError_RendersErrorPartial(t *testing.T) {
 	svc := &stubTorrentSvc{err: errors.New("deluge down")}
 	tmpl := minimalTmpl(t)
-	h := handler.NewTorrentHandler(svc, tmpl, logger.New("error", false))
+	h := handler.NewTorrentHandler(svc, tmpl, logger.New("error", false), false)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/torrents", nil)
@@ -75,7 +75,7 @@ func TestTorrentList_ServiceError_RendersErrorPartial(t *testing.T) {
 func TestTorrentDashboard_RequiresNoUser(t *testing.T) {
 	svc := &stubTorrentSvc{}
 	tmpl := minimalTmpl(t)
-	h := handler.NewTorrentHandler(svc, tmpl, logger.New("error", false))
+	h := handler.NewTorrentHandler(svc, tmpl, logger.New("error", false), false)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)

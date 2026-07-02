@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{block "title" .}}FileBot WebUI{{end}}</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  <script>window.__FILEBOT_DEBUG__={{if .Debug}}true{{else}}false{{end}};</script>
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   <script>
     document.addEventListener('alpine:init', function() {
@@ -28,6 +29,12 @@
         <img class="nav-avatar" src="{{.User.PlexAvatar}}" alt="avatar">
       {{end}}
       <span class="nav-username">{{.User.PlexUsername}}</span>
+      <button class="btn btn-ghost btn-sm"
+        hx-post="/plex/refresh"
+        hx-swap="none"
+        title="Refresh Plex libraries">
+        Refresh Plex
+      </button>
       <form method="POST" action="/auth/logout" style="margin:0">
         <button class="btn btn-ghost btn-sm" type="submit">Sign out</button>
       </form>
@@ -38,6 +45,265 @@
 <main class="main">
   {{block "content" .}}{{end}}
 </main>
+
+<div id="toast-region" role="log" aria-live="polite" aria-label="Notifications"></div>
+
+<script>
+/* ── Console logger ─────────────────────────────────────────────────── */
+(function(){
+  'use strict';
+  var APP      = 'FILEBOT';
+  var LS_KEY   = 'filebot:loglevel';
+  var LEVELS   = { debug: 0, info: 1, warn: 2, error: 3 };
+  var VALID    = Object.keys(LEVELS);
+
+  /* Server sets the floor; localStorage can override downward for dev convenience.
+     If DEBUG=true on the backend, default is 'debug' and cannot be raised above 'debug'
+     via localStorage — backend is authoritative. */
+  var _serverDebug = window.__FILEBOT_DEBUG__ === true;
+  var _default     = _serverDebug ? 'debug' : 'info';
+  var _stored; try { _stored = localStorage.getItem(LS_KEY); } catch(_) { _stored = null; }
+  var _level = (_stored && LEVELS[_stored] !== undefined) ? _stored : _default;
+  /* Server debug flag always wins: cannot suppress below server level */
+  if (_serverDebug && LEVELS[_level] > LEVELS['debug']) _level = 'debug';
+
+  var S = {
+    app:   'background:#00e676;color:#080c08;font-weight:700;padding:2px 7px;border-radius:3px;font-family:monospace;font-size:10px;letter-spacing:.06em',
+    debug: 'background:#1a221a;color:#4a6e4a;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    info:  'background:rgba(0,230,118,.15);color:#00e676;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    warn:  'background:rgba(251,191,36,.15);color:#fbbf24;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    error: 'background:rgba(248,113,113,.15);color:#f87171;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    htmx:  'background:#1e2d3d;color:#7ab3d4;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    store: 'background:#2a1a3a;color:#c084fc;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    action:'background:#1e1a0a;color:#d97706;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    reset: '',
+    ts:    'color:#4a6e4a;font-family:monospace;font-size:11px',
+    msg:   'color:#c8ddc8',
+    ok:    'color:#00e676;font-family:monospace;font-size:12px',
+    fail:  'color:#f87171;font-family:monospace;font-size:12px',
+    dim:   'color:#4a6e4a;font-family:monospace;font-size:11px',
+  };
+
+  function ts() {
+    var d = new Date();
+    return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function allowed(level) {
+    return (LEVELS[level] || 0) >= (LEVELS[_level] || 0);
+  }
+
+  function emit(level, msg, ctx, badge) {
+    if (!allowed(level)) return;
+    var fn    = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+    var style = badge || S[level] || S.info;
+    var label = level.toUpperCase().padEnd(5);
+    var args  = [
+      '%c' + APP + '%c %c' + label + '%c %c' + ts() + '%c  ' + msg,
+      S.app, S.reset, style, S.reset, S.ts, S.msg,
+    ];
+    if (ctx && typeof ctx === 'object' && Object.keys(ctx).length) args.push(ctx);
+    fn.apply(console, args);
+  }
+
+  function emitGroup(level, badge, label, rows, collapsed) {
+    if (!allowed(level)) return;
+    var fn = collapsed ? console.groupCollapsed : console.group;
+    fn('%c' + APP + '%c %c' + level.toUpperCase().padEnd(5) + '%c %c' + label + '%c',
+      S.app, S.reset, badge, S.reset, level === 'error' ? S.fail : S.ok, S.reset);
+    rows.forEach(function(r) { console.log(r[0], r[1]); });
+    console.groupEnd();
+  }
+
+  /* ── Public API ── */
+  window.Log = {
+    debug:    function(m, c) { emit('debug', m, c); },
+    info:     function(m, c) { emit('info',  m, c); },
+    warn:     function(m, c) { emit('warn',  m, c); },
+    error:    function(m, c) { emit('error', m, c); },
+    setLevel: function(l) {
+      if (LEVELS[l] === undefined) {
+        console.warn('[Log] unknown level "' + l + '". Valid: ' + VALID.join(', '));
+        return;
+      }
+      if (_serverDebug && LEVELS[l] > LEVELS['debug']) {
+        console.warn('[Log] server has DEBUG=true — cannot raise level above "debug"');
+        return;
+      }
+      _level = l;
+      try { localStorage.setItem(LS_KEY, l); } catch(_) {}
+      emit('info', 'log level → ' + l + '  [localStorage]');
+    },
+    getLevel: function() { return _level; },
+    /* snapshot current Alpine store state */
+    store: function() {
+      if (window.Alpine) {
+        var s = Alpine.store('torrentPicks');
+        console.groupCollapsed('%c' + APP + '%c %cSTORE%c  torrentPicks',
+          S.app, S.reset, S.store, S.reset);
+        console.log('selected  ', s.selected.slice());
+        console.log('count     ', s.selected.length);
+        console.groupEnd();
+      } else {
+        console.warn('[Log.store] Alpine not ready');
+      }
+    },
+  };
+
+  /* ── Boot banner ── */
+  console.log(
+    '\n%cFileBot WebUI%c\n',
+    'font-size:28px;font-weight:900;color:#00e676;font-family:"Space Grotesk",system-ui,sans-serif;letter-spacing:-0.5px',
+    ''
+  );
+  var _src = _serverDebug ? 'server' : (_stored && LEVELS[_stored] !== undefined ? 'localStorage' : 'default');
+  console.log(
+    '%c  media renamer  ·  ' + location.host + '  ·  level: ' + _level + '  [' + _src + ']\n',
+    'color:#4a6e4a;font-family:monospace;font-size:12px'
+  );
+  if (!_serverDebug && LEVELS[_level] > LEVELS['debug']) {
+    console.log(
+      '%c  verbose mode off — run %cLog.setLevel("debug")%c to enable  (or set %cDEBUG=true%c on the server)\n',
+      'color:#4a6e4a;font-size:11px',
+      'color:#00e676;font-family:monospace;font-size:11px',
+      'color:#4a6e4a;font-size:11px',
+      'color:#00e676;font-family:monospace;font-size:11px',
+      'color:#4a6e4a;font-size:11px'
+    );
+  }
+  console.log('%c⚠  Stop!', 'color:#f87171;font-size:16px;font-weight:800');
+  console.log(
+    '%cThis console is for developers only. Do not paste or run code here unless you fully understand it — doing so could expose your session to attackers.\n',
+    'color:#fbbf24;font-size:12px'
+  );
+
+  /* ── HTMX request tracing ── */
+  var _t = {};
+  document.addEventListener('htmx:beforeRequest', function(e) {
+    if (!allowed('debug')) return;
+    var cfg  = e.detail.requestConfig || {};
+    var verb = (cfg.verb || 'GET').toUpperCase();
+    var path = cfg.path || '?';
+    _t[verb + ':' + path] = performance.now();
+    emit('debug', '→ ' + verb + ' ' + path, null, S.htmx);
+  });
+
+  document.addEventListener('htmx:afterRequest', function(e) {
+    var cfg    = e.detail.requestConfig || {};
+    var verb   = (cfg.verb || 'GET').toUpperCase();
+    var path   = cfg.path || '?';
+    var status = e.detail.xhr ? e.detail.xhr.status : 0;
+    var k      = verb + ':' + path;
+    var dur    = _t[k] ? Math.round(performance.now() - _t[k]) : null;
+    delete _t[k];
+    var ok     = status >= 200 && status < 300;
+    var label  = '← ' + status + '  ' + verb + ' ' + path + (dur !== null ? '  ' + dur + 'ms' : '');
+    /* always show response summary — collapse if ok, expand if error */
+    if (!allowed(ok ? 'info' : 'warn')) return;
+    var fn = ok ? console.groupCollapsed : console.group;
+    fn('%c' + APP + '%c %cHTMX%c %c' + label + '%c',
+      S.app, S.reset, S.htmx, S.reset, ok ? S.ok : S.fail, S.reset);
+    if (dur !== null) console.log('duration ', dur + 'ms');
+    if (e.detail.target) console.log('target   ', e.detail.target);
+    if (!ok) console.log('response ', e.detail.xhr && e.detail.xhr.responseText);
+    console.groupEnd();
+  });
+
+  document.addEventListener('htmx:afterSwap', function(e) {
+    if (!allowed('debug')) return;
+    var tgt = e.detail.target;
+    var id  = tgt ? (tgt.id ? '#' + tgt.id : tgt.tagName.toLowerCase()) : '?';
+    emit('debug', 'swap → ' + id, null, S.htmx);
+  });
+
+  /* ── Action tracing (drawer, form submit) ── */
+  document.addEventListener('open-drawer',  function() { emit('debug', 'action: open-drawer',  null, S.action); });
+  document.addEventListener('close-drawer', function() { emit('debug', 'action: close-drawer', null, S.action); });
+
+  document.addEventListener('submit', function(e) {
+    if (!allowed('debug')) return;
+    var form   = e.target;
+    var action = form.action || location.pathname;
+    var method = (form.method || 'GET').toUpperCase();
+    emit('debug', 'action: form submit  ' + method + ' ' + action, null, S.action);
+  });
+
+  /* ── Alpine store watcher ── */
+  document.addEventListener('alpine:initialized', function() {
+    emit('debug', 'alpine initialized');
+
+    var _prev = [];
+    Alpine.effect(function() {
+      var next = Alpine.store('torrentPicks').selected.slice();
+      if (!allowed('debug')) { _prev = next; return; }
+
+      var added   = next.filter(function(id) { return _prev.indexOf(id) === -1; });
+      var removed = _prev.filter(function(id) { return next.indexOf(id) === -1; });
+      var changed = added.length || removed.length;
+
+      if (!changed && _prev.length === 0 && next.length === 0) { _prev = next; return; }
+
+      console.groupCollapsed(
+        '%c' + APP + '%c %cSTORE%c  torrentPicks.selected  ' + next.length + ' item' + (next.length === 1 ? '' : 's'),
+        S.app, S.reset, S.store, S.reset
+      );
+      console.log('selected ', next.slice());
+      if (added.length)   console.log('%c+ added   ', 'color:#4ade80;font-family:monospace', added);
+      if (removed.length) console.log('%c− removed ', 'color:#f87171;font-family:monospace', removed);
+      console.groupEnd();
+
+      _prev = next;
+    });
+  });
+
+  Log.info('page ready', { path: location.pathname });
+})();
+</script>
+
+<script>
+(function(){
+  var ICONS = {
+    success: '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>',
+    error:   '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>',
+    warn:    '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L14 13H2L8 2z"/><line x1="8" y1="7" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r=".5" fill="currentColor"/></svg>',
+    info:    '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7" x2="8" y2="11"/><circle cx="8" cy="5" r=".5" fill="currentColor"/></svg>',
+  };
+  function showToast(level, msg) {
+    if (window.Log) {
+      var fn = level === 'error' ? window.Log.error : level === 'warn' ? window.Log.warn : window.Log.info;
+      fn('toast: ' + msg, { level: level });
+    }
+    var region = document.getElementById('toast-region');
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.setAttribute('data-level', level);
+    t.setAttribute('role', 'alert');
+    t.innerHTML = (ICONS[level] || ICONS.info) +
+      '<span class="toast-msg">' + msg.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span>' +
+      '<button class="toast-dismiss" aria-label="Dismiss">×</button>';
+    t.querySelector('.toast-dismiss').addEventListener('click', function(){ dismiss(t); });
+    region.appendChild(t);
+    var timer = setTimeout(function(){ dismiss(t); }, 4000);
+    t._timer = timer;
+  }
+  function dismiss(t) {
+    if (t._dismissed) return;
+    t._dismissed = true;
+    clearTimeout(t._timer);
+    t.classList.add('toast-out');
+    t.addEventListener('animationend', function(){ t.remove(); }, {once: true});
+  }
+  document.addEventListener('htmx:afterRequest', function(e) {
+    var hdrs = e.detail && e.detail.xhr && e.detail.xhr.getResponseHeader('HX-Trigger');
+    if (!hdrs) return;
+    try {
+      var payload = JSON.parse(hdrs);
+      if (payload.showToast) showToast(payload.showToast.level, payload.showToast.msg);
+    } catch(_) {}
+  });
+  window.showToast = showToast;
+})();
+</script>
 
 <script>
 (function(){
