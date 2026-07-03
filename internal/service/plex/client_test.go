@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +15,23 @@ import (
 
 	"github.com/darknessnerd/filebot-webui/internal/logger"
 )
+
+// plexDirectBlockingClient returns an *http.Client whose transport fails DNS for
+// any *.plex.direct host and dials normally for everything else. This simulates
+// real CI behaviour where plex.direct hostnames cannot be resolved.
+func plexDirectBlockingClient() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				host, _, _ := net.SplitHostPort(addr)
+				if strings.HasSuffix(host, ".plex.direct") {
+					return nil, fmt.Errorf("dial %s: simulated DNS failure", host)
+				}
+				return (&net.Dialer{}).DialContext(ctx, network, addr)
+			},
+		},
+	}
+}
 
 // newTestClient returns a Client pointing the resources endpoint at resourcesURL,
 // using the provided HTTP client (typically srv.Client() for test server routing).
@@ -192,6 +210,8 @@ func TestResolveServerURL_ConnectionOrdering(t *testing.T) {
 
 func TestResolveServerURL_FallsBackToDirectIP(t *testing.T) {
 	// plex.direct DNS won't resolve; direct-IP fallback must succeed.
+	// Use a client that blocks *.plex.direct so the fallback path is exercised
+	// consistently regardless of the test host's real DNS behaviour.
 	var probed []string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +235,8 @@ func TestResolveServerURL_FallsBackToDirectIP(t *testing.T) {
 	}))
 	defer resourcesSrv.Close()
 
-	c := newTestClient(srv.Client(), resourcesSrv.URL+"/api/v2/resources")
+	// plexDirectBlockingClient fails DNS for *.plex.direct; dials 127.0.0.1 normally.
+	c := newTestClient(plexDirectBlockingClient(), resourcesSrv.URL+"/api/v2/resources")
 	resolvedURL, _, err := c.resolveServerURL(context.Background(), "tok")
 	require.NoError(t, err)
 	assert.Equal(t, fmt.Sprintf("http://127.0.0.1:%s", port), resolvedURL)

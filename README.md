@@ -221,7 +221,8 @@ handler → service → domain ← repository
 ## Security
 
 - FileBot exec: allowlisted args only — no raw user input reaches `exec.Command`
-- `--output` validated to be under `MEDIA_ROOT` via `filepath.Clean`
+- `source_paths` validated against shell metacharacters before exec — Deluge paths containing `$`, `` ` ``, `;`, `|` etc. are rejected
+- `--output` validated to be under `MEDIA_ROOT` via `filepath.Clean` with separator guard (prevents `/media2` bypassing a `/media` prefix check)
 - `JWT_SECRET` required at startup — no insecure fallback
 - JWT lives in HttpOnly cookie only — never in URL params or localStorage
 - Parameterized SQL queries throughout
