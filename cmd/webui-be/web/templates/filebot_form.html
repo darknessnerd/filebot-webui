@@ -1,5 +1,5 @@
 {{define "filebot_form"}}
-<div class="card" x-data="{action: '{{or .Action "move"}}', fmt: '{{or .Format "{plex}"}}'}">
+<div class="card" x-data="{action: '{{or .Action "move"}}', fmt: '{{or .Format "{plex}"}}', running: false}">
   <div class="card-header">
     <span class="card-title">FileBot</span>
     <span class="badge badge-info">{{len .TorrentIDs}} torrent(s)</span>
@@ -11,6 +11,8 @@
       hx-target="#filebot-slot"
       hx-swap="innerHTML"
       hx-indicator="#htmx-indicator"
+      @htmx:before-request="running = true"
+      @htmx:after-request="running = false"
     >
       {{range .TorrentIDs}}
       <input type="hidden" name="torrent_ids" value="{{.}}">
@@ -74,11 +76,12 @@
       </div>
 
       <div style="display:flex;gap:10px;margin-top:6px">
-        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center">
-          <span class="spinner htmx-indicator" style="width:14px;height:14px;border-width:2px"></span>
-          Execute
+        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center" :disabled="running">
+          <span class="spinner" x-show="running" style="width:14px;height:14px;border-width:2px"></span>
+          <span x-show="!running">Execute</span>
+          <span x-show="running">Running…</span>
         </button>
-        <button type="button" class="btn btn-ghost"
+        <button type="button" class="btn btn-ghost" :disabled="running"
           @click="htmx.ajax('GET', '/', {target: '#filebot-slot', swap: 'innerHTML'}); document.querySelector('.dashboard')?.dispatchEvent(new CustomEvent('close-drawer'))">
           Cancel
         </button>
