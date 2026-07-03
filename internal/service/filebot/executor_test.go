@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,7 +71,7 @@ func TestValidate_AllAllowedDBs(t *testing.T) {
 }
 
 func TestValidate_AllAllowedActions(t *testing.T) {
-	for action := range allowedAction {
+	for _, action := range []string{"move", "copy", "symlink", "hardlink", "test"} {
 		j := validJob()
 		j.Action = action
 		assert.NoError(t, newExec().validate(j), "action=%s", action)
@@ -124,6 +125,57 @@ func TestValidate_Query_Metachar(t *testing.T) {
 	j.Query = "movie & 2024"
 	err := newExec().validate(j)
 	require.ErrorIs(t, err, domain.ErrInvalidArg)
+}
+
+func TestValidate_SourcePaths_Metachar(t *testing.T) {
+	chars := []string{
+		"/downloads/file$HOME.mkv",
+		"/downloads/`id`.mkv",
+		"/downloads/a;b.mkv",
+		"/downloads/a|b.mkv",
+	}
+	for _, p := range chars {
+		j := validJob()
+		j.SourcePaths = []string{p}
+		err := newExec().validate(j)
+		require.ErrorIs(t, err, domain.ErrInvalidArg, "source_path=%q", p)
+	}
+}
+
+func TestValidate_SourcePaths_Clean(t *testing.T) {
+	j := validJob()
+	j.SourcePaths = []string{"/downloads/Movie.Title.2024.mkv", "/downloads/Show S01E01.mkv"}
+	assert.NoError(t, newExec().validate(j))
+}
+
+func TestBuildArgs_OptionalFlagsPresent(t *testing.T) {
+	j := domain.FileBotJob{
+		SourcePaths: []string{"/downloads/file.mkv"},
+		DB:          "TheTVDB",
+		Action:      "copy",
+		Conflict:    "auto",
+		LogLevel:    "fine",
+		Output:      "/media",
+		Format:      "{n}/Season {s}/{n} - {s00e00}",
+		Filter:      "age > 0",
+		Query:       "Breaking Bad",
+		Recursive:   true,
+	}
+	args := newExec().buildArgs(j)
+	joined := strings.Join(args, " ")
+	assert.Contains(t, joined, "--format")
+	assert.Contains(t, joined, "--filter")
+	assert.Contains(t, joined, "--q")
+	assert.Contains(t, joined, "-r")
+}
+
+func TestBuildArgs_OptionalFlagsAbsent(t *testing.T) {
+	j := validJob() // Format/Filter/Query all empty, Recursive false
+	args := newExec().buildArgs(j)
+	assert.NotContains(t, args, "--format")
+	assert.NotContains(t, args, "--filter")
+	assert.NotContains(t, args, "--q")
+	assert.NotContains(t, args, "-r")
 }
 
 // --- happy path with stub binary ---

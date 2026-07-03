@@ -57,7 +57,7 @@ func (s *Service) StartPlexPIN(ctx context.Context, forwardURL string) (authAppU
 
 // CompleteAuth polls Plex for the claimed PIN, upserts the user, and returns the user.
 func (s *Service) CompleteAuth(ctx context.Context, pinID int64, pinCode string) (*domain.User, error) {
-	token, err := pollPlexPin(pinID, pinCode, s.plexClientID, 5*time.Minute)
+	token, err := pollPlexPin(ctx, pinID, pinCode, s.plexClientID, 5*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("auth.CompleteAuth poll: %w", err)
 	}
@@ -76,7 +76,7 @@ func (s *Service) CompleteAuth(ctx context.Context, pinID int64, pinCode string)
 	}
 	saved, err := s.store.Upsert(ctx, u)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("auth.CompleteAuth upsert: %w", err)
 	}
 	s.log.Info().Str("plex_username", saved.PlexUsername).Str("plex_id", saved.PlexID).Msg("user authenticated")
 	return saved, nil
@@ -134,12 +134,16 @@ type plexUserInfo struct {
 }
 
 func createPlexPin(clientIdentifier, appName string) (pinID int64, pinCode string, err error) {
+	return createPlexPinURL("https://plex.tv/api/v2/pins", clientIdentifier, appName)
+}
+
+func createPlexPinURL(endpoint, clientIdentifier, appName string) (pinID int64, pinCode string, err error) {
 	form := url.Values{}
 	form.Set("strong", "true")
 	form.Set("X-Plex-Product", appName)
 	form.Set("X-Plex-Client-Identifier", clientIdentifier)
 
-	req, err := http.NewRequest(http.MethodPost, "https://plex.tv/api/v2/pins", strings.NewReader(form.Encode()))
+	req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return 0, "", fmt.Errorf("createPlexPin: %w", err)
 	}
@@ -170,12 +174,15 @@ func plexAuthAppURL(clientIdentifier, pinCode, appName, forwardURL string) strin
 	return "https://app.plex.tv/auth#?" + params
 }
 
-func pollPlexPin(pinID int64, pinCode, clientIdentifier string, timeout time.Duration) (string, error) {
+func pollPlexPin(ctx context.Context, pinID int64, pinCode, clientIdentifier string, timeout time.Duration) (string, error) {
+	return pollPlexPinURL(ctx, fmt.Sprintf("https://plex.tv/api/v2/pins/%d", pinID), pinCode, clientIdentifier, timeout)
+}
+
+func pollPlexPinURL(ctx context.Context, endpoint, pinCode, clientIdentifier string, timeout time.Duration) (string, error) {
 	deadline := time.Now().Add(timeout)
-	endpoint := fmt.Sprintf("https://plex.tv/api/v2/pins/%d", pinID)
 
 	for time.Now().Before(deadline) {
-		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 		if err != nil {
 			return "", fmt.Errorf("pollPlexPin: %w", err)
 		}
@@ -187,8 +194,11 @@ func pollPlexPin(pinID int64, pinCode, clientIdentifier string, timeout time.Dur
 		if err != nil {
 			return "", fmt.Errorf("pollPlexPin: %w", err)
 		}
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		if err != nil {
+			return "", fmt.Errorf("pollPlexPin read: %w", err)
+		}
 
 		var result struct {
 			AuthToken string `json:"authToken"`
@@ -199,13 +209,22 @@ func pollPlexPin(pinID int64, pinCode, clientIdentifier string, timeout time.Dur
 		if result.AuthToken != "" {
 			return result.AuthToken, nil
 		}
-		time.Sleep(time.Second)
+
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("pollPlexPin: %w", ctx.Err())
+		case <-time.After(time.Second):
+		}
 	}
 	return "", fmt.Errorf("pollPlexPin: PIN expired or not claimed within timeout")
 }
 
 func getPlexUserInfo(clientIdentifier, appName, accessToken string) (*plexUserInfo, error) {
-	req, err := http.NewRequest(http.MethodGet, "https://plex.tv/api/v2/user", nil)
+	return getPlexUserInfoURL("https://plex.tv/api/v2/user", clientIdentifier, appName, accessToken)
+}
+
+func getPlexUserInfoURL(endpoint, clientIdentifier, appName, accessToken string) (*plexUserInfo, error) {
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getPlexUserInfo: %w", err)
 	}

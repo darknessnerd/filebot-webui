@@ -11,26 +11,16 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/logger"
 )
 
-var allowedDB = map[string]bool{
-	"TheMovieDB": true, "TheMovieDB::TV": true,
-	"TheTVDB": true, "AniDB": true, "AcoustID": true, "OMDb": true,
-}
-var allowedAction = map[string]bool{
-	"move": true, "copy": true, "symlink": true, "hardlink": true, "test": true,
-}
-var allowedConflict = map[string]bool{
-	"skip": true, "replace": true, "auto": true, "index": true, "fail": true,
-}
-var allowedLog = map[string]bool{
-	"all": true, "fine": true, "info": true, "warning": true, "off": true,
-}
-
 const shellMetachars = "$`;&|><\n\r"
 
 type Executor struct {
-	mediaRoot    string
-	filebotPath  string
-	log          logger.Logger
+	mediaRoot       string
+	filebotPath     string
+	log             logger.Logger
+	allowedDB       map[string]bool
+	allowedAction   map[string]bool
+	allowedConflict map[string]bool
+	allowedLog      map[string]bool
 }
 
 func NewExecutor(mediaRoot, filebotPath string, log logger.Logger) *Executor {
@@ -38,6 +28,13 @@ func NewExecutor(mediaRoot, filebotPath string, log logger.Logger) *Executor {
 		mediaRoot:   filepath.Clean(mediaRoot),
 		filebotPath: filebotPath,
 		log:         log,
+		allowedDB: map[string]bool{
+			"TheMovieDB": true, "TheMovieDB::TV": true,
+			"TheTVDB": true, "AniDB": true, "AcoustID": true, "OMDb": true,
+		},
+		allowedAction:   map[string]bool{"move": true, "copy": true, "symlink": true, "hardlink": true, "test": true},
+		allowedConflict: map[string]bool{"skip": true, "replace": true, "auto": true, "index": true, "fail": true},
+		allowedLog:      map[string]bool{"all": true, "fine": true, "info": true, "warning": true, "off": true},
 	}
 }
 
@@ -72,22 +69,28 @@ func (e *Executor) Execute(ctx context.Context, job domain.FileBotJob) (domain.F
 }
 
 func (e *Executor) validate(job domain.FileBotJob) error {
-	if !allowedDB[job.DB] {
+	if !e.allowedDB[job.DB] {
 		return fmt.Errorf("%w: --db %q not allowed", domain.ErrInvalidArg, job.DB)
 	}
-	if !allowedAction[job.Action] {
+	if !e.allowedAction[job.Action] {
 		return fmt.Errorf("%w: --action %q not allowed", domain.ErrInvalidArg, job.Action)
 	}
-	if !allowedConflict[job.Conflict] {
+	if !e.allowedConflict[job.Conflict] {
 		return fmt.Errorf("%w: --conflict %q not allowed", domain.ErrInvalidArg, job.Conflict)
 	}
-	if !allowedLog[job.LogLevel] {
+	if !e.allowedLog[job.LogLevel] {
 		return fmt.Errorf("%w: --log %q not allowed", domain.ErrInvalidArg, job.LogLevel)
 	}
 
 	clean := filepath.Clean(job.Output)
-	if !strings.HasPrefix(clean, e.mediaRoot) {
+	if clean != e.mediaRoot && !strings.HasPrefix(clean, e.mediaRoot+string(filepath.Separator)) {
 		return fmt.Errorf("%w: --output %q is outside MEDIA_ROOT", domain.ErrInvalidArg, job.Output)
+	}
+
+	for i, p := range job.SourcePaths {
+		if strings.ContainsAny(p, shellMetachars) {
+			return fmt.Errorf("%w: source_paths[%d] contains shell metacharacters", domain.ErrInvalidArg, i)
+		}
 	}
 
 	if err := rejectMetachars("--format", job.Format); err != nil {

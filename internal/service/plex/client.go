@@ -71,7 +71,7 @@ func (c *Client) RefreshLibraries(ctx context.Context, plexToken string) error {
 func (c *Client) resolveServerURL(ctx context.Context, plexToken string) (string, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.resourcesURL, nil)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("plex.resolveServerURL req: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Plex-Token", plexToken)
@@ -80,7 +80,7 @@ func (c *Client) resolveServerURL(ctx context.Context, plexToken string) (string
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("plex.resolveServerURL do: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -98,7 +98,7 @@ func (c *Client) resolveServerURL(ctx context.Context, plexToken string) (string
 		} `json:"connections"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&resources); err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("plex.resolveServerURL decode: %w", err)
 	}
 
 	for _, r := range resources {
@@ -191,14 +191,14 @@ func (c *Client) listSections(ctx context.Context, serverURL, plexToken string) 
 	url := serverURL + "/library/sections"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("plex.listSections req: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Plex-Token", plexToken)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("plex.listSections do: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -210,7 +210,7 @@ func (c *Client) listSections(ctx context.Context, serverURL, plexToken string) 
 		} `json:"MediaContainer"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("plex.listSections decode: %w", err)
 	}
 
 	var ids []string

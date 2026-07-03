@@ -101,12 +101,12 @@ func (c *Client) authenticate(ctx context.Context) (*http.Cookie, error) {
 		"id":     1,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.authenticate json: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.authenticate req: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -118,7 +118,7 @@ func (c *Client) authenticate(ctx context.Context) (*http.Cookie, error) {
 
 	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.authenticate decode: %w", err)
 	}
 	ok, _ := result["result"].(bool)
 	if !ok {
@@ -140,30 +140,30 @@ func (c *Client) rpc(ctx context.Context, cookie *http.Cookie, method string, pa
 		"id":     2,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.rpc json: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.rpc req: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(cookie)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.rpc do: %w", err)
 	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.rpc read: %w", err)
 	}
 
 	var result map[string]any
 	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("deluge.rpc decode: %w", err)
 	}
 	return result, nil
 }

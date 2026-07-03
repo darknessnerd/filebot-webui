@@ -56,3 +56,13 @@ func TestValidateJWT_Tampered(t *testing.T) {
 	_, err := svc.ValidateJWT("not.a.token")
 	assert.Error(t, err)
 }
+
+func TestValidateJWT_MissingSub_ReturnsError(t *testing.T) {
+	svc := newTestService("supersecret")
+	// Issue token for user with empty PlexID — sub claim will be ""
+	u := &domain.User{PlexID: ""}
+	token, err := svc.IssueJWT(u)
+	require.NoError(t, err)
+	_, err = svc.ValidateJWT(token)
+	assert.Error(t, err)
+}
