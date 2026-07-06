@@ -1,7 +1,7 @@
 [build]
   cmd = "CGO_ENABLED=1 go build -o ./tmp/webui-be ./cmd/webui-be"
   bin = "./tmp/webui-be"
-  full_bin = "./tmp/webui-be"
+  full_bin = "DEV_MODE=true DEBUG=true JWT_SECRET=devsecret MEDIA_ROOT=/tmp/media ./tmp/webui-be"
   include_ext = ["go", "html", "css"]
   exclude_dir = ["_old", "tmp", "data", ".claude", "test"]
   delay = 500

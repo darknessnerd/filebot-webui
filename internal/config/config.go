@@ -41,6 +41,7 @@ type Config struct {
 
 	LogLevel string
 	Debug    bool
+	DevMode  bool
 }
 
 func Load() (*Config, error) {
@@ -69,6 +70,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg.Debug, _ = strconv.ParseBool(getEnv("DEBUG", "false"))
+	cfg.DevMode, _ = strconv.ParseBool(getEnv("DEV_MODE", "false"))
 
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
@@ -77,8 +79,11 @@ func Load() (*Config, error) {
 	cfg.JWTSecret = secret
 
 	mediaRoot := os.Getenv("MEDIA_ROOT")
-	if mediaRoot == "" {
+	if mediaRoot == "" && !cfg.DevMode {
 		return nil, errors.New("MEDIA_ROOT is required")
+	}
+	if mediaRoot == "" {
+		mediaRoot = "/dev/null/media"
 	}
 	cfg.MediaRoot = mediaRoot
 

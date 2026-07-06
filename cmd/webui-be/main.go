@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/darknessnerd/filebot-webui/internal/config"
+	"github.com/darknessnerd/filebot-webui/internal/domain"
 	"github.com/darknessnerd/filebot-webui/internal/handler"
 	"github.com/darknessnerd/filebot-webui/internal/logger"
 	"github.com/darknessnerd/filebot-webui/internal/repository"
@@ -79,12 +80,37 @@ func main() {
 	// Services
 	userRepo := repository.NewUserRepository(db)
 	authSvc := auth.New(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn, cfg.JWTIssuer, cfg.PlexClientID, log)
-	delugeSvc := deluge.NewClient(cfg.DelugeHost, cfg.DelugePort, cfg.DelugePassword, log)
-	plexSvc := plex.NewClient(log)
-	fbExecutor := filebot.NewExecutor(cfg.MediaRoot, cfg.FilebotPath, log)
 
-	// Middleware
-	authMiddleware := handler.RequireAuth(authSvc, userRepo, log)
+	var (
+		delugeSvc interface {
+			ListCompleted(ctx context.Context) ([]domain.Torrent, error)
+			DeleteTorrent(ctx context.Context, id string) error
+		}
+		plexSvc interface {
+			RefreshLibraries(ctx context.Context, plexToken string) error
+		}
+		fbExecutor interface {
+			Execute(ctx context.Context, job domain.FileBotJob) (domain.FileBotResult, error)
+		}
+		authMiddleware func(http.Handler) http.Handler
+	)
+
+	if cfg.DevMode {
+		log.Warn().Msg("DEV_MODE enabled — all external services mocked, auth bypassed")
+		delugeSvc = &mockDelugeClient{}
+		plexSvc = &mockPlexClient{}
+		fbExecutor = &mockFileBotExecutor{}
+		authMiddleware = func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r.WithContext(handler.WithUser(r.Context(), devUser)))
+			})
+		}
+	} else {
+		delugeSvc = deluge.NewClient(cfg.DelugeHost, cfg.DelugePort, cfg.DelugePassword, log)
+		plexSvc = plex.NewClient(log)
+		fbExecutor = filebot.NewExecutor(cfg.MediaRoot, cfg.FilebotPath, log)
+		authMiddleware = handler.RequireAuth(authSvc, userRepo, log)
+	}
 
 	// Handlers (now template-aware)
 	authH := handler.NewAuthHandler(authSvc, cfg.PlexRedirectURL, log)
