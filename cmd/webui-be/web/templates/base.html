@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{block "title" .}}FileBot WebUI{{end}}</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/icons.css">
   <script>window.__FILEBOT_DEBUG__={{if .Debug}}true{{else}}false{{end}};</script>
-  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous" defer></script>
   <script>
     document.addEventListener('alpine:init', function() {
       Alpine.store('torrentPicks', { selected: [] });
     });
   </script>
-  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" integrity="sha384-l8f0VcPi/M1iHPv8egOnY/15TDwqgbOR1anMIJWvU6nLRgZVLTLSaNqi/TOoT5Fh" crossorigin="anonymous" defer></script>
 </head>
 <body>
 
@@ -33,10 +34,10 @@
         hx-post="/plex/refresh"
         hx-swap="none"
         title="Refresh Plex libraries">
-        Refresh Plex
+        <span class="nf nf-cod-library" aria-hidden="true"></span> Refresh Plex
       </button>
       <form method="POST" action="/auth/logout" style="margin:0">
-        <button class="btn btn-ghost btn-sm" type="submit">Sign out</button>
+        <button class="btn btn-ghost btn-sm" type="submit"><span class="nf nf-fa-sign_out" aria-hidden="true"></span> Sign out</button>
       </form>
     {{end}}
   </div>
@@ -279,8 +280,8 @@
     t.setAttribute('data-level', level);
     t.setAttribute('role', 'alert');
     t.innerHTML = (ICONS[level] || ICONS.info) +
-      '<span class="toast-msg">' + msg.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span>' +
-      '<button class="toast-dismiss" aria-label="Dismiss">×</button>';
+      '<span class="toast-msg">' + msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') + '</span>' +
+      '<button class="toast-dismiss" aria-label="Dismiss"><span class="nf nf-fa-close" aria-hidden="true"></span></button>';
     t.querySelector('.toast-dismiss').addEventListener('click', function(){ dismiss(t); });
     region.appendChild(t);
     var timer = setTimeout(function(){ dismiss(t); }, 4000);

@@ -78,12 +78,12 @@
       <div style="display:flex;gap:10px;margin-top:6px">
         <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center" :disabled="running">
           <span class="spinner" x-show="running" style="width:14px;height:14px;border-width:2px"></span>
-          <span x-show="!running">Execute</span>
+          <span x-show="!running"><span class="nf nf-fa-play" aria-hidden="true"></span> Execute</span>
           <span x-show="running">Running…</span>
         </button>
         <button type="button" class="btn btn-ghost" :disabled="running"
           @click="htmx.ajax('GET', '/', {target: '#filebot-slot', swap: 'innerHTML'}); document.querySelector('.dashboard')?.dispatchEvent(new CustomEvent('close-drawer'))">
-          Cancel
+          <span class="nf nf-fa-close" aria-hidden="true"></span> Cancel
         </button>
       </div>
     </form>

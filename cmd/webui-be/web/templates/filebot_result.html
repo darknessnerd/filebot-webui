@@ -33,13 +33,17 @@
     </details>
     {{end}}
 
+    <template id="filebot-idle-tpl">
+      <div class="card"><div class="card-header"><span class="card-title">FileBot</span></div><div class="card-body"><p style="color:var(--muted);font-size:13px">Select completed torrents, then click Process with FileBot.</p></div></div>
+    </template>
+
     <div style="margin-top:16px">
       <button class="btn btn-ghost btn-sm"
         hx-get="/torrents"
         hx-target="#torrent-list"
         hx-swap="innerHTML"
-        onclick="document.getElementById('filebot-slot').innerHTML = '<div class=\'card\'><div class=\'card-header\'><span class=\'card-title\'>FileBot</span></div><div class=\'card-body\'><p style=\'color:var(--muted);font-size:13px\'>Select completed torrents, then click Process with FileBot.</p></div></div>'"
-      >Back to torrents</button>
+        onclick="var s=document.getElementById('filebot-slot');var tpl=document.getElementById('filebot-idle-tpl');s.replaceChildren(tpl.content.cloneNode(true));"
+      ><span class="nf nf-fa-arrow_left" aria-hidden="true"></span> Back to torrents</button>
     </div>
 
   </div>

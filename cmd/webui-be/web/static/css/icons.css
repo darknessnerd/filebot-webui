@@ -1,0 +1,14 @@
+.nf {
+  font-family: 'HackNF', monospace;
+  font-style: normal;
+  line-height: 1;
+  display: inline-block;
+}
+
+.nf-fa-refresh:before    { content: "\f021"; }
+.nf-fa-sign_out:before   { content: "\f08b"; }
+.nf-fa-play:before       { content: "\f04b"; }
+.nf-fa-close:before      { content: "\f00d"; }
+.nf-fa-magic:before      { content: "\f0d0"; }
+.nf-fa-arrow_left:before { content: "\f060"; }
+.nf-cod-library:before   { content: "\eb9c"; }

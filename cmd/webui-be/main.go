@@ -24,7 +24,7 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/service/plex"
 )
 
-//go:embed web/templates/* web/static/css/app.css
+//go:embed web/templates/* web/static/css/app.css web/static/css/icons.css web/static/fonts
 var webFS embed.FS
 
 func main() {
