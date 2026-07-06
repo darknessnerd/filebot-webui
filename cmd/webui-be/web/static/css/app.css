@@ -536,3 +536,29 @@ details.raw-output pre {
 .toast.toast-out { animation: toast-out .2s ease-in forwards; }
 @keyframes toast-in  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes toast-out { to   { opacity: 0; transform: translateY(4px); } }
+
+/* ── Terminal Widget ──────────────────────────────────────────────── */
+.term-box {
+  background: #0a0f0a;
+  border: 1px solid rgba(34,197,94,.18);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.term-result {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .25s ease, transform .25s ease;
+}
+.term-result.show {
+  opacity: 1;
+  transform: none;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}

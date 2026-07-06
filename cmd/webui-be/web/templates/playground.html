@@ -304,6 +304,25 @@ Done ✓ (2 files renamed, 1 skipped)</pre>
     </div>
   </div>
 
+  <!-- ── Terminal Widget ───────────────────────────────────────────── -->
+  <div class="pg-section">
+    <div class="pg-title">Terminal Widget</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+      <div class="term-box" style="max-width:420px">
+        <div style="color:rgba(34,197,94,.4);margin-bottom:8px;font-size:9px;letter-spacing:.1em;">// filebot.rename</div>
+        <div>
+          <span style="color:rgba(34,197,94,.5);">$</span>
+          <span style="color:var(--t3,rgba(255,255,255,.45));"> filebot -rename </span>
+          <span id="term-q" style="color:#4ade80;"></span><span id="term-cur" style="color:#4ade80;animation:blink 1s step-end infinite;font-weight:bold;">_</span>
+        </div>
+        <div id="term-results" class="mt-3 space-y-1" style="min-height:72px;margin-top:12px;display:flex;flex-direction:column;gap:4px;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);max-width:220px;padding-top:4px;line-height:1.6">
+        Cycles through FileBot rename scenarios. Blinking cursor, staggered result reveal, auto-loops every 4 s.
+      </div>
+    </div>
+  </div>
+
   <!-- ── Links ───────────────────────────────────────────────────── -->
   <div class="pg-section">
     <div class="pg-title">Links</div>
@@ -332,6 +351,99 @@ Done ✓ (2 files renamed, 1 skipped)</pre>
   </div>
 
 </main>
+
+<script>
+(function(){
+  var SCENARIOS = [
+    {
+      cmd: '"Inception.2010.1080p.BluRay.mkv"',
+      results: [
+        { color:'#22c55e', text:'TheMovieDB → Inception (2010)' },
+        { color:'#4ade80', text:'rename → /media/Movies/Inception (2010)/Inception.mkv' },
+        { color:'#4ade80', text:'Done ✓  1 file renamed' },
+      ]
+    },
+    {
+      cmd: '"The.Wire.S01E03.720p.mkv"',
+      results: [
+        { color:'#22c55e', text:'TheTVDB → The Wire — S01E03' },
+        { color:'#4ade80', text:'rename → /media/TV/The Wire/Season 1/The Wire - S01E03.mkv' },
+        { color:'#4ade80', text:'Done ✓  1 file renamed' },
+      ]
+    },
+    {
+      cmd: '"random.name.mkv"',
+      results: [
+        { color:'#f59e0b', text:'TheMovieDB → no match found' },
+        { color:'#f59e0b', text:'conflict → skip (--conflict skip)' },
+        { color:'#ef4444', text:'Done ✗  0 renamed, 1 skipped' },
+      ]
+    },
+    {
+      cmd: '"/downloads/Dune.Part.Two.2024.2160p"',
+      results: [
+        { color:'#22c55e', text:'TheMovieDB → Dune: Part Two (2024)' },
+        { color:'#4ade80', text:'rename → /media/Movies/Dune Part Two (2024)/Dune Part Two.mkv' },
+        { color:'#4ade80', text:'Done ✓  1 file renamed' },
+      ]
+    },
+  ];
+
+  var qEl = document.getElementById('term-q');
+  var resEl = document.getElementById('term-results');
+  var idx = 0;
+
+  function dot(color) {
+    var s = document.createElement('span');
+    s.style.cssText = 'background:'+color+';width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:5px;display:inline-block;';
+    return s;
+  }
+
+  function buildRow(r) {
+    var row = document.createElement('div');
+    row.className = 'term-result';
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;';
+    row.appendChild(dot(r.color));
+    var txt = document.createElement('span');
+    txt.style.cssText = 'font-size:10px;color:rgba(220,255,220,.55);';
+    txt.textContent = r.text;
+    row.appendChild(txt);
+    return row;
+  }
+
+  function typeText(target, text, done) {
+    target.textContent = '';
+    var i = 0;
+    var speed = Math.max(18, Math.floor(900 / text.length));
+    function tick() {
+      target.textContent = text.slice(0, ++i);
+      if (i < text.length) setTimeout(tick, speed);
+      else if (done) done();
+    }
+    tick();
+  }
+
+  function showResults(rows, i, done) {
+    if (i >= rows.length) { if (done) done(); return; }
+    rows[i].classList.add('show');
+    setTimeout(function(){ showResults(rows, i+1, done); }, 220);
+  }
+
+  function runScenario() {
+    var s = SCENARIOS[idx % SCENARIOS.length];
+    idx++;
+    resEl.innerHTML = '';
+    typeText(qEl, s.cmd, function() {
+      var rows = s.results.map(buildRow);
+      rows.forEach(function(r){ resEl.appendChild(r); });
+      setTimeout(function(){ showResults(rows, 0, null); }, 200);
+    });
+  }
+
+  runScenario();
+  setInterval(runScenario, 4000);
+})();
+</script>
 
 <script>
 (function(){
