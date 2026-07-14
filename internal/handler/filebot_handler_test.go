@@ -182,8 +182,8 @@ func TestFileBotExecute_MoveSuccess_DeletesTorrentAndRefreshPlex(t *testing.T) {
 }
 
 // TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh guards the regression:
-// executor returns (result with Successes, nil err) for exit 3 — handler must treat
-// this identically to a normal exit-0 success and proceed with delete + Plex refresh.
+// executor returns (result{Successes}, nil) for exit 3 on move — handler must treat
+// this identically to exit-0 success and proceed with delete + Plex refresh.
 func TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh(t *testing.T) {
 	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"No input files"}}}
 	del := &captureDelSvc{called: new(bool)}
@@ -201,8 +201,32 @@ func TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh(t *testing.T) 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, *del.called, "DeleteTorrent must be called when exit 3 treated as success")
 	assert.True(t, *px.called, "RefreshLibraries must be called when exit 3 treated as success")
-	hxTrigger := w.Header().Get("HX-Trigger")
-	assert.Contains(t, hxTrigger, "success")
+	assert.Contains(t, w.Header().Get("HX-Trigger"), "success")
+}
+
+// TestFileBotExecute_Exit3Error_NonMove_SkipsDeleteAndRefresh verifies that when
+// executor returns an error (exit 3 on non-move action), handler skips cleanup.
+func TestFileBotExecute_Exit3Error_NonMove_SkipsDeleteAndRefresh(t *testing.T) {
+	fb := &stubFBSvc{
+		result: domain.FileBotResult{Errors: []string{"filebot exited with error: exit status 3"}},
+		err:    fmt.Errorf("wrap: %w", domain.ErrFileBotFailed),
+	}
+	del := &captureDelSvc{called: new(bool)}
+	px := &capturePlexSvc{called: new(bool)}
+
+	h := handler.NewFileBotHandler(fb, del, px,
+		fbTmpl(t), "/media", logger.New("error", false))
+
+	fields := validForm()
+	fields["action"] = []string{"copy"}
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.False(t, *del.called, "DeleteTorrent must not be called on executor error")
+	assert.False(t, *px.called, "RefreshLibraries must not be called on executor error")
+	assert.Contains(t, w.Header().Get("HX-Trigger"), "error")
 }
 
 func TestFileBotExecute_NoMoveAction_SkipsDeleteAndRefresh(t *testing.T) {

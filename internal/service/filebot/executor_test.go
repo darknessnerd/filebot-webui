@@ -207,10 +207,10 @@ func TestExecute_HappyPath_StubBinary(t *testing.T) {
 
 // --- exit code 3 regression ---
 
-// TestExecute_Exit3_TreatedAsSuccess guards the bug where FileBot exits 3
+// TestExecute_Exit3_MoveAction_TreatedAsSuccess guards the bug where FileBot exits 3
 // ("No input files") after a successful move and the executor incorrectly
 // reported it as a failure, blocking torrent deletion and Plex refresh.
-func TestExecute_Exit3_TreatedAsSuccess(t *testing.T) {
+func TestExecute_Exit3_MoveAction_TreatedAsSuccess(t *testing.T) {
 	dir := t.TempDir()
 	stub := filepath.Join(dir, "filebot")
 	require.NoError(t, os.WriteFile(stub, []byte("#!/bin/sh\necho 'No input files'\nexit 3\n"), 0755))
@@ -229,14 +229,15 @@ func TestExecute_Exit3_TreatedAsSuccess(t *testing.T) {
 	}
 
 	result, err := e.Execute(context.Background(), j)
-	require.NoError(t, err, "exit 3 must not return an error")
-	assert.Empty(t, result.Errors, "exit 3 must not populate result.Errors")
-	assert.NotEmpty(t, result.Successes, "exit 3 must populate result.Successes")
+	require.NoError(t, err, "exit 3 on move must not return an error")
+	assert.Empty(t, result.Errors, "exit 3 on move must not populate result.Errors")
+	assert.NotEmpty(t, result.Successes, "exit 3 on move must populate result.Successes")
+	assert.Contains(t, result.RawOutput, "No input files", "raw output must be preserved")
 }
 
-func TestExecute_Exit3_DoesNotBlockCleanup(t *testing.T) {
-	// Verify result shape is indistinguishable from exit 0 success for handler logic:
-	// handler gates delete+refresh on err==nil && len(result.Errors)==0
+// TestExecute_Exit3_NonMoveAction_StillError verifies exit 3 is only forgiven for
+// action=move; for other actions it indicates a real problem (e.g. bad source path).
+func TestExecute_Exit3_NonMoveAction_StillError(t *testing.T) {
 	dir := t.TempDir()
 	stub := filepath.Join(dir, "filebot")
 	require.NoError(t, os.WriteFile(stub, []byte("#!/bin/sh\nexit 3\n"), 0755))
@@ -248,15 +249,15 @@ func TestExecute_Exit3_DoesNotBlockCleanup(t *testing.T) {
 	j := domain.FileBotJob{
 		SourcePaths: []string{filepath.Join(dir, "file.mkv")},
 		DB:          "TheMovieDB",
-		Action:      "move",
+		Action:      "copy",
 		Conflict:    "skip",
 		LogLevel:    "info",
 		Output:      mediaDir,
 	}
 
-	result, err := e.Execute(context.Background(), j)
-	assert.NoError(t, err)
-	assert.Empty(t, result.Errors)
+	_, err := e.Execute(context.Background(), j)
+	require.Error(t, err, "exit 3 on non-move action must return an error")
+	assert.ErrorIs(t, err, domain.ErrFileBotFailed)
 }
 
 func TestExecute_Exit1_StillError(t *testing.T) {

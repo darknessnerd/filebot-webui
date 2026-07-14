@@ -59,8 +59,9 @@ func (e *Executor) Execute(ctx context.Context, job domain.FileBotJob) (domain.F
 	if err != nil {
 		var exitErr *exec.ExitError
 		// Exit code 3 means "no input files matched" — FileBot reports this after a
-		// successful move when source files are already gone from disk. Treat as success.
-		if errors.As(err, &exitErr) && exitErr.ExitCode() == 3 {
+		// successful move when source files are already gone from disk. Treat as success
+		// only for move; other actions have no post-move cleanup so exit 3 is unexpected.
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 3 && job.Action == "move" {
 			e.log.Info().Str("action", job.Action).Msg("filebot: exit 3 (no input files) — treating as success after move")
 			result.Successes = []string{string(out)}
 			return result, nil
