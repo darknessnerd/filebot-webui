@@ -2,6 +2,7 @@ package filebot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -56,6 +57,14 @@ func (e *Executor) Execute(ctx context.Context, job domain.FileBotJob) (domain.F
 
 	result := domain.FileBotResult{RawOutput: string(out)}
 	if err != nil {
+		var exitErr *exec.ExitError
+		// Exit code 3 means "no input files matched" — FileBot reports this after a
+		// successful move when source files are already gone from disk. Treat as success.
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 3 {
+			e.log.Info().Str("action", job.Action).Msg("filebot: exit 3 (no input files) — treating as success after move")
+			result.Successes = []string{string(out)}
+			return result, nil
+		}
 		result.Errors = []string{fmt.Sprintf("filebot exited with error: %v\n%s", err, string(out))}
 		e.log.Warn().Err(err).Str("action", job.Action).Msg("filebot: job failed")
 		return result, fmt.Errorf("%w: %v", domain.ErrFileBotFailed, err)

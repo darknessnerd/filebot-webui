@@ -205,6 +205,107 @@ func TestExecute_HappyPath_StubBinary(t *testing.T) {
 	assert.Contains(t, result.RawOutput, "renamed ok")
 }
 
+// --- exit code 3 regression ---
+
+// TestExecute_Exit3_TreatedAsSuccess guards the bug where FileBot exits 3
+// ("No input files") after a successful move and the executor incorrectly
+// reported it as a failure, blocking torrent deletion and Plex refresh.
+func TestExecute_Exit3_TreatedAsSuccess(t *testing.T) {
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "filebot")
+	require.NoError(t, os.WriteFile(stub, []byte("#!/bin/sh\necho 'No input files'\nexit 3\n"), 0755))
+
+	mediaDir := filepath.Join(dir, "media")
+	require.NoError(t, os.MkdirAll(mediaDir, 0755))
+
+	e := NewExecutor(mediaDir, stub, logger.New("error", false))
+	j := domain.FileBotJob{
+		SourcePaths: []string{filepath.Join(dir, "file.mkv")},
+		DB:          "TheMovieDB",
+		Action:      "move",
+		Conflict:    "skip",
+		LogLevel:    "info",
+		Output:      mediaDir,
+	}
+
+	result, err := e.Execute(context.Background(), j)
+	require.NoError(t, err, "exit 3 must not return an error")
+	assert.Empty(t, result.Errors, "exit 3 must not populate result.Errors")
+	assert.NotEmpty(t, result.Successes, "exit 3 must populate result.Successes")
+}
+
+func TestExecute_Exit3_DoesNotBlockCleanup(t *testing.T) {
+	// Verify result shape is indistinguishable from exit 0 success for handler logic:
+	// handler gates delete+refresh on err==nil && len(result.Errors)==0
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "filebot")
+	require.NoError(t, os.WriteFile(stub, []byte("#!/bin/sh\nexit 3\n"), 0755))
+
+	mediaDir := filepath.Join(dir, "media")
+	require.NoError(t, os.MkdirAll(mediaDir, 0755))
+
+	e := NewExecutor(mediaDir, stub, logger.New("error", false))
+	j := domain.FileBotJob{
+		SourcePaths: []string{filepath.Join(dir, "file.mkv")},
+		DB:          "TheMovieDB",
+		Action:      "move",
+		Conflict:    "skip",
+		LogLevel:    "info",
+		Output:      mediaDir,
+	}
+
+	result, err := e.Execute(context.Background(), j)
+	assert.NoError(t, err)
+	assert.Empty(t, result.Errors)
+}
+
+func TestExecute_Exit1_StillError(t *testing.T) {
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "filebot")
+	require.NoError(t, os.WriteFile(stub, []byte("#!/bin/sh\necho 'rename failed' >&2\nexit 1\n"), 0755))
+
+	mediaDir := filepath.Join(dir, "media")
+	require.NoError(t, os.MkdirAll(mediaDir, 0755))
+
+	e := NewExecutor(mediaDir, stub, logger.New("error", false))
+	j := domain.FileBotJob{
+		SourcePaths: []string{filepath.Join(dir, "file.mkv")},
+		DB:          "TheMovieDB",
+		Action:      "move",
+		Conflict:    "skip",
+		LogLevel:    "info",
+		Output:      mediaDir,
+	}
+
+	result, err := e.Execute(context.Background(), j)
+	require.Error(t, err, "exit 1 must return an error")
+	assert.ErrorIs(t, err, domain.ErrFileBotFailed)
+	assert.NotEmpty(t, result.Errors)
+}
+
+func TestExecute_Exit2_StillError(t *testing.T) {
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "filebot")
+	require.NoError(t, os.WriteFile(stub, []byte("#!/bin/sh\nexit 2\n"), 0755))
+
+	mediaDir := filepath.Join(dir, "media")
+	require.NoError(t, os.MkdirAll(mediaDir, 0755))
+
+	e := NewExecutor(mediaDir, stub, logger.New("error", false))
+	j := domain.FileBotJob{
+		SourcePaths: []string{filepath.Join(dir, "file.mkv")},
+		DB:          "TheMovieDB",
+		Action:      "move",
+		Conflict:    "skip",
+		LogLevel:    "info",
+		Output:      mediaDir,
+	}
+
+	_, err := e.Execute(context.Background(), j)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrFileBotFailed)
+}
+
 func TestExecute_ContextCancellation(t *testing.T) {
 	dir := t.TempDir()
 	stub := filepath.Join(dir, "filebot")

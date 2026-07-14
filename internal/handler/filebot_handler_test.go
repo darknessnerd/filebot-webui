@@ -181,6 +181,30 @@ func TestFileBotExecute_MoveSuccess_DeletesTorrentAndRefreshPlex(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "plex=true")
 }
 
+// TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh guards the regression:
+// executor returns (result with Successes, nil err) for exit 3 — handler must treat
+// this identically to a normal exit-0 success and proceed with delete + Plex refresh.
+func TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh(t *testing.T) {
+	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"No input files"}}}
+	del := &captureDelSvc{called: new(bool)}
+	px := &capturePlexSvc{called: new(bool)}
+
+	h := handler.NewFileBotHandler(fb, del, px,
+		fbTmpl(t), "/media", logger.New("error", false))
+
+	w := httptest.NewRecorder()
+	r := postForm(validForm()) // action=move
+	user := &domain.User{PlexToken: "tok"}
+	r = r.WithContext(handler.WithUser(r.Context(), user))
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, *del.called, "DeleteTorrent must be called when exit 3 treated as success")
+	assert.True(t, *px.called, "RefreshLibraries must be called when exit 3 treated as success")
+	hxTrigger := w.Header().Get("HX-Trigger")
+	assert.Contains(t, hxTrigger, "success")
+}
+
 func TestFileBotExecute_NoMoveAction_SkipsDeleteAndRefresh(t *testing.T) {
 	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
 	del := &captureDelSvc{called: new(bool)}
