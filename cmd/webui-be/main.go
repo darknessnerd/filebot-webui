@@ -23,6 +23,7 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/service/deluge"
 	"github.com/darknessnerd/filebot-webui/internal/service/filebot"
 	"github.com/darknessnerd/filebot-webui/internal/service/plex"
+	"github.com/darknessnerd/filebot-webui/internal/service/tmdb"
 )
 
 //go:embed web/templates/* web/static/css/app.css web/static/css/icons.css web/static/fonts
@@ -89,17 +90,15 @@ func main() {
 		plexSvc interface {
 			RefreshLibraries(ctx context.Context, plexToken string) error
 		}
-		fbExecutor interface {
-			Execute(ctx context.Context, job domain.FileBotJob) (domain.FileBotResult, error)
-		}
 		authMiddleware func(http.Handler) http.Handler
 	)
 
+	fbExecutor := filebot.NewInternal(cfg.MediaRoot, tmdb.NewClient(cfg.TMDBAccessToken, log), log)
+
 	if cfg.DevMode {
-		log.Warn().Msg("DEV_MODE enabled — all external services mocked, auth bypassed")
+		log.Warn().Msg("DEV_MODE enabled — Deluge and Plex mocked, auth bypassed")
 		delugeSvc = &mockDelugeClient{}
 		plexSvc = &mockPlexClient{}
-		fbExecutor = &mockFileBotExecutor{}
 		authMiddleware = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				next.ServeHTTP(w, r.WithContext(handler.WithUser(r.Context(), devUser)))
@@ -108,7 +107,6 @@ func main() {
 	} else {
 		delugeSvc = deluge.NewClient(cfg.DelugeHost, cfg.DelugePort, cfg.DelugePassword, log)
 		plexSvc = plex.NewClient(log)
-		fbExecutor = filebot.NewExecutor(cfg.MediaRoot, cfg.FilebotPath, log)
 		authMiddleware = handler.RequireAuth(authSvc, userRepo, log)
 	}
 

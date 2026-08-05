@@ -61,19 +61,6 @@ func (m *mockDelugeClient) DeleteTorrent(_ context.Context, id string) error {
 	return nil
 }
 
-type mockFileBotExecutor struct{}
-
-func (m *mockFileBotExecutor) Execute(_ context.Context, job domain.FileBotJob) (domain.FileBotResult, error) {
-	successes := make([]string, 0, len(job.SourcePaths))
-	for _, p := range job.SourcePaths {
-		successes = append(successes, "[DEV] "+p+" --> /media/Movies/renamed-file.mkv")
-	}
-	return domain.FileBotResult{
-		Successes: successes,
-		RawOutput: "[DEV MODE] FileBot mock: no real exec performed.",
-	}, nil
-}
-
 type mockPlexClient struct{}
 
 func (m *mockPlexClient) RefreshLibraries(_ context.Context, _ string) error {

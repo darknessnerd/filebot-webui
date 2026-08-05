@@ -19,3 +19,15 @@ type FileBotResult struct {
 	Errors    []string
 	RawOutput string
 }
+
+type MovieMatch struct {
+	ID    int
+	Title string
+	Year  int
+}
+
+type TVMatch struct {
+	ID   int
+	Name string
+	Year int
+}

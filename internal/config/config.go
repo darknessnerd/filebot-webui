@@ -18,8 +18,9 @@ type Config struct {
 	JWTExpiresIn time.Duration
 	JWTIssuer    string
 
-	PlexClientID   string
+	PlexClientID    string
 	PlexRedirectURL string
+	TMDBAccessToken string
 
 	DelugeHost     string
 	DelugePort     string
@@ -27,9 +28,6 @@ type Config struct {
 	DelugePassword string
 
 	MediaRoot string
-
-	FilebotPath        string
-	FilebotLicensePath string
 
 	DBType     string
 	DBDatabase string
@@ -53,12 +51,11 @@ func Load() (*Config, error) {
 		JWTIssuer:          getEnv("JWT_ISSUER", "filebot-webui"),
 		PlexClientID:       getEnv("PLEX_CLIENT_ID", ""),
 		PlexRedirectURL:    getEnv("PLEX_REDIRECT_URL", ""),
+		TMDBAccessToken:    getEnv("TMDB_ACCESS_TOKEN", ""),
 		DelugeHost:         getEnv("DELUGE_HOST", ""),
 		DelugePort:         getEnv("DELUGE_PORT", "8112"),
 		DelugeUsername:     getEnv("DELUGE_USERNAME", ""),
 		DelugePassword:     getEnv("DELUGE_PASSWORD", ""),
-		FilebotPath:        getEnv("FILEBOT_PATH", "filebot"),
-		FilebotLicensePath: getEnv("FILEBOT_LICENSE_PATH", ""),
 		DBType:             getEnv("DB_TYPE", "sqlite"),
 		DBDatabase:         getEnv("DB_DATABASE", "./data/app.db"),
 		DBHost:             getEnv("DB_HOST", "localhost"),
@@ -86,6 +83,10 @@ func Load() (*Config, error) {
 		mediaRoot = "/dev/null/media"
 	}
 	cfg.MediaRoot = mediaRoot
+
+	if cfg.TMDBAccessToken == "" && !cfg.DevMode {
+		return nil, errors.New("TMDB_ACCESS_TOKEN is required")
+	}
 
 	expStr := getEnv("JWT_EXPIRES_IN", "24h")
 	exp, err := time.ParseDuration(expStr)

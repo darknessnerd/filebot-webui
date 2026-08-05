@@ -18,7 +18,7 @@ Self-hosted web UI that connects **Deluge + FileBot + Plex** into a single workf
 2. **View completed torrents** fetched live from Deluge
 3. **Select** one or more finished torrents
 4. **Configure FileBot** — DB, format, action, conflict resolution
-5. **Execute** — FileBot renames and moves files to `MEDIA_ROOT`
+5. **Execute** — FileBot service validates request, current CLI adapter renames and moves files to `MEDIA_ROOT`
 6. **On success** — torrent + data deleted from Deluge; Plex library refresh triggered
 7. **See results** — per-file success/failure, raw FileBot output toggle
 
@@ -86,17 +86,16 @@ services:
       DELUGE_PORT: 8112
       DELUGE_PASSWORD: your-password
       MEDIA_ROOT: /media
-      FILEBOT_LICENSE_PATH: /config/license.psm
+      TMDB_ACCESS_TOKEN: your-tmdb-bearer-token
     volumes:
-      - /path/to/license.psm:/config/license.psm:ro
       - /data/downloads:/downloads   # must match Deluge's download path
       - /data/media:/media
     restart: unless-stopped
 ```
 
-> **FileBot is bundled in the image** — no separate install needed. FileBot 5.1.7 (portable) + OpenJDK 11 are included. License registration runs in `docker/start.sh` at container startup — mount your `license.psm` and set `FILEBOT_LICENSE_PATH` to its container path. If no license is found, the app starts anyway (community features only).
+> **No external binaries required** — media renaming is handled natively via the TMDB API. Set `TMDB_ACCESS_TOKEN` to a TMDB v4 bearer token (read-only access token from your TMDB account settings).
 
-> **Critical:** Deluge and filebot-webui must mount the **same paths** at the same container paths. If Deluge stores files at `/downloads/Movie.mkv`, filebot-webui must also see `/downloads/Movie.mkv`. Mismatch = FileBot "file not found" sadness.
+> **Critical:** Deluge and filebot-webui must mount the **same paths** at the same container paths. If Deluge stores files at `/downloads/Movie.mkv`, filebot-webui must also see `/downloads/Movie.mkv`. Mismatch = file not found.
 
 ---
 
@@ -141,6 +140,7 @@ make lint        # go vet + staticcheck
 | `MEDIA_ROOT` | Absolute path FileBot moves files into — all output paths validated against this |
 | `PLEX_CLIENT_ID` | Plex app name / client identifier |
 | `PLEX_REDIRECT_URL` | Full URL of `/auth/plex/forward` on this app |
+| `TMDB_ACCESS_TOKEN` | TMDB v4 read-only bearer token — app refuses to start without it (in non-dev mode) |
 | `DELUGE_HOST` | Deluge daemon hostname or IP |
 | `DELUGE_PASSWORD` | Deluge web UI password |
 
@@ -156,8 +156,6 @@ make lint        # go vet + staticcheck
 | `JWT_ISSUER` | `filebot-webui` | JWT issuer claim |
 | `DELUGE_PORT` | `8112` | Deluge JSON-RPC port |
 | `DELUGE_USERNAME` | _(empty)_ | Deluge username (if required) |
-| `FILEBOT_PATH` | `filebot` | Path to filebot binary |
-| `FILEBOT_LICENSE_PATH` | _(empty)_ | Path to `license.psm` — registered at boot if set |
 | `DB_TYPE` | `sqlite` | `sqlite` or `postgres` |
 | `DB_DATABASE` | `./data/app.db` | SQLite path or PostgreSQL DB name |
 | `DB_HOST` | `localhost` | PostgreSQL host |
@@ -168,9 +166,9 @@ make lint        # go vet + staticcheck
 
 ---
 
-## FileBot Parameters
+## Media Engine Parameters
 
-All values validated against an allowlist before reaching `exec.Command`. Raw user input is never interpolated into a shell command.
+All values validated against an allowlist before execution. Raw user input is never interpolated into commands.
 
 | Parameter | UI control | Allowed values |
 |-----------|-----------|----------------|
@@ -182,6 +180,20 @@ All values validated against an allowlist before reaching `exec.Command`. Raw us
 | `--filter` | text input | optional Groovy expression |
 | `--q` | text input | optional override query |
 | `-r` | checkbox | recursive mode |
+
+---
+
+## Native Engine Scope
+
+Current internal implementation targets TMDB-backed flows first:
+
+- `TheMovieDB` → movie rename / move into `Movies/<Title (Year)>/<Title>.<ext>`
+- `TheMovieDB::TV` → TV rename / move into `TV/<Show>/Season N/<Show> - SxxEyy.<ext>`
+- `--q` supported as manual override
+- `--format` supports default / `{plex}` only
+- `--filter` unsupported in native engine for now
+
+CLI adapter stays wired today. Native engine can replace it later in `cmd/webui-be/main.go`.
 
 ---
 
@@ -214,13 +226,13 @@ handler → service → domain ← repository
 | Auth | Plex PIN OAuth + JWT HS256 (HttpOnly cookie) |
 | Database | SQLite (default) / PostgreSQL |
 | Logging | zerolog behind injected interface |
-| FileBot | `exec.CommandContext` with allowlisted arg builder; bundled in Docker image (v5.1.7 portable + OpenJDK 11) |
+| FileBot | Service validates request; temporary CLI adapter uses `exec.CommandContext`; bundled in Docker image (v5.1.7 portable + OpenJDK 11) |
 
 ---
 
 ## Security
 
-- FileBot exec: allowlisted args only — no raw user input reaches `exec.Command`
+- FileBot service validates args before execution; CLI adapter never receives raw shell input
 - `source_paths` validated against shell metacharacters before exec — Deluge paths containing `$`, `` ` ``, `;`, `|` etc. are rejected
 - `--output` validated to be under `MEDIA_ROOT` via `filepath.Clean` with separator guard (prevents `/media2` bypassing a `/media` prefix check)
 - `JWT_SECRET` required at startup — no insecure fallback
@@ -247,10 +259,10 @@ CI builds and pushes `:1.0.0`, `:1.0`, and `:latest` to Docker Hub.
 |---------|-------|-----|
 | `JWT_SECRET is required` at startup | Env var missing | Set `JWT_SECRET` |
 | `MEDIA_ROOT is required` at startup | Env var missing | Set `MEDIA_ROOT` |
+| `TMDB_ACCESS_TOKEN is required` at startup | Env var missing | Set `TMDB_ACCESS_TOKEN` to a TMDB v4 bearer token |
 | Torrents not showing | Deluge unreachable | Check `DELUGE_HOST`, `DELUGE_PORT`, `DELUGE_PASSWORD` |
-| FileBot "file not found" | Volume mount mismatch | Mirror paths between Deluge and filebot-webui containers |
-| FileBot license not applied | `FILEBOT_LICENSE_PATH` unset or wrong path | Mount `license.psm` and set `FILEBOT_LICENSE_PATH` to its container path |
-| FileBot "outside MEDIA_ROOT" | Output path rejected | Ensure `--output` is under `MEDIA_ROOT` |
+| Media rename "file not found" | Volume mount mismatch | Mirror paths between Deluge and filebot-webui containers |
+| Media rename "outside MEDIA_ROOT" | Output path rejected | Ensure `--output` is under `MEDIA_ROOT` |
 | Login loop | JWT cookie not set | Check `PLEX_REDIRECT_URL` matches actual app URL exactly |
 | Plex refresh fails | Server unreachable or wrong token | Check Plex server reachable from container network |
 | `connection refused` on port 8112 | `DELUGE_HOST` empty | Set `DELUGE_HOST` to your Deluge machine IP/hostname |
