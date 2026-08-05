@@ -18,17 +18,21 @@ import (
 )
 
 var (
-	yearPattern        = regexp.MustCompile(`\b(19|20)\d{2}\b`)
+	yearPattern = regexp.MustCompile(`\b(19|20)\d{2}\b`)
 	// Matches (YYYY), (YYYY-YYYY), or (YYYY-YY) year ranges.
 	// Must be applied BEFORE sep normalization while the dash is still intact.
-	yearInParenPattern = regexp.MustCompile(`\((19|20)\d{2}(?:[-/]\d{2,4})?\)`)
-	episodePattern     = regexp.MustCompile(`(?i)(?:s(\d{1,2})e(\d{1,2})(?:[-]?e(\d{1,2}))?|(\d{1,2})x(\d{1,2}))`)
+	yearInParenPattern       = regexp.MustCompile(`\((19|20)\d{2}(?:[-/]\d{2,4})?\)`)
+	episodePattern           = regexp.MustCompile(`(?i)(?:s(\d{1,2})e(\d{1,2})(?:[-]?e(\d{1,2}))?|(\d{1,2})x(\d{1,2}))`)
+	animeEpisodePattern      = regexp.MustCompile(`(?i)\b(?:e|ep)\s*0*(\d{1,3})(?:\s*[-_]\s*0*(\d{1,3}))?\b`)
+	animeProgressPattern     = regexp.MustCompile(`\[(\d{1,3})(?:\s*-\s*(\d{1,3}))?\s*(?:/|-)\s*(\d{1,3}|XX)\]`)
+	animeSeasonPattern       = regexp.MustCompile(`(?i)\b(?:stagione|season)\s*(\d{1,2})\b`)
+	animeSingleSeasonPattern = regexp.MustCompile(`(?i)\bstagione\s+unica\b`)
 	// Italian "Stagione N" or "Stagioni N M" (after sep, range becomes space-separated digits).
-	stagionPattern     = regexp.MustCompile(`(?i)\bstagion[ie](?:\s+\d+)*\b`)
+	stagionPattern = regexp.MustCompile(`(?i)\bstagion[ie](?:\s+\d+)*\b`)
 	// Italian "Edizione N".
-	edizionPattern     = regexp.MustCompile(`(?i)\bedizione(?:\s+\d+)*\b`)
+	edizionPattern = regexp.MustCompile(`(?i)\bedizione(?:\s+\d+)*\b`)
 	// Standalone season marker without episode, e.g. "S03" (without E).
-	seasonOnlyPattern  = regexp.MustCompile(`(?i)\bs\d{1,2}\b`)
+	seasonOnlyPattern = regexp.MustCompile(`(?i)\bs\d{1,2}\b`)
 	// Unclosed paren group at end of string, left after year truncation
 	// e.g. "(Fuori orario," or "(27/12/" from air-date parens.
 	orphanParenPattern = regexp.MustCompile(`\([^)]*$`)
@@ -40,7 +44,7 @@ var (
 	bracketPattern      = regexp.MustCompile(`\[[^\]]*\]`)
 	parenPattern        = regexp.MustCompile(`\([^)]*\)`)
 	// Include "+" so "Rhythm + Flow" becomes "Rhythm Flow" rather than "Rhythm + Flow".
-	sepPattern          = regexp.MustCompile(`[._+\-]+`)
+	sepPattern = regexp.MustCompile(`[._+\-]+`)
 )
 
 var videoExtensions = map[string]bool{
@@ -62,6 +66,7 @@ type tvResolver interface {
 type metadataResolver interface {
 	movieResolver
 	tvResolver
+	animeResolver
 }
 
 type InternalEngine struct {
@@ -111,8 +116,10 @@ func (e *InternalEngine) Execute(ctx context.Context, job domain.FileBotJob) (do
 		return e.executeMovies(ctx, job, files)
 	case "TheMovieDB::TV":
 		return e.executeTV(ctx, job, files)
+	case "AniDB":
+		return e.executeAnime(ctx, job, files)
 	default:
-		return domain.FileBotResult{Errors: []string{"native engine supports TMDB movie and TV only"}}, fmt.Errorf("%w: native engine supports TMDB movie and TV only", domain.ErrInvalidArg)
+		return domain.FileBotResult{Errors: []string{"native engine supports TheMovieDB, TheMovieDB::TV, and AniDB only"}}, fmt.Errorf("%w: native engine supports TheMovieDB, TheMovieDB::TV, and AniDB only", domain.ErrInvalidArg)
 	}
 }
 
@@ -224,6 +231,92 @@ func (e *InternalEngine) executeTV(ctx context.Context, job domain.FileBotJob, f
 	return result, nil
 }
 
+func (e *InternalEngine) executeAnime(ctx context.Context, job domain.FileBotJob, files []string) (domain.FileBotResult, error) {
+	var (
+		match *domain.AnimeMatch
+		err   error
+	)
+	aid, aidErr := parseAniDBAID(job.Query)
+	if aidErr == nil {
+		match, err = e.resolver.SearchAnimeByAID(ctx, aid)
+		if err != nil {
+			return domain.FileBotResult{Errors: []string{fmt.Sprintf("AniDB lookup failed for aid=%d: %v", aid, err)}}, fmt.Errorf("%w: anidb lookup failed: %v", domain.ErrFileBotFailed, err)
+		}
+		e.log.Debug().Int("aid", aid).Str("title", match.Title).Int("year", match.Year).Int("anidb_id", match.ID).Msg("internal engine: anime match found by aid")
+	} else {
+		query, year := deriveQueryForFile(job.Query, files[0], true)
+		match, err = e.resolver.SearchAnime(ctx, query, year)
+		if err != nil {
+			errMsg := fmt.Sprintf("AniDB title lookup failed for %q: %v", query, err)
+			lowerErr := strings.ToLower(err.Error())
+			if strings.Contains(lowerErr, "ambiguous") || strings.Contains(lowerErr, "no aid found") {
+				errMsg += ". Try --q aid:<id> (example: aid:1)"
+			}
+			return domain.FileBotResult{Errors: []string{errMsg}}, fmt.Errorf("%w: anidb title lookup failed: %v", domain.ErrFileBotFailed, err)
+		}
+		e.log.Debug().Str("query", query).Int("year", year).Str("title", match.Title).Int("anidb_id", match.ID).Msg("internal engine: anime match found by title")
+	}
+
+	var result domain.FileBotResult
+
+	for _, source := range files {
+
+		season, firstEp, lastEp, err := extractAnimeEpisode(source)
+		if err != nil {
+			appendResult(&result, "", err)
+			continue
+		}
+
+		animeName := sanitizeName(match.Title)
+		epLabel := fmt.Sprintf("S%02dE%02d", season, firstEp)
+		if lastEp > 0 && lastEp != firstEp {
+			epLabel = fmt.Sprintf("S%02dE%02d-E%02d", season, firstEp, lastEp)
+		}
+
+		target := filepath.Join(
+			job.Output, "Anime", animeName,
+			fmt.Sprintf("Season %d", season),
+			fmt.Sprintf("%s - %s%s", animeName, epLabel, filepath.Ext(source)),
+		)
+		e.log.Debug().Str("source", source).Str("target", target).Int("season", season).Int("first_ep", firstEp).Int("last_ep", lastEp).Str("action", job.Action).Msg("internal engine: applying anime action")
+		msg, err := applyAction(job.Action, job.Conflict, source, target)
+		appendResult(&result, msg, err)
+
+		if job.Action != "test" {
+			for _, sub := range findCompanionSubtitles(source, e.log) {
+				subTarget := subtitleTargetName(target, source, sub)
+				e.log.Debug().Str("sub", sub).Str("target", subTarget).Msg("internal engine: moving anime subtitle")
+				msg, err := applyAction(job.Action, job.Conflict, sub, subTarget)
+				appendResult(&result, msg, err)
+			}
+		}
+	}
+
+	result.RawOutput = strings.Join(append(result.Successes, result.Errors...), "\n")
+	if len(result.Errors) > 0 {
+		return result, fmt.Errorf("%w: anime operations failed", domain.ErrFileBotFailed)
+	}
+	return result, nil
+}
+
+func parseAniDBAID(query string) (int, error) {
+	q := strings.TrimSpace(query)
+	if q == "" {
+		return 0, fmt.Errorf("missing aid")
+	}
+	if strings.HasPrefix(strings.ToLower(q), "aid:") {
+		q = strings.TrimSpace(q[4:])
+	}
+	if strings.HasPrefix(strings.ToLower(q), "aid=") {
+		q = strings.TrimSpace(q[4:])
+	}
+	aid, err := strconv.Atoi(q)
+	if err != nil || aid <= 0 {
+		return 0, fmt.Errorf("invalid aid")
+	}
+	return aid, nil
+}
+
 func collectVideoFiles(sourcePaths []string, recursive bool, dryRun bool) ([]string, error) {
 	var files []string
 	for _, source := range sourcePaths {
@@ -281,7 +374,10 @@ func normalizeQuery(raw string, stripEpisode bool) (string, int) {
 	// Strip audio channel specs FIRST — before filepath.Ext, which would otherwise
 	// treat e.g. "5.1 ITA sub" as extension ".1 ITA sub" on strings without a real ext.
 	raw = audioChannelPattern.ReplaceAllString(raw, " ")
-	raw = strings.TrimSuffix(raw, filepath.Ext(raw))
+	ext := strings.ToLower(filepath.Ext(raw))
+	if videoExtensions[ext] || subtitleExtensions[ext] {
+		raw = strings.TrimSuffix(raw, filepath.Ext(raw))
+	}
 
 	// Prefer year in parentheses "(YYYY)" or range "(YYYY-YYYY)"/"(YYYY-YY)".
 	// Must run BEFORE sep normalization while the dash in a year range is still intact.
@@ -364,6 +460,59 @@ func extractEpisode(path string) (season, firstEp, lastEp int, err error) {
 		}
 	}
 	return season, firstEp, lastEp, nil
+}
+
+func extractAnimeEpisode(path string) (season, firstEp, lastEp int, err error) {
+	if season, firstEp, lastEp, err = extractEpisode(path); err == nil {
+		return season, firstEp, lastEp, nil
+	}
+
+	season = deriveAnimeSeason(path)
+	base := filepath.Base(path)
+	if matches := animeEpisodePattern.FindStringSubmatch(base); matches != nil {
+		firstEp, err = strconv.Atoi(matches[1])
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("invalid anime episode in %s", base)
+		}
+		if matches[2] != "" {
+			lastEp, err = strconv.Atoi(matches[2])
+			if err != nil {
+				return 0, 0, 0, fmt.Errorf("invalid anime last episode in %s", base)
+			}
+		}
+		return season, firstEp, lastEp, nil
+	}
+
+	if matches := animeProgressPattern.FindStringSubmatch(path); matches != nil {
+		firstEp, err = strconv.Atoi(matches[1])
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("invalid anime progress episode in %s", base)
+		}
+		if matches[2] != "" {
+			lastEp, err = strconv.Atoi(matches[2])
+			if err != nil {
+				return 0, 0, 0, fmt.Errorf("invalid anime progress last episode in %s", base)
+			}
+		}
+		return season, firstEp, lastEp, nil
+	}
+
+	return 0, 0, 0, fmt.Errorf("no anime episode marker found in %s", base)
+}
+
+func deriveAnimeSeason(path string) int {
+	if animeSingleSeasonPattern.MatchString(path) {
+		return 1
+	}
+	matches := animeSeasonPattern.FindStringSubmatch(path)
+	if len(matches) < 2 || matches[1] == "" {
+		return 1
+	}
+	season, err := strconv.Atoi(matches[1])
+	if err != nil || season <= 0 {
+		return 1
+	}
+	return season
 }
 
 // findCompanionSubtitles returns subtitle files in the same directory whose

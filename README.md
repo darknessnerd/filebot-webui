@@ -141,7 +141,6 @@ make lint        # go vet + staticcheck
 | `MEDIA_ROOT` | Absolute path FileBot moves files into — all output paths validated against this |
 | `PLEX_CLIENT_ID` | Plex app name / client identifier |
 | `PLEX_REDIRECT_URL` | Full URL of `/auth/plex/forward` on this app |
-| `TMDB_ACCESS_TOKEN` | TMDB v4 read-only bearer token — app refuses to start without it (in non-dev mode) |
 | `DELUGE_HOST` | Deluge daemon hostname or IP |
 | `DELUGE_PASSWORD` | Deluge web UI password |
 
@@ -157,6 +156,14 @@ make lint        # go vet + staticcheck
 | `JWT_ISSUER` | `filebot-webui` | JWT issuer claim |
 | `DELUGE_PORT` | `8112` | Deluge JSON-RPC port |
 | `DELUGE_USERNAME` | _(empty)_ | Deluge username (if required) |
+| `TMDB_ACCESS_TOKEN` | _(empty)_ | TMDB v4 bearer token (required only when using TheMovieDB / TheMovieDB::TV) |
+| `ANIDB_CLIENT` | _(empty)_ | Registered AniDB HTTP API client id (required for AniDB lookups) |
+| `ANIDB_CLIENTVER` | _(empty)_ | Registered AniDB client version (required for AniDB lookups) |
+| `ANIDB_PROTOVER` | `1` | AniDB HTTP API protocol version |
+| `ANIDB_BASE_URL` | `http://api.anidb.net:9001/httpapi` | AniDB HTTP API endpoint |
+| `ANIDB_TITLES_FILE` | _(empty)_ | Optional local AniDB titles XML file for title→AID resolution |
+| `ANIDB_TITLES_URL` | _(empty)_ | Optional URL to download AniDB titles XML from |
+| `ANIDB_REFRESH_TITLES_ON_START` | `false` | When `true`, refreshes `ANIDB_TITLES_FILE` at startup |
 | `DB_TYPE` | `sqlite` | `sqlite` or `postgres` |
 | `DB_DATABASE` | `./data/app.db` | SQLite path or PostgreSQL DB name |
 | `DB_HOST` | `localhost` | PostgreSQL host |
@@ -179,7 +186,7 @@ All values validated against an allowlist before execution. Raw user input is ne
 | `--log` | dropdown | `all`, `fine`, `info`, `warning`, `off` |
 | `--format` | text input | free-form; shell metacharacters rejected |
 | `--filter` | text input | optional Groovy expression |
-| `--q` | text input | optional override query |
+| `--q` | text input | override query (`aid:<id>` preferred for AniDB; title query requires `ANIDB_TITLES_FILE`) |
 | `-r` | checkbox | recursive mode |
 
 ---
@@ -190,7 +197,12 @@ Current internal implementation targets TMDB-backed flows first:
 
 - `TheMovieDB` → movie rename / move into `Movies/<Title (Year)>/<Title>.<ext>`
 - `TheMovieDB::TV` → TV rename / move into `TV/<Show>/Season N/<Show> - SxxEyy.<ext>`
+- `AniDB` → anime rename / move into `Anime/<Title>/Season N/<Title> - SxxEyy.<ext>` using AniDB `aid` lookup
 - `--q` supported as manual override
+- `AniDB` supports:
+  - `--q aid:<id>` (deterministic direct lookup; recommended)
+  - title-based lookup when `ANIDB_TITLES_FILE` is configured locally
+  - startup refresh of the local index when `ANIDB_REFRESH_TITLES_ON_START=true` and `ANIDB_TITLES_URL` is set
 - `--format` supports default / `{plex}` only
 - `--filter` unsupported in native engine for now
 

@@ -208,6 +208,49 @@ func TestNormalizeQuery_TVTorrentNames(t *testing.T) {
 	}
 }
 
+func TestNormalizeQuery_AnimeCorpusNames(t *testing.T) {
+	cases := []struct {
+		input    string
+		wantQ    string
+		wantYear int
+	}{
+		{
+			input:    "A.D. Police: To Protect and Serve (1999) [COMPLETA] [SD H265 FLAC ENG JPN SUB ENG ITA]",
+			wantQ:    "A D Police: To Protect and Serve",
+			wantYear: 1999,
+		},
+		{
+			input:    "Fate/Stay Night Unlimited Blade Works (2014) [1080p.h265.Jap.TrueHD.Ita.AC3.Sub.Jap.Eng]",
+			wantQ:    "Fate/Stay Night Unlimited Blade Works",
+			wantYear: 2014,
+		},
+		{
+			input:    "Soul Land / Douluo Dalu (2018-2023) [COMPLETA] [1080p H264 AC3 CHI SUB ENG ITA]",
+			wantQ:    "Soul Land / Douluo Dalu",
+			wantYear: 2018,
+		},
+		{
+			input:    "Il fichissimo del baseball (1977) [STAGIONE UNICA] [COMPLETA] [1080p H265 ITA AC3 JAP EAC3]",
+			wantQ:    "Il fichissimo del baseball",
+			wantYear: 1977,
+		},
+		{
+			input:    "Bartender: Glass of God - Bartender: Kami no Glass (2024) [COMPLETA] [12/12] [1080p H264 JAP VORBIS 2.0 SUB ITA]",
+			wantQ:    "Bartender: Glass of God Bartender: Kami no Glass",
+			wantYear: 2024,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.input[:safeMin(40, len(tc.input))], func(t *testing.T) {
+			gotQ, gotYear := normalizeQuery(tc.input, true)
+			assert.Equal(t, tc.wantYear, gotYear, "year")
+			assert.Equal(t, tc.wantQ, gotQ, "query")
+		})
+	}
+}
+
 func safeMin(a, b int) int {
 	if a < b {
 		return a

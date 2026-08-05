@@ -101,6 +101,7 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 		"Conflict":    "",
 		"LogLevel":    "",
 		"Format":      "",
+		"Query":       "",
 		"Output":      "",
 		"Recursive":   false,
 	}); err != nil {

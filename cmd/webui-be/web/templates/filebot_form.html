@@ -64,6 +64,12 @@
       </div>
 
       <div class="form-group">
+        <label>Query override</label>
+        <input type="text" name="query" value="{{.Query}}" placeholder="Optional (AniDB: title or aid:12345)">
+        <small style="color:var(--muted);font-size:.75rem">AniDB accepts <code>aid:&lt;id&gt;</code> directly. Title lookup also works when <code>ANIDB_TITLES_FILE</code> is configured; use <code>aid:&lt;id&gt;</code> if a title is ambiguous.</small>
+      </div>
+
+      <div class="form-group">
         <label>Output</label>
         <input type="text" name="output" value="{{or .Output .MediaRoot}}" readonly style="opacity:.7">
       </div>

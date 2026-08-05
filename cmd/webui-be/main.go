@@ -19,6 +19,7 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/handler"
 	"github.com/darknessnerd/filebot-webui/internal/logger"
 	"github.com/darknessnerd/filebot-webui/internal/repository"
+	"github.com/darknessnerd/filebot-webui/internal/service/anidb"
 	"github.com/darknessnerd/filebot-webui/internal/service/auth"
 	"github.com/darknessnerd/filebot-webui/internal/service/deluge"
 	"github.com/darknessnerd/filebot-webui/internal/service/filebot"
@@ -93,7 +94,21 @@ func main() {
 		authMiddleware func(http.Handler) http.Handler
 	)
 
-	fbExecutor := filebot.NewInternal(cfg.MediaRoot, tmdb.NewClient(cfg.TMDBAccessToken, log), log)
+	if cfg.AniDBRefreshTitlesOnStart {
+		if err := anidb.RefreshTitlesFile(context.Background(), cfg.AniDBTitlesURL, cfg.AniDBTitlesFile, log); err != nil {
+			log.Warn().Err(err).Msg("anidb: titles refresh on start failed")
+		}
+	}
+
+	var tmdbClient *tmdb.Client
+	if cfg.TMDBAccessToken != "" {
+		tmdbClient = tmdb.NewClient(cfg.TMDBAccessToken, log)
+	} else {
+		log.Warn().Msg("TMDB_ACCESS_TOKEN not configured: TMDB providers disabled")
+	}
+	anidbClient := anidb.NewClient(cfg.AniDBClient, cfg.AniDBClientVer, cfg.AniDBProtoVer, cfg.AniDBBaseURL, cfg.AniDBTitlesFile, log)
+	fbResolver := filebot.NewResolver(tmdbClient, tmdbClient, anidbClient)
+	fbExecutor := filebot.NewInternal(cfg.MediaRoot, fbResolver, log)
 
 	if cfg.DevMode {
 		log.Warn().Msg("DEV_MODE enabled — Deluge and Plex mocked, auth bypassed")

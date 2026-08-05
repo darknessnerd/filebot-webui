@@ -31,3 +31,9 @@ type TVMatch struct {
 	Name string
 	Year int
 }
+
+type AnimeMatch struct {
+	ID    int
+	Title string
+	Year  int
+}
