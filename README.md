@@ -19,8 +19,8 @@ Self-hosted web UI that connects **Deluge + FileBot + Plex** into a single workf
 3. **Select** one or more finished torrents
 4. **Configure FileBot** — DB, format, action, conflict resolution
 5. **Execute** — FileBot service validates request, current CLI adapter renames and moves files to `MEDIA_ROOT`
-6. **On success** — torrent + data deleted from Deluge; Plex library refresh triggered
-7. **See results** — per-file success/failure, raw FileBot output toggle
+6. **On move success (per torrent)** — each successfully moved torrent is deleted from Deluge; failed torrents are kept
+7. **See results** — per-file success/failure, per-torrent moved/deleted status, raw FileBot output toggle
 
 ---
 
@@ -49,11 +49,12 @@ If you want a full-featured dashboard, this is not it. This is a surgical tool.
   - DB, Format, Action, Conflict, Log
        ↓  (submit)
 [FileBot renames + moves]
-       ↓  (all files moved successfully + action=move)
-[Delete torrent + data from Deluge]
+       ↓  (for each selected torrent)
+[If moved: delete that torrent + data from Deluge]
+       ↓  (if at least one torrent deleted)
 [Refresh Plex library]
        ↓
-[Result: successes / per-file errors / raw output]
+[Result: per-torrent moved/deleted/not moved + per-file errors + raw output]
 ```
 
 ---

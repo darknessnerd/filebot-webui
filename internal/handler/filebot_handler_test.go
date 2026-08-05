@@ -30,6 +30,21 @@ func (s *stubFBSvc) Execute(_ context.Context, _ domain.FileBotJob) (domain.File
 	return s.result, s.err
 }
 
+type routedFBSvc struct {
+	bySource map[string]stubFBSvc
+}
+
+func (s *routedFBSvc) Execute(_ context.Context, job domain.FileBotJob) (domain.FileBotResult, error) {
+	if len(job.SourcePaths) == 0 {
+		return domain.FileBotResult{}, fmt.Errorf("missing source path")
+	}
+	resp, ok := s.bySource[job.SourcePaths[0]]
+	if !ok {
+		return domain.FileBotResult{Errors: []string{"unexpected source path"}}, fmt.Errorf("wrap: %w", domain.ErrFileBotFailed)
+	}
+	return resp.result, resp.err
+}
+
 type stubDelSvc struct {
 	err      error
 	torrents []domain.Torrent
@@ -63,7 +78,7 @@ func getFBTmpl() *template.Template {
 		"list":        func(args ...string) []string { return args },
 	}).Parse(`
 {{define "filebot_form"}}FORM:{{range .TorrentIDs}}{{.}},{{end}}PATHS:{{range .SourcePaths}}{{.}},{{end}}{{end}}
-{{define "filebot_result"}}RESULT:{{range .Successes}}OK{{end}}{{range .Errors}}ERR{{end}}:plex={{.PlexRefreshed}}{{end}}
+{{define "filebot_result"}}RESULT:{{range .Successes}}OK{{end}}{{range .Errors}}ERR{{end}}:plex={{.PlexRefreshed}}:OUTCOMES={{range .TorrentOutcomes}}{{.TorrentID}}|{{.Moved}}|{{.Deleted}}|{{.Failed}}|{{.Message}};{{end}}{{end}}
 {{define "filebot_not_found"}}NOT_FOUND{{end}}
 `)
 	if err != nil {
@@ -179,6 +194,7 @@ func TestFileBotExecute_MoveSuccess_DeletesTorrentAndRefreshPlex(t *testing.T) {
 	assert.True(t, *delWrapper.called, "DeleteTorrent should have been called")
 	assert.True(t, *pxWrapper.called, "RefreshLibraries should have been called")
 	assert.Contains(t, w.Body.String(), "plex=true")
+	assert.Contains(t, w.Body.String(), "OUTCOMES=t1|true|true|false|moved and deleted;", "UI should render moved+deleted status")
 }
 
 // TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh guards the regression:
@@ -246,6 +262,7 @@ func TestFileBotExecute_NoMoveAction_SkipsDeleteAndRefresh(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.False(t, *del.called, "DeleteTorrent should NOT have been called for action=test")
 	assert.False(t, *px.called, "RefreshLibraries should NOT have been called for action=test")
+	assert.Contains(t, w.Body.String(), "OUTCOMES=t1|false|false|false|not moved (test action);", "UI should render non-move status")
 }
 
 // ── Form: missing torrents ─────────────────────────────────────────
@@ -282,6 +299,8 @@ func TestFileBotForm_SomeIDsMissingFromDeluge_RendersOnlyFoundPaths(t *testing.T
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
+	assert.Contains(t, body, "FORM:present,")
+	assert.NotContains(t, body, "gone")
 	assert.Contains(t, body, "/downloads/Movie.mkv", "found torrent path must appear")
 	// PATHS section must not contain the missing ID — extract it and check.
 	pathsIdx := strings.Index(body, "PATHS:")
@@ -319,6 +338,33 @@ func TestFileBotExecute_EmptySourcePaths_Returns422(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }
 
+func TestFileBotExecute_EmptyTorrentIDs_Returns400(t *testing.T) {
+	h := newFBHandler(&stubFBSvc{}, &stubDelSvc{}, &stubPlexSvc{})
+
+	fields := validForm()
+	delete(fields, "torrent_ids")
+
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestFileBotExecute_MismatchedTorrentAndSourceCounts_Returns400(t *testing.T) {
+	h := newFBHandler(&stubFBSvc{}, &stubDelSvc{}, &stubPlexSvc{})
+
+	fields := validForm()
+	fields["torrent_ids"] = []string{"t1", "t2"}
+	fields["source_paths"] = []string{"/downloads/only-one.mkv"}
+
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 // ── Execute: HX-Trigger toast header ──────────────────────────────
 
 func TestFileBotExecute_Success_SetsSuccessToastHeader(t *testing.T) {
@@ -352,15 +398,127 @@ func TestFileBotExecute_FileBotFailed_SetsErrorToastHeader(t *testing.T) {
 	assert.Contains(t, hxTrigger, "error")
 }
 
+func TestFileBotExecute_MovePartialSuccess_DeletesOnlySucceededTorrent(t *testing.T) {
+	fb := &routedFBSvc{
+		bySource: map[string]stubFBSvc{
+			"/downloads/ok.mkv": {
+				result: domain.FileBotResult{Successes: []string{"ok"}},
+			},
+			"/downloads/bad.mkv": {
+				result: domain.FileBotResult{Errors: []string{"rename failed"}},
+				err:    fmt.Errorf("wrap: %w", domain.ErrFileBotFailed),
+			},
+		},
+	}
+	deletedIDs := []string{}
+	del := &captureDelSvc{called: new(bool), ids: &deletedIDs}
+	px := &capturePlexSvc{called: new(bool)}
+
+	h := handler.NewFileBotHandler(fb, del, px,
+		fbTmpl(t), "/media", logger.New("error", false))
+
+	fields := validForm()
+	fields["torrent_ids"] = []string{"t1", "t2"}
+	fields["source_paths"] = []string{"/downloads/ok.mkv", "/downloads/bad.mkv"}
+
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	user := &domain.User{PlexToken: "tok"}
+	r = r.WithContext(handler.WithUser(r.Context(), user))
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, *del.called, "DeleteTorrent should be called for successful moved torrent")
+	assert.Equal(t, []string{"t1"}, deletedIDs, "only successfully moved torrent should be deleted")
+	assert.True(t, *px.called, "RefreshLibraries should be called when at least one torrent moved")
+	assert.Contains(t, w.Header().Get("HX-Trigger"), "error", "partial failure should set error toast")
+	assert.Contains(t, w.Body.String(), "t1|true|true|false|moved and deleted;", "UI should mark succeeded torrent moved+deleted")
+	assert.Contains(t, w.Body.String(), "t2|false|false|true|rename failed;", "UI should mark failed torrent as not deleted")
+}
+
+func TestFileBotExecute_MoveMixedResults_DeletesEverySucceededTorrent(t *testing.T) {
+	fb := &routedFBSvc{
+		bySource: map[string]stubFBSvc{
+			"/downloads/a-ok.mkv": {
+				result: domain.FileBotResult{Successes: []string{"ok-a"}},
+			},
+			"/downloads/b-bad.mkv": {
+				result: domain.FileBotResult{Errors: []string{"bad-b"}},
+				err:    fmt.Errorf("wrap: %w", domain.ErrFileBotFailed),
+			},
+			"/downloads/c-ok.mkv": {
+				result: domain.FileBotResult{Successes: []string{"ok-c"}},
+			},
+		},
+	}
+	deletedIDs := []string{}
+	del := &captureDelSvc{called: new(bool), ids: &deletedIDs}
+	px := &capturePlexSvc{called: new(bool)}
+
+	h := handler.NewFileBotHandler(fb, del, px,
+		fbTmpl(t), "/media", logger.New("error", false))
+
+	fields := validForm()
+	fields["torrent_ids"] = []string{"tA", "tB", "tC"}
+	fields["source_paths"] = []string{"/downloads/a-ok.mkv", "/downloads/b-bad.mkv", "/downloads/c-ok.mkv"}
+
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	user := &domain.User{PlexToken: "tok"}
+	r = r.WithContext(handler.WithUser(r.Context(), user))
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, []string{"tA", "tC"}, deletedIDs, "all and only successful moved torrents should be deleted")
+	assert.True(t, *px.called, "RefreshLibraries should be called when at least one torrent moved")
+}
+
+func TestFileBotExecute_MoveSuccess_DeleteFails_SkipsPlexRefresh(t *testing.T) {
+	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
+	del := &captureDelSvc{
+		called:  new(bool),
+		errByID: map[string]error{"t1": errors.New("delete failed")},
+	}
+	px := &capturePlexSvc{called: new(bool)}
+
+	h := handler.NewFileBotHandler(fb, del, px,
+		fbTmpl(t), "/media", logger.New("error", false))
+
+	w := httptest.NewRecorder()
+	r := postForm(validForm())
+	user := &domain.User{PlexToken: "tok"}
+	r = r.WithContext(handler.WithUser(r.Context(), user))
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, *del.called, "DeleteTorrent should be attempted")
+	assert.False(t, *px.called, "RefreshLibraries should not run when no torrent deletion succeeded")
+	assert.Contains(t, w.Body.String(), "OUTCOMES=t1|true|false|false|delete failed;", "UI should surface delete-failed status")
+}
+
 // ── capture stubs ──────────────────────────────────────────────────
 
-type captureDelSvc struct{ called *bool }
+type captureDelSvc struct {
+	called *bool
+	ids    *[]string
+	errByID map[string]error
+}
 
 func (c *captureDelSvc) ListCompleted(_ context.Context) ([]domain.Torrent, error) {
 	return nil, nil
 }
-func (c *captureDelSvc) DeleteTorrent(_ context.Context, _ string) error {
-	*c.called = true
+func (c *captureDelSvc) DeleteTorrent(_ context.Context, id string) error {
+	if c.called != nil {
+		*c.called = true
+	}
+	if c.ids != nil {
+		*c.ids = append(*c.ids, id)
+	}
+	if c.errByID != nil {
+		if err, ok := c.errByID[id]; ok {
+			return err
+		}
+	}
 	return nil
 }
 

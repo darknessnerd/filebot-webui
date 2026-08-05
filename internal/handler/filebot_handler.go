@@ -34,6 +34,15 @@ type FileBotHandler struct {
 	log       logger.Logger
 }
 
+type torrentOutcome struct {
+	TorrentID  string
+	SourceName string
+	Moved      bool
+	Deleted    bool
+	Failed     bool
+	Message    string
+}
+
 func NewFileBotHandler(fb fileBotService, del delugeSvc, plex plexSvc, tmpl *template.Template, mediaRoot string, log logger.Logger) *FileBotHandler {
 	return &FileBotHandler{fb: fb, del: del, plex: plex, tmpl: tmpl, mediaRoot: mediaRoot, log: log}
 }
@@ -42,11 +51,6 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 	torrentIDs := r.URL.Query()["torrent_ids"]
 	user, _ := UserFromContext(r.Context())
 
-	idSet := make(map[string]bool, len(torrentIDs))
-	for _, id := range torrentIDs {
-		idSet[id] = true
-	}
-
 	torrents, err := h.del.ListCompleted(r.Context())
 	if err != nil {
 		h.log.Error().Err(err).Msg("filebot form: list torrents")
@@ -54,20 +58,22 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	torrentByID := make(map[string]domain.Torrent, len(torrents))
+	for _, t := range torrents {
+		torrentByID[t.ID] = t
+	}
+
+	var resolvedIDs []string
 	var sourcePaths []string
 	var missing []string
-	for id := range idSet {
-		found := false
-		for _, t := range torrents {
-			if t.ID == id {
-				sourcePaths = append(sourcePaths, filepath.Join(t.DownloadPath, t.Name))
-				found = true
-				break
-			}
-		}
+	for _, id := range torrentIDs {
+		t, found := torrentByID[id]
 		if !found {
 			missing = append(missing, id)
+			continue
 		}
+		resolvedIDs = append(resolvedIDs, id)
+		sourcePaths = append(sourcePaths, filepath.Join(t.DownloadPath, t.Name))
 	}
 
 	if len(missing) > 0 {
@@ -86,7 +92,7 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	if err := h.tmpl.ExecuteTemplate(w, "filebot_form", map[string]any{
-		"TorrentIDs":  torrentIDs,
+		"TorrentIDs":  resolvedIDs,
 		"SourcePaths": sourcePaths,
 		"MediaRoot":   h.mediaRoot,
 		"User":        user,
@@ -108,50 +114,115 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(r.Form["source_paths"]) == 0 {
+	torrentIDs := r.Form["torrent_ids"]
+	sourcePaths := r.Form["source_paths"]
+
+	if len(sourcePaths) == 0 {
 		h.log.Warn().Msg("filebot execute: no source_paths in request")
 		http.Error(w, "no source paths — torrents may have been removed from Deluge", http.StatusUnprocessableEntity)
 		return
 	}
+	if len(torrentIDs) == 0 {
+		h.log.Warn().Msg("filebot execute: no torrent_ids in request")
+		http.Error(w, "no torrent ids", http.StatusBadRequest)
+		return
+	}
+	if len(torrentIDs) != len(sourcePaths) {
+		h.log.Warn().
+			Int("torrent_ids", len(torrentIDs)).
+			Int("source_paths", len(sourcePaths)).
+			Msg("filebot execute: mismatched torrent/source counts")
+		http.Error(w, "mismatched torrent/source paths", http.StatusBadRequest)
+		return
+	}
 
-	job := domain.FileBotJob{
-		TorrentIDs:  r.Form["torrent_ids"],
-		SourcePaths: r.Form["source_paths"],
-		DB:          r.FormValue("db"),
-		Action:      r.FormValue("action"),
-		Conflict:    r.FormValue("conflict"),
-		LogLevel:    r.FormValue("log_level"),
-		Format:      r.FormValue("format"),
-		Filter:      r.FormValue("filter"),
-		Query:       r.FormValue("query"),
-		Recursive:   r.FormValue("recursive") == "true",
-		Output:      r.FormValue("output"),
+	baseJob := domain.FileBotJob{
+		DB:        r.FormValue("db"),
+		Action:    r.FormValue("action"),
+		Conflict:  r.FormValue("conflict"),
+		LogLevel:  r.FormValue("log_level"),
+		Format:    r.FormValue("format"),
+		Filter:    r.FormValue("filter"),
+		Query:     r.FormValue("query"),
+		Recursive: r.FormValue("recursive") == "true",
+		Output:    r.FormValue("output"),
 	}
 
 	h.log.Info().
-		Str("action", job.Action).
-		Str("db", job.DB).
-		Int("torrent_count", len(job.TorrentIDs)).
+		Str("action", baseJob.Action).
+		Str("db", baseJob.DB).
+		Int("torrent_count", len(torrentIDs)).
 		Msg("filebot: execute request")
 
-	result, err := h.fb.Execute(r.Context(), job)
-	if err != nil {
-		if errors.Is(err, domain.ErrInvalidArg) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+	var result domain.FileBotResult
+	hadExecError := false
+	hadResultErrors := false
+	deletedAny := false
+	outcomes := make([]torrentOutcome, 0, len(torrentIDs))
+
+	for i := range torrentIDs {
+		outcome := torrentOutcome{
+			TorrentID:  torrentIDs[i],
+			SourceName: filepath.Base(sourcePaths[i]),
 		}
-		h.log.Error().Err(err).Msg("FileBotHandler.Execute")
-		setToast(w, "error", "FileBot failed: "+err.Error())
+		job := baseJob
+		job.TorrentIDs = []string{torrentIDs[i]}
+		job.SourcePaths = []string{sourcePaths[i]}
+
+		currentResult, execErr := h.fb.Execute(r.Context(), job)
+		result.Successes = append(result.Successes, currentResult.Successes...)
+		result.Errors = append(result.Errors, currentResult.Errors...)
+		if currentResult.RawOutput != "" {
+			if result.RawOutput != "" {
+				result.RawOutput += "\n"
+			}
+			result.RawOutput += currentResult.RawOutput
+		}
+
+		if execErr != nil {
+			if errors.Is(execErr, domain.ErrInvalidArg) {
+				http.Error(w, execErr.Error(), http.StatusBadRequest)
+				return
+			}
+			hadExecError = true
+			h.log.Error().
+				Err(execErr).
+				Str("torrent_id", torrentIDs[i]).
+				Str("source_path", sourcePaths[i]).
+				Msg("FileBotHandler.Execute")
+			outcome.Failed = true
+			outcome.Message = execErr.Error()
+		}
+
+		if len(currentResult.Errors) > 0 {
+			hadResultErrors = true
+			outcome.Failed = true
+			outcome.Message = currentResult.Errors[0]
+		}
+
+		if baseJob.Action == "move" && len(currentResult.Errors) == 0 && execErr == nil {
+			outcome.Moved = true
+			if derr := h.del.DeleteTorrent(r.Context(), torrentIDs[i]); derr != nil {
+				h.log.Warn().Err(derr).Str("torrent_id", torrentIDs[i]).Msg("delete torrent failed")
+				outcome.Message = derr.Error()
+			} else {
+				deletedAny = true
+				outcome.Deleted = true
+				outcome.Message = "moved and deleted"
+			}
+		} else if baseJob.Action == "move" && outcome.Failed {
+			if outcome.Message == "" {
+				outcome.Message = "not moved"
+			}
+		} else if baseJob.Action != "move" {
+			outcome.Message = "not moved (" + baseJob.Action + " action)"
+		}
+
+		outcomes = append(outcomes, outcome)
 	}
 
 	plexRefreshed := false
-	if job.Action == "move" && len(result.Errors) == 0 && err == nil {
-		for _, id := range job.TorrentIDs {
-			if derr := h.del.DeleteTorrent(r.Context(), id); derr != nil {
-				h.log.Warn().Err(derr).Str("torrent_id", id).Msg("delete torrent failed")
-			}
-		}
-
+	if baseJob.Action == "move" && deletedAny {
 		user, ok := UserFromContext(r.Context())
 		if ok && user.PlexToken != "" {
 			if perr := h.plex.RefreshLibraries(r.Context(), user.PlexToken); perr != nil {
@@ -162,8 +233,10 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err == nil && len(result.Errors) == 0 {
+	if !hadExecError && !hadResultErrors {
 		setToast(w, "success", "FileBot complete")
+	} else {
+		setToast(w, "error", "FileBot failed: one or more torrents failed")
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -172,6 +245,7 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		"Errors":        result.Errors,
 		"RawOutput":     result.RawOutput,
 		"PlexRefreshed": plexRefreshed,
+		"TorrentOutcomes": outcomes,
 	}); err != nil {
 		h.log.Error().Err(err).Msg("filebot result render")
 	}
