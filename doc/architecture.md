@@ -81,6 +81,7 @@ sequenceDiagram
 - Result payload includes per-torrent moved/deleted/failed status plus per-file outcomes so partial failures are visible.
 - AniDB flow prefers direct `aid:<id>` from `--q`; title-based lookup (via local index) strips episode markers before searching so bare `E01`, `- 01`, `#01`, `OVA N`, `Part N` in filenames do not corrupt the query.
 - Episode detection for TV accepts `SxxEyy`, `S01.E01`, `S01 E01`, and `NxYY`; for anime it additionally handles bare-dash, hash, OVA/SP, and Part (arabic + roman) markers.
+- Cross-device moves fall back to copy+delete; `copyFile` writes to a `.tmp-copy-*` temp in the target dir then renames atomically — startup cleanup removes any orphans left by a crash.
 
 ## Sequence Diagram — AniDB Titles Scheduler
 Scope: background goroutine lifecycle — startup index load, periodic freshness check, atomic disk write, live in-memory reload.
@@ -88,11 +89,16 @@ Scope: background goroutine lifecycle — startup index load, periodic freshness
 ```mermaid
 sequenceDiagram
     participant Main      as main.go (startup)
+    participant Cleanup   as CleanupOrphanedTemps
     participant Refresh   as RefreshTitlesFile (helper)
     participant Sched     as Scheduler (goroutine)
     participant Client    as anidb.Client
     participant Disk      as Filesystem
     participant Remote    as AniDB titles dump
+
+    Main->>Cleanup: CleanupOrphanedTemps(MEDIA_ROOT)
+    Cleanup->>Disk: walk MEDIA_ROOT, remove .tmp-copy-* files
+    Note over Cleanup: removes temp files left by interrupted copyFile calls
 
     alt ANIDB_REFRESH_TITLES_ON_START=true AND ANIDB_TITLES_URL set AND ANIDB_TITLES_FILE set
         Main->>Refresh: RefreshTitlesFile(ctx, url, path)
@@ -130,6 +136,7 @@ sequenceDiagram
 ```
 
 **Decisions recorded here:**
+- Startup temp cleanup runs before any other init so orphaned `.tmp-copy-*` files from crashed copy operations are removed before new moves start — prevents stale files accumulating in `MEDIA_ROOT`.
 - File mtime is the freshness signal — no separate state file needed; atomic rename keeps mtime accurate.
 - `ReloadIndex` swaps the in-memory index under `RWMutex` so concurrent `SearchAnime` calls are never blocked longer than a pointer swap.
 - `TryLock` on the scheduler mutex prevents overlapping downloads when a tick fires while a previous slow download is still in progress.
