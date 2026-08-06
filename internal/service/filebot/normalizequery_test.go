@@ -100,6 +100,21 @@ func TestNormalizeQuery_TVTorrentNames(t *testing.T) {
 		wantQ    string
 		wantYear int
 	}{
+		// --- regression: episode title after SxxExx must be stripped ---
+		// "Catfish Hunter" is episode 2 title; query must be "Futurama" only.
+		{
+			input:    "Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing.mkv",
+			wantQ:    "Futurama",
+			wantYear: 0,
+		},
+		// --- regression: season-year in filename ≠ show premiere year ---
+		// Year 2026 is the current season, not Rick and Morty's premiere (2013).
+		// normalizeQuery should still extract 2026 so SearchTV can attempt+retry.
+		{
+			input:    "Rick and Morty - Stagione 09 (2026).mkv",
+			wantQ:    "Rick and Morty",
+			wantYear: 2026,
+		},
 		// --- standard SxxExx ---
 		{
 			input:    "Breaking.Bad.S01E01.1080p.BluRay.mkv",
