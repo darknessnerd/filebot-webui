@@ -8,6 +8,53 @@
   </div>
   <div class="card-body">
 
+    {{if .TorrentOutcomes}}
+    <p style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Torrent outcomes</p>
+    <div class="table-wrap" style="margin-bottom:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>Torrent</th>
+            <th>Moved</th>
+            <th>Deleted</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .TorrentOutcomes}}
+          <tr>
+            <td>
+              <div style="font-weight:600">{{.SourceName}}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">{{.TorrentID}}</div>
+            </td>
+            <td>
+              {{if .Moved}}
+                <span class="badge badge-success">yes</span>
+              {{else}}
+                <span class="badge badge-warn">no</span>
+              {{end}}
+            </td>
+            <td>
+              {{if .Deleted}}
+                <span class="badge badge-success">yes</span>
+              {{else}}
+                <span class="badge badge-warn">no</span>
+              {{end}}
+            </td>
+            <td>
+              {{if .Failed}}
+                <span class="badge badge-error">{{.Message}}</span>
+              {{else}}
+                <span class="badge badge-info">{{.Message}}</span>
+              {{end}}
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{end}}
+
     {{if .Successes}}
     <p style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Processed</p>
     <ul class="result-list">

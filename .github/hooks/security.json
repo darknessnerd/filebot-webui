@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "matcher": "Bash",
+        "bash": ".github/hooks/pre-bash.sh",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

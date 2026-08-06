@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/darknessnerd/filebot-webui/internal/domain"
@@ -49,6 +51,16 @@ var devTorrents = []domain.Torrent{
 		IsFinished:   true,
 		CompletedOn:  time.Now().Add(-10 * time.Minute),
 	},
+	{
+		ID:           "ani001",
+		Name:         "[SubsPlease] Cowboy Bebop - E01 (1080p) [aid:1]",
+		State:        "Seeding",
+		Progress:     100,
+		DownloadPath: "/downloads",
+		Size:         1_610_612_736,
+		IsFinished:   true,
+		CompletedOn:  time.Now().Add(-45 * time.Minute),
+	},
 }
 
 type mockDelugeClient struct{}
@@ -61,21 +73,50 @@ func (m *mockDelugeClient) DeleteTorrent(_ context.Context, id string) error {
 	return nil
 }
 
-type mockFileBotExecutor struct{}
-
-func (m *mockFileBotExecutor) Execute(_ context.Context, job domain.FileBotJob) (domain.FileBotResult, error) {
-	successes := make([]string, 0, len(job.SourcePaths))
-	for _, p := range job.SourcePaths {
-		successes = append(successes, "[DEV] "+p+" --> /media/Movies/renamed-file.mkv")
-	}
-	return domain.FileBotResult{
-		Successes: successes,
-		RawOutput: "[DEV MODE] FileBot mock: no real exec performed.",
-	}, nil
-}
-
 type mockPlexClient struct{}
 
 func (m *mockPlexClient) RefreshLibraries(_ context.Context, _ string) error {
 	return nil
+}
+
+type mockMetadataResolver struct{}
+
+func (m *mockMetadataResolver) SearchMovie(_ context.Context, query string, year int) (*domain.MovieMatch, error) {
+	title := strings.TrimSpace(query)
+	if title == "" {
+		title = "Mock Movie"
+	}
+	if year == 0 {
+		year = 2024
+	}
+	return &domain.MovieMatch{ID: 1, Title: title, Year: year}, nil
+}
+
+func (m *mockMetadataResolver) SearchTV(_ context.Context, query string, year int) (*domain.TVMatch, error) {
+	name := strings.TrimSpace(query)
+	if name == "" {
+		name = "Mock Show"
+	}
+	if year == 0 {
+		year = 2024
+	}
+	return &domain.TVMatch{ID: 1, Name: name, Year: year}, nil
+}
+
+func (m *mockMetadataResolver) SearchAnime(_ context.Context, query string, year int) (*domain.AnimeMatch, error) {
+	title := strings.TrimSpace(query)
+	if title == "" {
+		title = "Mock Anime"
+	}
+	if year == 0 {
+		year = 1998
+	}
+	return &domain.AnimeMatch{ID: 1, Title: title, Year: year}, nil
+}
+
+func (m *mockMetadataResolver) SearchAnimeByAID(_ context.Context, aid int) (*domain.AnimeMatch, error) {
+	if aid <= 0 {
+		return nil, fmt.Errorf("invalid aid %d", aid)
+	}
+	return &domain.AnimeMatch{ID: aid, Title: fmt.Sprintf("Mock Anime AID %d", aid), Year: 1998}, nil
 }

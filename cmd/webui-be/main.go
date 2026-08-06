@@ -19,10 +19,12 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/handler"
 	"github.com/darknessnerd/filebot-webui/internal/logger"
 	"github.com/darknessnerd/filebot-webui/internal/repository"
+	"github.com/darknessnerd/filebot-webui/internal/service/anidb"
 	"github.com/darknessnerd/filebot-webui/internal/service/auth"
 	"github.com/darknessnerd/filebot-webui/internal/service/deluge"
 	"github.com/darknessnerd/filebot-webui/internal/service/filebot"
 	"github.com/darknessnerd/filebot-webui/internal/service/plex"
+	"github.com/darknessnerd/filebot-webui/internal/service/tmdb"
 )
 
 //go:embed web/templates/* web/static/css/app.css web/static/css/icons.css web/static/fonts
@@ -89,17 +91,70 @@ func main() {
 		plexSvc interface {
 			RefreshLibraries(ctx context.Context, plexToken string) error
 		}
-		fbExecutor interface {
-			Execute(ctx context.Context, job domain.FileBotJob) (domain.FileBotResult, error)
-		}
 		authMiddleware func(http.Handler) http.Handler
 	)
 
+	var (
+		movieResolver interface {
+			SearchMovie(ctx context.Context, query string, year int) (*domain.MovieMatch, error)
+		}
+		tvResolver interface {
+			SearchTV(ctx context.Context, query string, year int) (*domain.TVMatch, error)
+		}
+		animeResolver interface {
+			SearchAnime(ctx context.Context, query string, year int) (*domain.AnimeMatch, error)
+			SearchAnimeByAID(ctx context.Context, aid int) (*domain.AnimeMatch, error)
+		}
+		hasTMDBProvider bool
+	)
+
+	var titleScheduler *anidb.Scheduler
+
+	// Metadata resolvers always wire from real config.
+	if cfg.TMDBAccessToken != "" {
+		tmdbClient := tmdb.NewClient(cfg.TMDBAccessToken, log)
+		movieResolver = tmdbClient
+		tvResolver = tmdbClient
+		hasTMDBProvider = true
+	} else {
+		log.Warn().Msg("TMDB_ACCESS_TOKEN not configured: TMDB providers disabled")
+	}
+
+	anidbClient := anidb.NewClient(cfg.AniDBClient, cfg.AniDBClientVer, cfg.AniDBProtoVer, cfg.AniDBBaseURL, log)
+
+	startupRefresh := cfg.AniDBRefreshTitlesOnStart && cfg.AniDBTitlesURL != "" && cfg.AniDBTitlesFile != ""
+	if startupRefresh {
+		content, err := anidb.RefreshTitlesFile(context.Background(), cfg.AniDBTitlesURL, cfg.AniDBTitlesFile, log)
+		if err != nil {
+			log.Warn().Err(err).Msg("anidb: titles refresh on start failed")
+			if err := anidbClient.LoadIndexFromFile(cfg.AniDBTitlesFile); err != nil {
+				log.Warn().Err(err).Msg("anidb: could not load titles file from disk")
+			}
+		} else if err := anidbClient.ReloadIndex(content); err != nil {
+			log.Warn().Err(err).Msg("anidb: in-memory index reload after startup refresh failed")
+		}
+	} else if cfg.AniDBTitlesFile != "" {
+		if err := anidbClient.LoadIndexFromFile(cfg.AniDBTitlesFile); err != nil {
+			log.Warn().Err(err).Msg("anidb: could not load titles file from disk")
+		}
+	}
+
+	if cfg.AniDBSchedulerEnabled && cfg.AniDBTitlesURL != "" && cfg.AniDBTitlesFile != "" {
+		titleScheduler = anidb.NewScheduler(anidb.SchedulerConfig{
+			Interval:         cfg.AniDBSchedulerInterval,
+			MinFetchInterval: cfg.AniDBMinFetchInterval,
+			SourceURL:        cfg.AniDBTitlesURL,
+			TargetPath:       cfg.AniDBTitlesFile,
+		}, anidbClient, log)
+	}
+
+	animeResolver = anidbClient
+
+	// DevMode mocks only Deluge, Plex, and auth — metadata resolvers above stay real.
 	if cfg.DevMode {
-		log.Warn().Msg("DEV_MODE enabled — all external services mocked, auth bypassed")
+		log.Warn().Msg("DEV_MODE enabled — Deluge/Plex mocked, auth bypassed")
 		delugeSvc = &mockDelugeClient{}
 		plexSvc = &mockPlexClient{}
-		fbExecutor = &mockFileBotExecutor{}
 		authMiddleware = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				next.ServeHTTP(w, r.WithContext(handler.WithUser(r.Context(), devUser)))
@@ -108,14 +163,16 @@ func main() {
 	} else {
 		delugeSvc = deluge.NewClient(cfg.DelugeHost, cfg.DelugePort, cfg.DelugePassword, log)
 		plexSvc = plex.NewClient(log)
-		fbExecutor = filebot.NewExecutor(cfg.MediaRoot, cfg.FilebotPath, log)
 		authMiddleware = handler.RequireAuth(authSvc, userRepo, log)
 	}
+
+	fbResolver := filebot.NewResolver(movieResolver, tvResolver, animeResolver)
+	fbExecutor := filebot.NewInternal(cfg.MediaRoot, fbResolver, log)
 
 	// Handlers (now template-aware)
 	authH := handler.NewAuthHandler(authSvc, cfg.PlexRedirectURL, log)
 	torrentH := handler.NewTorrentHandler(delugeSvc, tmpl, log, cfg.Debug)
-	fileBotH := handler.NewFileBotHandler(fbExecutor, delugeSvc, plexSvc, tmpl, cfg.MediaRoot, log)
+	fileBotH := handler.NewFileBotHandler(fbExecutor, delugeSvc, plexSvc, tmpl, cfg.MediaRoot, hasTMDBProvider, log)
 	plexH := handler.NewPlexHandler(plexSvc, log)
 
 	mux := http.NewServeMux()
@@ -180,6 +237,10 @@ func main() {
 
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	if titleScheduler != nil {
+		go titleScheduler.Run(sigCtx)
+	}
 
 	go func() {
 		log.Info().Str("addr", addr).Msg("starting server")

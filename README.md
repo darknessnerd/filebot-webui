@@ -18,9 +18,9 @@ Self-hosted web UI that connects **Deluge + FileBot + Plex** into a single workf
 2. **View completed torrents** fetched live from Deluge
 3. **Select** one or more finished torrents
 4. **Configure FileBot** — DB, format, action, conflict resolution
-5. **Execute** — FileBot renames and moves files to `MEDIA_ROOT`
-6. **On success** — torrent + data deleted from Deluge; Plex library refresh triggered
-7. **See results** — per-file success/failure, raw FileBot output toggle
+5. **Execute** — media engine validates request, renames and moves files to `MEDIA_ROOT`
+6. **On move success (per torrent)** — each successfully moved torrent is deleted from Deluge; failed torrents are kept
+7. **See results** — per-file success/failure, per-torrent moved/deleted status, raw FileBot output toggle
 
 ---
 
@@ -38,22 +38,19 @@ If you want a full-featured dashboard, this is not it. This is a surgical tool.
 
 ## User Flow
 
+See [doc/architecture.md — Rename/Move Execution Flow](doc/architecture.md#sequence-diagram--renamemove-execution-flow) for the full sequence diagram.
+
 ```
-[Login with Plex]
-       ↓
-[Completed torrents list]  ←  polls Deluge every 30s
-       ↓  (select one or more)
-[FileBot form]
-  - Source:  /downloads/<torrent name>   (from Deluge)
-  - Output:  MEDIA_ROOT                  (fixed, validated)
-  - DB, Format, Action, Conflict, Log
-       ↓  (submit)
-[FileBot renames + moves]
-       ↓  (all files moved successfully + action=move)
-[Delete torrent + data from Deluge]
-[Refresh Plex library]
-       ↓
-[Result: successes / per-file errors / raw output]
+Login (Plex PIN)
+  → completed torrents list (polls Deluge every 30s)
+  → select torrents → FileBot form
+  → POST /filebot/execute
+      → validate allowlist
+      → resolve metadata (TMDB / AniDB)
+      → rename + move to MEDIA_ROOT
+      → delete each moved torrent from Deluge
+      → refresh Plex
+  → result page (per-file OK/ERR · per-torrent status)
 ```
 
 ---
@@ -86,17 +83,16 @@ services:
       DELUGE_PORT: 8112
       DELUGE_PASSWORD: your-password
       MEDIA_ROOT: /media
-      FILEBOT_LICENSE_PATH: /config/license.psm
+      TMDB_ACCESS_TOKEN: your-tmdb-bearer-token
     volumes:
-      - /path/to/license.psm:/config/license.psm:ro
       - /data/downloads:/downloads   # must match Deluge's download path
       - /data/media:/media
     restart: unless-stopped
 ```
 
-> **FileBot is bundled in the image** — no separate install needed. FileBot 5.1.7 (portable) + OpenJDK 11 are included. License registration runs in `docker/start.sh` at container startup — mount your `license.psm` and set `FILEBOT_LICENSE_PATH` to its container path. If no license is found, the app starts anyway (community features only).
+> **No external binaries required** — media renaming is handled natively via the TMDB API. Set `TMDB_ACCESS_TOKEN` to a TMDB v4 bearer token (read-only access token from your TMDB account settings).
 
-> **Critical:** Deluge and filebot-webui must mount the **same paths** at the same container paths. If Deluge stores files at `/downloads/Movie.mkv`, filebot-webui must also see `/downloads/Movie.mkv`. Mismatch = FileBot "file not found" sadness.
+> **Critical:** Deluge and filebot-webui must mount the **same paths** at the same container paths. If Deluge stores files at `/downloads/Movie.mkv`, filebot-webui must also see `/downloads/Movie.mkv`. Mismatch = file not found.
 
 ---
 
@@ -152,12 +148,22 @@ make lint        # go vet + staticcheck
 | `SERVER_PORT` | `8080` | HTTP port |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `DEBUG` | `false` | Pretty-print logs |
+| `DEV_MODE` | `false` | Bypass auth and mock Deluge/Plex — metadata resolvers (TMDB, AniDB, scheduler) stay real |
 | `JWT_EXPIRES_IN` | `24h` | JWT token lifetime |
 | `JWT_ISSUER` | `filebot-webui` | JWT issuer claim |
 | `DELUGE_PORT` | `8112` | Deluge JSON-RPC port |
 | `DELUGE_USERNAME` | _(empty)_ | Deluge username (if required) |
-| `FILEBOT_PATH` | `filebot` | Path to filebot binary |
-| `FILEBOT_LICENSE_PATH` | _(empty)_ | Path to `license.psm` — registered at boot if set |
+| `TMDB_ACCESS_TOKEN` | _(empty)_ | TMDB v4 bearer token (required only when using TheMovieDB / TheMovieDB::TV) |
+| `ANIDB_CLIENT` | _(empty)_ | Registered AniDB HTTP API client id (required for AniDB lookups) |
+| `ANIDB_CLIENTVER` | _(empty)_ | Registered AniDB client version (required for AniDB lookups) |
+| `ANIDB_PROTOVER` | `1` | AniDB HTTP API protocol version |
+| `ANIDB_BASE_URL` | `http://api.anidb.net:9001/httpapi` | AniDB HTTP API endpoint |
+| `ANIDB_TITLES_FILE` | _(empty)_ | Optional local AniDB titles XML file for title→AID resolution |
+| `ANIDB_TITLES_URL` | _(empty)_ | Optional URL to download AniDB titles XML from |
+| `ANIDB_REFRESH_TITLES_ON_START` | `false` | When `true`, refreshes `ANIDB_TITLES_FILE` at startup |
+| `ANIDB_SCHEDULER_ENABLED` | `false` | When `true` (and `ANIDB_TITLES_URL` + `ANIDB_TITLES_FILE` set), runs a background scheduler that keeps the titles file up to date |
+| `ANIDB_SCHEDULER_INTERVAL` | `12h` | How often the scheduler wakes up to check whether a remote download is needed |
+| `ANIDB_MIN_FETCH_INTERVAL` | `24h` | Minimum age of the local file before a remote download is triggered (AniDB policy: ≥ 24h) |
 | `DB_TYPE` | `sqlite` | `sqlite` or `postgres` |
 | `DB_DATABASE` | `./data/app.db` | SQLite path or PostgreSQL DB name |
 | `DB_HOST` | `localhost` | PostgreSQL host |
@@ -168,9 +174,9 @@ make lint        # go vet + staticcheck
 
 ---
 
-## FileBot Parameters
+## Media Engine Parameters
 
-All values validated against an allowlist before reaching `exec.Command`. Raw user input is never interpolated into a shell command.
+All values validated against an allowlist before execution. Raw user input is never interpolated into commands.
 
 | Parameter | UI control | Allowed values |
 |-----------|-----------|----------------|
@@ -180,8 +186,91 @@ All values validated against an allowlist before reaching `exec.Command`. Raw us
 | `--log` | dropdown | `all`, `fine`, `info`, `warning`, `off` |
 | `--format` | text input | free-form; shell metacharacters rejected |
 | `--filter` | text input | optional Groovy expression |
-| `--q` | text input | optional override query |
+| `--q` | text input | override query (`aid:<id>` preferred for AniDB; title query requires `ANIDB_TITLES_FILE`) |
 | `-r` | checkbox | recursive mode |
+
+---
+
+## Native Engine Scope
+
+### Output paths
+
+| DB | Output layout |
+|----|--------------|
+| `TheMovieDB` | `Movies/<Title (Year)>/<Title>.<ext>` |
+| `TheMovieDB::TV` | `TV/<Show>/Season N/<Show> - SxxEyy.<ext>` |
+| `AniDB` | `Anime/<Title>/Season N/<Title> - SxxEyy.<ext>` |
+
+### Episode / title detection
+
+**TV** — episode marker extracted from filename, in priority order:
+
+| Format | Example |
+|--------|---------|
+| `SxxEyy` / `SxxEyyEzz` / `SxxEyy-Ezz` | `Show.S01E01.mkv`, `S01E01-E02` |
+| `S01.E01` / `S01 E01` | `Show.S01.E01.mkv` |
+| `NxYY` | `Show.2x05.mkv` |
+
+**Movie** — year extracted from filename; title normalized by stripping codec noise (`1080p`, `BluRay`, `x265`, `DTS`, …), language tags, release group brackets, and audio channel specs.
+
+**Anime** — episode marker extracted in priority order:
+
+| Format | Example |
+|--------|---------|
+| `SxxEyy` / `NxYY` | `Show.S02E04.mkv` |
+| `EP01` / `E01` / `E01-E13` | `[Group] Show - E01.mkv` |
+| `[N/Total]` / `[N-M/Total]` | `Show [03/14].mkv` |
+| `- 01` / `- 01-26` (bare after dash) | `[SubsPlease] Show - 01 (1080p).mkv` |
+| `#01` / `#01-05` | `Show #01.mkv` |
+| `OVA N` / `SP N` / `Special N` | `Hellsing OVA 3.mkv` |
+| `Part N` / `Part III` | `Tenchi Muyo Part II.mkv` |
+
+Season inferred from `Season N` / `Stagione N` in path; defaults to 1.
+
+### AniDB lookup
+
+- `--q aid:<id>` — deterministic direct lookup (recommended)
+- Title-based lookup when `ANIDB_TITLES_FILE` configured; title cleaned of episode markers before index search
+- Startup refresh when `ANIDB_REFRESH_TITLES_ON_START=true`, `ANIDB_TITLES_URL`, and `ANIDB_TITLES_FILE` set
+- Background scheduler when `ANIDB_SCHEDULER_ENABLED=true`, `ANIDB_TITLES_URL`, and `ANIDB_TITLES_FILE` set (see below)
+
+### Other constraints
+
+- `--format` supports default / `{plex}` only
+- `--filter` unsupported in native engine
+
+---
+
+## AniDB Titles Scheduler
+
+The scheduler keeps the local AniDB titles file (`ANIDB_TITLES_FILE`) up to date in the background, without manual intervention.
+
+### Behavior
+
+- The scheduler wakes every `ANIDB_SCHEDULER_INTERVAL` (default `12h`).
+- On each tick it checks the modification time of `ANIDB_TITLES_FILE`.
+- A remote download is performed **only** when the file is older than `ANIDB_MIN_FETCH_INTERVAL` (default `24h`).
+- If a download is already running (e.g. a very slow network), the next tick is skipped — no concurrent downloads.
+- The scheduler shuts down cleanly when the process receives `SIGINT` or `SIGTERM`.
+
+### AniDB Policy Compliance
+
+[AniDB](https://anidb.net) requires that the anime-titles dump is **not fetched more than once per 24 hours**.
+
+This is enforced by the `ANIDB_MIN_FETCH_INTERVAL` setting (default `24h`).  
+**Do not set `ANIDB_MIN_FETCH_INTERVAL` below `24h`** — doing so violates AniDB's terms of service and may result in your IP being banned.
+
+### Quick-Start
+
+```dotenv
+ANIDB_TITLES_FILE=./data/anime-titles.xml
+ANIDB_TITLES_URL=https://anidb.net/api/anime-titles.xml.gz
+ANIDB_SCHEDULER_ENABLED=true
+ANIDB_SCHEDULER_INTERVAL=12h
+ANIDB_MIN_FETCH_INTERVAL=24h
+```
+
+Set `ANIDB_REFRESH_TITLES_ON_START=true` alongside to also populate the file immediately at first boot (before the first scheduler tick fires).
 
 ---
 
@@ -201,6 +290,44 @@ handler → service → domain ← repository
 | `internal/handler/` | HTTP — imports service only via local interfaces |
 | `cmd/webui-be/main.go` | Wires all layers — only file allowed to import across them |
 
+See [doc/architecture.md](doc/architecture.md) for:
+- C4 container diagram (external integrations, owned boundary)
+- Rename/Move execution sequence diagram
+- AniDB titles scheduler sequence diagram
+
+### Component Map
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Browser (HTMX + Alpine.js)                                     │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ HTTP
+┌────────────────────────▼────────────────────────────────────────┐
+│  handler/                                                        │
+│  ├── AuthHandler       Plex PIN OAuth · JWT cookie              │
+│  ├── TorrentHandler    list completed Deluge torrents           │
+│  ├── FileBotHandler    form + execute + result                  │
+│  └── PlexHandler       library refresh                          │
+└────────┬───────────────┬──────────────────┬─────────────────────┘
+         │               │                  │
+┌────────▼──────┐ ┌──────▼──────┐ ┌────────▼────────────────────┐
+│ service/auth  │ │service/deluge│ │ service/filebot              │
+│ JWT · Plex    │ │ JSON-RPC    │ │ InternalEngine               │
+│ PIN flow      │ └──────┬──────┘ │  ├── MovieResolver (TMDB)    │
+└───────┬───────┘        │        │  ├── TVResolver    (TMDB)    │
+        │           Deluge RPC    │  └── AnimeResolver (AniDB)   │
+┌───────▼───────┐        │        └────────┬────────────────────-┘
+│ repository/   │        │                 │
+│ UserRepo      │        │       ┌─────────▼──────────────────────┐
+│ (SQLite/PG)   │        │       │ service/anidb                  │
+└───────────────┘        │       │  Client · title index (RWMutex)│
+                         │       │  Scheduler (background goroutine│
+                         │       └─────────┬──────────────────────┘
+                         │                 │
+                    Deluge host       AniDB HTTP API
+                                      + titles dump
+```
+
 ---
 
 ## Tech Stack
@@ -214,13 +341,13 @@ handler → service → domain ← repository
 | Auth | Plex PIN OAuth + JWT HS256 (HttpOnly cookie) |
 | Database | SQLite (default) / PostgreSQL |
 | Logging | zerolog behind injected interface |
-| FileBot | `exec.CommandContext` with allowlisted arg builder; bundled in Docker image (v5.1.7 portable + OpenJDK 11) |
+| Media engine | Native Go implementation; TMDB and AniDB metadata lookups via HTTP APIs |
 
 ---
 
 ## Security
 
-- FileBot exec: allowlisted args only — no raw user input reaches `exec.Command`
+- FileBot service validates args before execution; CLI adapter never receives raw shell input
 - `source_paths` validated against shell metacharacters before exec — Deluge paths containing `$`, `` ` ``, `;`, `|` etc. are rejected
 - `--output` validated to be under `MEDIA_ROOT` via `filepath.Clean` with separator guard (prevents `/media2` bypassing a `/media` prefix check)
 - `JWT_SECRET` required at startup — no insecure fallback
@@ -247,10 +374,10 @@ CI builds and pushes `:1.0.0`, `:1.0`, and `:latest` to Docker Hub.
 |---------|-------|-----|
 | `JWT_SECRET is required` at startup | Env var missing | Set `JWT_SECRET` |
 | `MEDIA_ROOT is required` at startup | Env var missing | Set `MEDIA_ROOT` |
+| TMDB database selected but no token | `TMDB_ACCESS_TOKEN` not set | Set `TMDB_ACCESS_TOKEN` to a TMDB v4 bearer token — required only for `TheMovieDB` / `TheMovieDB::TV` |
 | Torrents not showing | Deluge unreachable | Check `DELUGE_HOST`, `DELUGE_PORT`, `DELUGE_PASSWORD` |
-| FileBot "file not found" | Volume mount mismatch | Mirror paths between Deluge and filebot-webui containers |
-| FileBot license not applied | `FILEBOT_LICENSE_PATH` unset or wrong path | Mount `license.psm` and set `FILEBOT_LICENSE_PATH` to its container path |
-| FileBot "outside MEDIA_ROOT" | Output path rejected | Ensure `--output` is under `MEDIA_ROOT` |
+| Media rename "file not found" | Volume mount mismatch | Mirror paths between Deluge and filebot-webui containers |
+| Media rename "outside MEDIA_ROOT" | Output path rejected | Ensure `--output` is under `MEDIA_ROOT` |
 | Login loop | JWT cookie not set | Check `PLEX_REDIRECT_URL` matches actual app URL exactly |
 | Plex refresh fails | Server unreachable or wrong token | Check Plex server reachable from container network |
 | `connection refused` on port 8112 | `DELUGE_HOST` empty | Set `DELUGE_HOST` to your Deluge machine IP/hostname |
