@@ -72,14 +72,15 @@ var devTorrents = []domain.Torrent{
 		IsFinished:   true,
 		CompletedOn:  time.Now().Add(-30 * time.Minute),
 	},
-	// regression: season year (2026) in filename != show premiere year (2013); SearchTV retries without year
+	// regression: season folder torrent — individual episode files inside carry NxNN codes.
+	// Season year (2026) in folder name != show premiere year (2013); SearchTV retries without year.
 	{
 		ID:           "ram001",
-		Name:         "Rick and Morty - Stagione 09 (2026) S09E01",
+		Name:         "Rick and Morty - Stagione 09 (2026)",
 		State:        "Seeding",
 		Progress:     100,
 		DownloadPath: "/downloads",
-		Size:         1_500_000_000,
+		Size:         5_000_000_000,
 		IsFinished:   true,
 		CompletedOn:  time.Now().Add(-15 * time.Minute),
 	},

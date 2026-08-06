@@ -328,11 +328,32 @@ func collectVideoFiles(sourcePaths []string, recursive bool, dryRun bool) ([]str
 	var files []string
 	for _, source := range sourcePaths {
 		if dryRun {
-			// test action: treat each source as a virtual path, no filesystem access
+			// For dry-run: if path exists on disk, walk it normally so real episode files are
+			// discovered (e.g. a season folder with individual episode .mkv files).
+			// Only synthesize a virtual path when the source doesn't exist on disk.
+			if info, err := os.Stat(source); err == nil {
+				if !info.IsDir() {
+					if isVideoFile(source) {
+						files = append(files, source)
+					}
+					continue
+				}
+				// real directory — walk it
+				_ = filepath.WalkDir(source, func(path string, d fs.DirEntry, walkErr error) error {
+					if walkErr != nil || d.IsDir() {
+						return nil
+					}
+					if isVideoFile(path) {
+						files = append(files, path)
+					}
+					return nil
+				})
+				continue
+			}
+			// path not on disk — virtual/dev-mode path
 			if isVideoFile(source) {
 				files = append(files, source)
 			} else {
-				// source is likely a directory name without extension — include as-is with fake ext
 				files = append(files, source+".mkv")
 			}
 			continue

@@ -423,6 +423,83 @@ func TestInternalEngine_RejectsUnsupportedFilter(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrInvalidArg)
 }
 
+// --- regression: season folder torrent — dry-run must walk real directory ---
+// Previously collectVideoFiles with action=test appended ".mkv" to the folder name,
+// producing "Rick and Morty - Stagione 09 (2026).mkv" with no episode marker.
+// Fix: when path exists on disk, walk it even in dry-run mode.
+
+func TestInternalEngine_TV_SeasonFolder_DryRun(t *testing.T) {
+	dir := t.TempDir()
+	seasonDir := filepath.Join(dir, "Rick and Morty - Stagione 09 (2026)")
+	require.NoError(t, os.MkdirAll(seasonDir, 0755))
+	episodes := []string{
+		"Rick and Morty 09x01 - Tutti pazzi per Morty.mkv",
+		"Rick and Morty 09x02 - Sei Giornirick sette notti.mkv",
+	}
+	for _, ep := range episodes {
+		require.NoError(t, os.WriteFile(filepath.Join(seasonDir, ep), []byte("data"), 0644))
+	}
+
+	engine := NewInternalEngine(&stubResolver{
+		tv: &domain.TVMatch{ID: 60625, Name: "Rick and Morty", Year: 2013},
+	}, logger.New("error", false))
+
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{seasonDir},
+		DB:          "TheMovieDB::TV",
+		Action:      "test",
+		Conflict:    "skip",
+		Output:      filepath.Join(dir, "media"),
+	})
+	require.NoError(t, err)
+	assert.Len(t, result.Successes, 2, "both episode files must be discovered")
+	assert.Contains(t, result.Successes[0], "S09E01")
+	assert.Contains(t, result.Successes[1], "S09E02")
+	assert.NoDirExists(t, filepath.Join(dir, "media"), "test action must not create dirs")
+}
+
+func TestInternalEngine_TV_SeasonFolder_Move(t *testing.T) {
+	dir := t.TempDir()
+	seasonDir := filepath.Join(dir, "Rick and Morty - Stagione 09 (2026)")
+	require.NoError(t, os.MkdirAll(seasonDir, 0755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(seasonDir, "Rick and Morty 09x01 - Tutti pazzi per Morty.mkv"),
+		[]byte("data"), 0644,
+	))
+
+	engine := NewInternalEngine(&stubResolver{
+		tv: &domain.TVMatch{ID: 60625, Name: "Rick and Morty", Year: 2013},
+	}, logger.New("error", false))
+
+	_, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{seasonDir},
+		DB:          "TheMovieDB::TV",
+		Action:      "move",
+		Conflict:    "skip",
+		Output:      filepath.Join(dir, "media"),
+	})
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(dir, "media", "TV", "Rick and Morty", "Season 9", "Rick and Morty - S09E01.mkv"))
+}
+
+// Virtual path (dev-mode / no disk): path does not exist → synthesize with .mkv suffix.
+func TestInternalEngine_TV_VirtualPath_DryRun(t *testing.T) {
+	engine := NewInternalEngine(&stubResolver{
+		tv: &domain.TVMatch{ID: 1396, Name: "Breaking Bad", Year: 2008},
+	}, logger.New("error", false))
+
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{"Breaking.Bad.S01E01.1080p"},
+		DB:          "TheMovieDB::TV",
+		Action:      "test",
+		Conflict:    "skip",
+		Output:      "/media",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result.Successes)
+	assert.Contains(t, result.Successes[0], "S01E01")
+}
+
 // --- regression: TV filenames with episode titles and streaming source codes ---
 // "Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing.mkv"
 // Previously produced query "Futurama Catfish Hunter DSNP DDP5 1 TheBlackKing" → no results.
