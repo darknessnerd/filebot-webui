@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -114,7 +115,16 @@ func Load() (*Config, error) {
 	if mediaRoot == "" {
 		mediaRoot = "/dev/null/media"
 	}
-	cfg.MediaRoot = mediaRoot
+	absMediaRoot, err := filepath.Abs(mediaRoot)
+	if err != nil {
+		return nil, fmt.Errorf("MEDIA_ROOT %q: %w", mediaRoot, err)
+	}
+	if !cfg.DevMode {
+		if _, err := os.Stat(absMediaRoot); err != nil {
+			return nil, fmt.Errorf("MEDIA_ROOT %q does not exist: %w", absMediaRoot, err)
+		}
+	}
+	cfg.MediaRoot = absMediaRoot
 
 	expStr := getEnv("JWT_EXPIRES_IN", "24h")
 	exp, err := time.ParseDuration(expStr)

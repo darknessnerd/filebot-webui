@@ -6,8 +6,6 @@ type FileBotJob struct {
 	DB          string
 	Action      string
 	Conflict    string
-	LogLevel    string
-	Format      string
 	Filter      string
 	Query       string
 	Recursive   bool

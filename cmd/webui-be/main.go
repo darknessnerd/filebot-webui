@@ -39,6 +39,8 @@ func main() {
 
 	log := logger.New(cfg.LogLevel, cfg.Debug)
 
+	filebot.CleanupOrphanedTemps(cfg.MediaRoot, log)
+
 	db, err := repository.Open(cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to open database")

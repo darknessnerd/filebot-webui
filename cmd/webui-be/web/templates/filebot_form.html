@@ -1,5 +1,5 @@
 {{define "filebot_form"}}
-<div class="card" x-data="{action: '{{or .Action "move"}}', fmt: '{{or .Format "{plex}"}}', running: false}">
+<div class="card" x-data="{action: '{{or .Action "move"}}', running: false}">
   <div class="card-header">
     <span class="card-title">FileBot</span>
     <span class="badge badge-info">{{len .TorrentIDs}} torrent(s)</span>
@@ -23,17 +23,15 @@
 
       <div class="form-group">
         <label>Database</label>
-        <select name="db" @change="fmt = '{plex}'">
+        <select name="db">
           {{if .HasTMDB}}
-          <option value="TheMovieDB" {{if eq "TheMovieDB" (or $.DB $.DefaultDB)}}selected{{end}}>TheMovieDB</option>
-          <option value="TheMovieDB::TV" {{if eq "TheMovieDB::TV" (or $.DB $.DefaultDB)}}selected{{end}}>TheMovieDB::TV</option>
+          <option value="TheMovieDB" {{if eq "TheMovieDB" (or $.DB $.DefaultDB)}}selected{{end}}>TheMovieDB — Movies</option>
+          <option value="TheMovieDB::TV" {{if eq "TheMovieDB::TV" (or $.DB $.DefaultDB)}}selected{{end}}>TheMovieDB::TV — TV Shows</option>
           {{else}}
           <option value="TheMovieDB" disabled>TheMovieDB (requires TMDB_ACCESS_TOKEN)</option>
           <option value="TheMovieDB::TV" disabled>TheMovieDB::TV (requires TMDB_ACCESS_TOKEN)</option>
           {{end}}
-          {{range $db := list "TheTVDB" "AniDB" "AcoustID" "OMDb"}}
-          <option value="{{$db}}" {{if eq $db (or $.DB $.DefaultDB)}}selected{{end}}>{{$db}}</option>
-          {{end}}
+          <option value="AniDB" {{if eq "AniDB" (or $.DB $.DefaultDB)}}selected{{end}}>AniDB — Anime</option>
         </select>
       </div>
 
@@ -56,24 +54,9 @@
       </div>
 
       <div class="form-group">
-        <label>Log level</label>
-        <select name="log_level">
-          {{range $l := list "info" "all" "fine" "warning" "off"}}
-          <option value="{{$l}}" {{if eq $l (or $.LogLevel "info")}}selected{{end}}>{{$l}}</option>
-          {{end}}
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Format</label>
-        <input type="text" name="format" x-model="fmt" placeholder="{plex}">
-        <small style="color:var(--muted);font-size:.75rem">FileBot format expression — <code>{plex}</code> uses Plex naming convention</small>
-      </div>
-
-      <div class="form-group">
         <label>Query override</label>
         <input type="text" name="query" value="{{.Query}}" placeholder="Optional (AniDB: title or aid:12345)">
-        <small style="color:var(--muted);font-size:.75rem">AniDB accepts <code>aid:&lt;id&gt;</code> directly. Title lookup also works when <code>ANIDB_TITLES_FILE</code> is configured; use <code>aid:&lt;id&gt;</code> if a title is ambiguous.</small>
+        <small style="color:var(--muted);font-size:.75rem">AniDB: use <code>aid:&lt;id&gt;</code> for exact match, or a title when <code>ANIDB_TITLES_FILE</code> is configured.</small>
       </div>
 
       <div class="form-group">

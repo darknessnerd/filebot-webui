@@ -44,7 +44,10 @@ var (
 	// Unclosed paren group at end of string, left after year truncation
 	// e.g. "(Fuori orario," or "(27/12/" from air-date parens.
 	orphanParenPattern = regexp.MustCompile(`\([^)]*$`)
-	noisePattern       = regexp.MustCompile(`(?i)\b(?:1080p|720p|2160p|480p|4k|sd|imax|dovi|hdr10|hdr|bluray|blu[\s.-]?ray|webrip|web[\s.-]?dl|brrip|hdrip|bdmux|bdrip|bdremux|remux|dvdrip|dvd|hdtv|repack|proper|extended|uncut|unrated|fanedit|versione integrale|x264|x265|h264|h265|h262|hevc|av1|aac|ac3|eac3|e[\s-]?ac3|dts|dolby|opus|flac|pcm|multisub|sub|nuita|nueng|sample|miniserie|hardsub|multilang|10bit)\b`)
+	noisePattern = regexp.MustCompile(`(?i)\b(?:1080p|720p|2160p|480p|4k|sd|imax|dovi|hdr10|hdr|bluray|blu[\s.-]?ray|webrip|web[\s.-]?dl|brrip|hdrip|bdmux|bdrip|bdremux|remux|dvdrip|dvd|hdtv|repack|proper|extended|uncut|unrated|fanedit|versione integrale|x264|x265|h264|h265|h262|hevc|av1|aac|ac3|eac3|e[\s-]?ac3|dts|dolby|opus|flac|pcm|multisub|sub|nuita|nueng|sample|miniserie|hardsub|multilang|10bit|dsnp|amzn|nflx|hmax|pcok|atvp|crkl|ddp\d*)\b`)
+	// Release group: "-Tag" at the very end of the raw filename (before sep normalization),
+	// e.g. "H264-TheBlackKing" or "Sub.Ita-MIRCrew". Applied pre-sep so the hyphen is intact.
+	releaseGroupPattern = regexp.MustCompile(`-[A-Za-z0-9]+$`)
 	langPattern        = regexp.MustCompile(`(?i)\b(?:ita|eng|spa|fre|ger|rus|jpn|kor|por|ara|fil|dut|swe|dan|nor|fin|tur|hin|slo|cze|pol|hun)\b`)
 	// Must run BEFORE filepath.Ext and before sep: "5.1" in a non-file string would otherwise be
 	// detected as the file extension ".1 …" by filepath.Ext.
@@ -94,10 +97,6 @@ func (e *InternalEngine) Execute(ctx context.Context, job domain.FileBotJob) (do
 	if job.Filter != "" {
 		return domain.FileBotResult{Errors: []string{"native engine does not support --filter yet"}}, fmt.Errorf("%w: native engine does not support --filter yet", domain.ErrInvalidArg)
 	}
-	if job.Format != "" && job.Format != "{plex}" {
-		return domain.FileBotResult{Errors: []string{"native engine supports default format only"}}, fmt.Errorf("%w: native engine supports default format only", domain.ErrInvalidArg)
-	}
-
 	e.log.Debug().
 		Strs("source_paths", job.SourcePaths).
 		Str("db", job.DB).
@@ -329,11 +328,32 @@ func collectVideoFiles(sourcePaths []string, recursive bool, dryRun bool) ([]str
 	var files []string
 	for _, source := range sourcePaths {
 		if dryRun {
-			// test action: treat each source as a virtual path, no filesystem access
+			// For dry-run: if path exists on disk, walk it normally so real episode files are
+			// discovered (e.g. a season folder with individual episode .mkv files).
+			// Only synthesize a virtual path when the source doesn't exist on disk.
+			if info, err := os.Stat(source); err == nil {
+				if !info.IsDir() {
+					if isVideoFile(source) {
+						files = append(files, source)
+					}
+					continue
+				}
+				// real directory — walk it
+				_ = filepath.WalkDir(source, func(path string, d fs.DirEntry, walkErr error) error {
+					if walkErr != nil || d.IsDir() {
+						return nil
+					}
+					if isVideoFile(path) {
+						files = append(files, path)
+					}
+					return nil
+				})
+				continue
+			}
+			// path not on disk — virtual/dev-mode path
 			if isVideoFile(source) {
 				files = append(files, source)
 			} else {
-				// source is likely a directory name without extension — include as-is with fake ext
 				files = append(files, source+".mkv")
 			}
 			continue
@@ -385,6 +405,20 @@ func normalizeQuery(raw string, stripEpisode bool) (string, int) {
 	ext := strings.ToLower(filepath.Ext(raw))
 	if videoExtensions[ext] || subtitleExtensions[ext] {
 		raw = strings.TrimSuffix(raw, filepath.Ext(raw))
+	}
+
+	// Strip release group suffix BEFORE sep normalization while the hyphen is intact,
+	// e.g. "H264-TheBlackKing" or "Sub.Ita-MIRCrew". Must precede yearInParen so a
+	// group tag like "-2026Group" does not confuse the year extractor.
+	raw = releaseGroupPattern.ReplaceAllString(raw, "")
+
+	// For TV/anime filenames with a SxxExx code, truncate at the episode code so the
+	// episode title (e.g. "Catfish Hunter" in S14E02.Catfish.Hunter.…) is never
+	// included in the search query. Year extraction still runs on the truncated string.
+	if stripEpisode {
+		if loc := episodePattern.FindStringIndex(raw); loc != nil {
+			raw = raw[:loc[0]]
+		}
 	}
 
 	// Prefer year in parentheses "(YYYY)" or range "(YYYY-YYYY)"/"(YYYY-YY)".
@@ -743,6 +777,11 @@ func moveFile(source, target string) error {
 }
 
 func copyFile(source, target string) error {
+	srcInfo, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("stat source %s: %w", source, err)
+	}
+
 	from, err := os.Open(source)
 	if err != nil {
 		return fmt.Errorf("open source %s: %w", source, err)
@@ -769,6 +808,12 @@ func copyFile(source, target string) error {
 	if err := os.Rename(tmpName, target); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("rename temp to %s: %w", target, err)
+	}
+	if err := os.Chmod(target, srcInfo.Mode()); err != nil {
+		return fmt.Errorf("chmod %s: %w", target, err)
+	}
+	if sys, ok := srcInfo.Sys().(*syscall.Stat_t); ok {
+		_ = os.Lchown(target, int(sys.Uid), int(sys.Gid))
 	}
 	return nil
 }

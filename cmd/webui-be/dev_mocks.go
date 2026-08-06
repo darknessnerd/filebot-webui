@@ -61,6 +61,29 @@ var devTorrents = []domain.Torrent{
 		IsFinished:   true,
 		CompletedOn:  time.Now().Add(-45 * time.Minute),
 	},
+	// regression: episode title after SxxExx + streaming source noise (DSNP, DDP5.1, release group)
+	{
+		ID:           "fut001",
+		Name:         "Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing",
+		State:        "Seeding",
+		Progress:     100,
+		DownloadPath: "/downloads",
+		Size:         2_000_000_000,
+		IsFinished:   true,
+		CompletedOn:  time.Now().Add(-30 * time.Minute),
+	},
+	// regression: season folder torrent — individual episode files inside carry NxNN codes.
+	// Season year (2026) in folder name != show premiere year (2013); SearchTV retries without year.
+	{
+		ID:           "ram001",
+		Name:         "Rick and Morty - Stagione 09 (2026)",
+		State:        "Seeding",
+		Progress:     100,
+		DownloadPath: "/downloads",
+		Size:         5_000_000_000,
+		IsFinished:   true,
+		CompletedOn:  time.Now().Add(-15 * time.Minute),
+	},
 }
 
 type mockDelugeClient struct{}

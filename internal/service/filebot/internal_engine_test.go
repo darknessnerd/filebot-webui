@@ -423,6 +423,219 @@ func TestInternalEngine_RejectsUnsupportedFilter(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrInvalidArg)
 }
 
+// --- regression: season folder torrent — dry-run must walk real directory ---
+// Previously collectVideoFiles with action=test appended ".mkv" to the folder name,
+// producing "Rick and Morty - Stagione 09 (2026).mkv" with no episode marker.
+// Fix: when path exists on disk, walk it even in dry-run mode.
+
+func TestInternalEngine_TV_SeasonFolder_DryRun(t *testing.T) {
+	dir := t.TempDir()
+	seasonDir := filepath.Join(dir, "Rick and Morty - Stagione 09 (2026)")
+	require.NoError(t, os.MkdirAll(seasonDir, 0755))
+	episodes := []string{
+		"Rick and Morty 09x01 - Tutti pazzi per Morty.mkv",
+		"Rick and Morty 09x02 - Sei Giornirick sette notti.mkv",
+	}
+	for _, ep := range episodes {
+		require.NoError(t, os.WriteFile(filepath.Join(seasonDir, ep), []byte("data"), 0644))
+	}
+
+	engine := NewInternalEngine(&stubResolver{
+		tv: &domain.TVMatch{ID: 60625, Name: "Rick and Morty", Year: 2013},
+	}, logger.New("error", false))
+
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{seasonDir},
+		DB:          "TheMovieDB::TV",
+		Action:      "test",
+		Conflict:    "skip",
+		Output:      filepath.Join(dir, "media"),
+	})
+	require.NoError(t, err)
+	assert.Len(t, result.Successes, 2, "both episode files must be discovered")
+	assert.Contains(t, result.Successes[0], "S09E01")
+	assert.Contains(t, result.Successes[1], "S09E02")
+	assert.NoDirExists(t, filepath.Join(dir, "media"), "test action must not create dirs")
+}
+
+func TestInternalEngine_TV_SeasonFolder_Move(t *testing.T) {
+	dir := t.TempDir()
+	seasonDir := filepath.Join(dir, "Rick and Morty - Stagione 09 (2026)")
+	require.NoError(t, os.MkdirAll(seasonDir, 0755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(seasonDir, "Rick and Morty 09x01 - Tutti pazzi per Morty.mkv"),
+		[]byte("data"), 0644,
+	))
+
+	engine := NewInternalEngine(&stubResolver{
+		tv: &domain.TVMatch{ID: 60625, Name: "Rick and Morty", Year: 2013},
+	}, logger.New("error", false))
+
+	_, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{seasonDir},
+		DB:          "TheMovieDB::TV",
+		Action:      "move",
+		Conflict:    "skip",
+		Output:      filepath.Join(dir, "media"),
+	})
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(dir, "media", "TV", "Rick and Morty", "Season 9", "Rick and Morty - S09E01.mkv"))
+}
+
+// Virtual path (dev-mode / no disk): path does not exist → synthesize with .mkv suffix.
+func TestInternalEngine_TV_VirtualPath_DryRun(t *testing.T) {
+	engine := NewInternalEngine(&stubResolver{
+		tv: &domain.TVMatch{ID: 1396, Name: "Breaking Bad", Year: 2008},
+	}, logger.New("error", false))
+
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{"Breaking.Bad.S01E01.1080p"},
+		DB:          "TheMovieDB::TV",
+		Action:      "test",
+		Conflict:    "skip",
+		Output:      "/media",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result.Successes)
+	assert.Contains(t, result.Successes[0], "S01E01")
+}
+
+// --- regression: TV filenames with episode titles and streaming source codes ---
+// "Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing.mkv"
+// Previously produced query "Futurama Catfish Hunter DSNP DDP5 1 TheBlackKing" → no results.
+func TestInternalEngine_TV_EpisodeTitleStripped(t *testing.T) {
+	gotQuery := ""
+	srv := &captureResolver{
+		tv: &domain.TVMatch{ID: 1408, Name: "Futurama", Year: 1999},
+		onSearchTV: func(q string, _ int) { gotQuery = q },
+	}
+	engine := NewInternalEngine(srv, logger.New("error", false))
+
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{"Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing.mkv"},
+		DB:          "TheMovieDB::TV",
+		Action:      "test",
+		Conflict:    "skip",
+		Output:      "/media",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Futurama", gotQuery, "episode title and noise must be stripped from query")
+	assert.Contains(t, result.Successes[0], "Futurama - S14E02")
+}
+
+// "Rick and Morty - Stagione 09 (2026)" is a season folder; individual episode files
+// inside carry the SxxExx code. Verify query is clean and year 2026 is extracted
+// (SearchTV will retry without year in the TMDB client if needed).
+func TestInternalEngine_TV_RickAndMorty_SeasonYear(t *testing.T) {
+	gotQuery := ""
+	gotYear := -1
+	srv := &captureResolver{
+		tv: &domain.TVMatch{ID: 60625, Name: "Rick and Morty", Year: 2013},
+		onSearchTV: func(q string, y int) { gotQuery = q; gotYear = y },
+	}
+	engine := NewInternalEngine(srv, logger.New("error", false))
+
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		// Individual episode file inside the season folder — as it would appear in Deluge.
+		SourcePaths: []string{"Rick and Morty - Stagione 09 (2026) S09E01.mkv"},
+		DB:          "TheMovieDB::TV",
+		Action:      "test",
+		Conflict:    "skip",
+		Output:      "/media",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "Rick and Morty", gotQuery, "episode title and noise stripped")
+	assert.Equal(t, 2026, gotYear, "season year passed to SearchTV for retry logic")
+	assert.Contains(t, result.Successes[0], "Rick and Morty")
+}
+
+// captureResolver wraps stubResolver and records the query passed to SearchTV/SearchMovie.
+type captureResolver struct {
+	movie      *domain.MovieMatch
+	tv         *domain.TVMatch
+	anime      *domain.AnimeMatch
+	err        error
+	onSearchTV func(query string, year int)
+}
+
+func (r *captureResolver) SearchMovie(_ context.Context, q string, y int) (*domain.MovieMatch, error) {
+	return r.movie, r.err
+}
+func (r *captureResolver) SearchTV(_ context.Context, q string, y int) (*domain.TVMatch, error) {
+	if r.onSearchTV != nil {
+		r.onSearchTV(q, y)
+	}
+	return r.tv, r.err
+}
+func (r *captureResolver) SearchAnimeByAID(_ context.Context, _ int) (*domain.AnimeMatch, error) {
+	return r.anime, r.err
+}
+func (r *captureResolver) SearchAnime(_ context.Context, _ string, _ int) (*domain.AnimeMatch, error) {
+	return r.anime, r.err
+}
+
+// --- regression: cross-device copy must preserve file permissions ---
+// Bug: os.CreateTemp creates files with 0600; Plex (and other processes) could not
+// read moved files because the target ended up root:root 0600 instead of the
+// original muadib:muadib 0644.
+
+func TestCopyFile_PreservesMode_0644(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "source.mkv")
+	dst := filepath.Join(dir, "dest.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	require.NoError(t, copyFile(src, dst))
+
+	info, err := os.Stat(dst)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
+func TestCopyFile_PreservesMode_0640(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "source.mkv")
+	dst := filepath.Join(dir, "dest.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0640))
+
+	require.NoError(t, copyFile(src, dst))
+
+	info, err := os.Stat(dst)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0640), info.Mode().Perm())
+}
+
+func TestApplyAction_Copy_PreservesMode(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "Movie.mkv")
+	dst := filepath.Join(dir, "out", "Movie.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	_, err := applyAction("copy", "skip", src, dst)
+	require.NoError(t, err)
+
+	info, err := os.Stat(dst)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
+func TestApplyAction_MkdirAll_Perms(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "Movie.mkv")
+	// deeply nested target to exercise MkdirAll
+	dst := filepath.Join(dir, "media", "Movies", "Dune (2021)", "Dune.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	_, err := applyAction("move", "skip", src, dst)
+	require.NoError(t, err)
+	assert.FileExists(t, dst)
+
+	// parent dirs must be traversable (0755)
+	info, err := os.Stat(filepath.Join(dir, "media", "Movies"))
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
+}
+
 // countingResolver lets tests verify TMDB call count.
 type countingResolver struct {
 	movie  *domain.MovieMatch

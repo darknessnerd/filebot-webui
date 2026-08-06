@@ -70,6 +70,57 @@ func TestListCompleted_FiltersIncomplete(t *testing.T) {
 	assert.Equal(t, "Done Movie", torrents[0].Name)
 }
 
+// regression: real-world torrent names that previously produced bad search queries.
+// Futurama: episode title "Catfish Hunter" and streaming tags (DSNP, DDP5.1) polluted query.
+// Rick and Morty: season year (2026) in filename differs from show premiere year (2013).
+func TestListCompleted_RealWorldTorrentNames(t *testing.T) {
+	handler := authOKHandler(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"result": map[string]any{
+				"torrents": map[string]any{
+					"fut01": map[string]any{
+						"name":              "Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing",
+						"state":             "Seeding",
+						"progress":          float64(100),
+						"total_size":        float64(2_000_000_000),
+						"download_location": "/downloads",
+						"is_finished":       true,
+						"completed_time":    float64(1_700_000_000),
+					},
+					"ram01": map[string]any{
+						"name":              "Rick and Morty - Stagione 09 (2026) S09E01",
+						"state":             "Seeding",
+						"progress":          float64(100),
+						"total_size":        float64(1_500_000_000),
+						"download_location": "/downloads",
+						"is_finished":       true,
+						"completed_time":    float64(1_700_000_001),
+					},
+				},
+			},
+			"error": nil, "id": 2,
+		})
+	})
+
+	c, _ := newMockDeluge(t, handler)
+	torrents, err := c.ListCompleted(context.Background())
+	require.NoError(t, err)
+	require.Len(t, torrents, 2)
+
+	byID := map[string]domain.Torrent{}
+	for _, t := range torrents {
+		byID[t.ID] = t
+	}
+
+	fut := byID["fut01"]
+	assert.Equal(t, "Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing", fut.Name)
+	assert.Equal(t, "/downloads", fut.DownloadPath)
+
+	ram := byID["ram01"]
+	assert.Equal(t, "Rick and Morty - Stagione 09 (2026) S09E01", ram.Name)
+	assert.Equal(t, "/downloads", ram.DownloadPath)
+}
+
 func TestDeleteTorrent_SendsCorrectPayload(t *testing.T) {
 	var capturedBody map[string]any
 

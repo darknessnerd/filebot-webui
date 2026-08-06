@@ -30,7 +30,6 @@ func validJob() domain.FileBotJob {
 		DB:          "TheMovieDB",
 		Action:      "move",
 		Conflict:    "skip",
-		LogLevel:    "info",
 		Output:      "/media/movies",
 	}
 }
@@ -58,19 +57,19 @@ func TestValidate_Conflict_Rejected(t *testing.T) {
 	require.ErrorIs(t, err, domain.ErrInvalidArg)
 }
 
-func TestValidate_LogLevel_Rejected(t *testing.T) {
-	j := validJob()
-	j.LogLevel = "verbose"
-	err := newExec().validate(j)
-	require.ErrorIs(t, err, domain.ErrInvalidArg)
-}
-
 func TestValidate_AllAllowedDBs(t *testing.T) {
-	dbs := []string{"TheMovieDB", "TheMovieDB::TV", "TheTVDB", "AniDB", "AcoustID", "OMDb"}
-	for _, db := range dbs {
+	for _, db := range []string{"TheMovieDB", "TheMovieDB::TV", "AniDB"} {
 		j := validJob()
 		j.DB = db
 		assert.NoError(t, newExec().validate(j), "db=%s", db)
+	}
+}
+
+func TestValidate_UnsupportedDBs_Rejected(t *testing.T) {
+	for _, db := range []string{"TheTVDB", "AcoustID", "OMDb"} {
+		j := validJob()
+		j.DB = db
+		require.ErrorIs(t, newExec().validate(j), domain.ErrInvalidArg, "db=%s", db)
 	}
 }
 
@@ -107,15 +106,6 @@ func TestValidate_Output_ValidSubpath(t *testing.T) {
 
 // --- shell metachar rejection ---
 
-func TestValidate_Format_Metachar(t *testing.T) {
-	chars := []string{"$HOME", "`id`", "a;b", "a&b", "a|b", "a>b", "a<b", "a\nb", "a\rb"}
-	for _, v := range chars {
-		j := validJob()
-		j.Format = v
-		err := newExec().validate(j)
-		require.ErrorIs(t, err, domain.ErrInvalidArg, "format=%q", v)
-	}
-}
 
 func TestValidate_Filter_Metachar(t *testing.T) {
 	j := validJob()

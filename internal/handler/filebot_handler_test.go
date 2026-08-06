@@ -133,7 +133,6 @@ func validForm() map[string][]string {
 		"db":           {"TheMovieDB"},
 		"action":       {"move"},
 		"conflict":     {"skip"},
-		"log_level":    {"info"},
 		"output":       {"/media/movies"},
 		"torrent_ids":  {"t1"},
 		"source_paths": {"/downloads/file.mkv"},
@@ -515,6 +514,56 @@ func TestFileBotExecute_MoveSuccess_DeleteFails_SkipsPlexRefresh(t *testing.T) {
 	assert.True(t, *del.called, "DeleteTorrent should be attempted")
 	assert.False(t, *px.called, "RefreshLibraries should not run when no torrent deletion succeeded")
 	assert.Contains(t, w.Body.String(), "OUTCOMES=t1|true|false|false|delete failed;", "UI should surface delete-failed status")
+}
+
+// TestFileBotExecute_UnsupportedDB_Returns400 guards that submitting TheTVDB/AcoustID/OMDb
+// (removed from native engine) returns 400, not a silent failure or panic.
+func TestFileBotExecute_UnsupportedDB_Returns400(t *testing.T) {
+	for _, db := range []string{"TheTVDB", "AcoustID", "OMDb"} {
+		db := db
+		t.Run(db, func(t *testing.T) {
+			fb := &stubFBSvc{err: fmt.Errorf("wrap: %w", domain.ErrInvalidArg)}
+			h := newFBHandler(fb, &stubDelSvc{}, &stubPlexSvc{})
+
+			fields := validForm()
+			fields["db"] = []string{db}
+			w := httptest.NewRecorder()
+			r := postForm(fields)
+			h.Execute(w, r)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code, "db=%s should be rejected", db)
+		})
+	}
+}
+
+// TestFileBotExecute_LogLevelField_Ignored guards that submitting log_level in the form
+// (from old bookmarked URLs) does not cause an error — field is silently ignored now.
+func TestFileBotExecute_LogLevelField_Ignored(t *testing.T) {
+	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
+	h := newFBHandler(fb, &stubDelSvc{}, &stubPlexSvc{})
+
+	fields := validForm()
+	fields["log_level"] = []string{"info"} // old field, should be silently ignored
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestFileBotExecute_FormatField_Ignored guards that submitting format in the form
+// (from old bookmarked URLs) does not cause an error — field is silently ignored now.
+func TestFileBotExecute_FormatField_Ignored(t *testing.T) {
+	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
+	h := newFBHandler(fb, &stubDelSvc{}, &stubPlexSvc{})
+
+	fields := validForm()
+	fields["format"] = []string{"{plex}"} // old field, should be silently ignored
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 // ── capture stubs ──────────────────────────────────────────────────
