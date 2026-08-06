@@ -36,23 +36,28 @@ flowchart LR
 ## Sequence Diagram — Rename/Move Execution Flow
 Scope: end-to-end request path from user action to cleanup and library refresh.
 
+Two HTTP round-trips: GET /filebot (form) resolves torrents from Deluge and embeds source_paths into the HTML form; POST /filebot/execute receives those paths directly — no second Deluge call for path resolution.
+
 ```mermaid
 sequenceDiagram
   autonumber
   actor User as User Browser
   participant API as Web UI + API (Go/net/http)
-  participant DB as App DB (SQL)
   participant Deluge as Deluge API (HTTP JSON-RPC)
   participant TMDB as TMDB API (HTTPS REST)
   participant AniDB as AniDB API (HTTP XML)
   participant FS as Filesystem
   participant Plex as Plex API (HTTPS REST)
 
-  User->>API: POST /filebot/execute (HTTPS)
-  API->>DB: Read session/user state (SQL)
-  API->>Deluge: Resolve selected torrents to source paths (HTTP JSON-RPC)
-  loop For each selected torrent/path pair
-    alt DB = TMDB / TMDB::TV
+  User->>API: GET /filebot?torrent_ids=... (HTTPS — JWT cookie validated by authMiddleware)
+  API->>Deluge: ListCompleted — resolve torrent IDs to source paths (HTTP JSON-RPC)
+  Deluge-->>API: torrent list
+  API-->>User: HTML form with source_paths embedded as hidden fields
+
+  User->>API: POST /filebot/execute — source_paths + job params (HTTPS — JWT cookie)
+  Note over API: source_paths come from form POST body, not re-fetched from Deluge
+  loop For each torrent/source_path pair
+    alt DB = TheMovieDB / TheMovieDB::TV
       API->>TMDB: Resolve metadata/title mapping (HTTPS REST)
     else DB = AniDB
       alt Query is aid:<id>
@@ -71,7 +76,7 @@ sequenceDiagram
     end
   end
   opt At least one torrent deleted
-    API->>Plex: Refresh library section (HTTPS REST)
+    API->>Plex: Refresh library section (HTTPS REST) using PlexToken from JWT claims
   end
   API-->>User: 200 OK + per-torrent outcomes + per-file results (HTTPS)
 ```
@@ -81,7 +86,8 @@ sequenceDiagram
 - Result payload includes per-torrent moved/deleted/failed status plus per-file outcomes so partial failures are visible.
 - AniDB flow prefers direct `aid:<id>` from `--q`; title-based lookup (via local index) strips episode markers before searching so bare `E01`, `- 01`, `#01`, `OVA N`, `Part N` in filenames do not corrupt the query.
 - Episode detection for TV accepts `SxxEyy`, `S01.E01`, `S01 E01`, and `NxYY`; for anime it additionally handles bare-dash, hash, OVA/SP, and Part (arabic + roman) markers.
-- Cross-device moves fall back to copy+delete; `copyFile` writes to a `.tmp-copy-*` temp in the target dir then renames atomically — startup cleanup removes any orphans left by a crash.
+- Cross-device moves fall back to copy+delete; `copyFile` writes to a `.tmp-copy-*` temp in the target dir then renames atomically — startup cleanup removes any orphans left by a crash. After rename, `copyFile` calls `os.Chmod` to restore the source file's permission bits (default `os.CreateTemp` mask is `0600`, which blocks Plex from reading the file) and `os.Lchown` to preserve uid/gid when the process has `CAP_CHOWN`.
+- `--log`, `--format`, `TheTVDB`, `AcoustID`, and `OMDb` removed from the native engine allowlist and form — unsupported databases are rejected at validation, not silently ignored.
 
 ## Sequence Diagram — AniDB Titles Scheduler
 Scope: background goroutine lifecycle — startup index load, periodic freshness check, atomic disk write, live in-memory reload.

@@ -94,10 +94,6 @@ func (e *InternalEngine) Execute(ctx context.Context, job domain.FileBotJob) (do
 	if job.Filter != "" {
 		return domain.FileBotResult{Errors: []string{"native engine does not support --filter yet"}}, fmt.Errorf("%w: native engine does not support --filter yet", domain.ErrInvalidArg)
 	}
-	if job.Format != "" && job.Format != "{plex}" {
-		return domain.FileBotResult{Errors: []string{"native engine supports default format only"}}, fmt.Errorf("%w: native engine supports default format only", domain.ErrInvalidArg)
-	}
-
 	e.log.Debug().
 		Strs("source_paths", job.SourcePaths).
 		Str("db", job.DB).
@@ -743,6 +739,11 @@ func moveFile(source, target string) error {
 }
 
 func copyFile(source, target string) error {
+	srcInfo, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("stat source %s: %w", source, err)
+	}
+
 	from, err := os.Open(source)
 	if err != nil {
 		return fmt.Errorf("open source %s: %w", source, err)
@@ -769,6 +770,12 @@ func copyFile(source, target string) error {
 	if err := os.Rename(tmpName, target); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("rename temp to %s: %w", target, err)
+	}
+	if err := os.Chmod(target, srcInfo.Mode()); err != nil {
+		return fmt.Errorf("chmod %s: %w", target, err)
+	}
+	if sys, ok := srcInfo.Sys().(*syscall.Stat_t); ok {
+		_ = os.Lchown(target, int(sys.Uid), int(sys.Gid))
 	}
 	return nil
 }

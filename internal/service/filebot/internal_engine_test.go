@@ -423,6 +423,68 @@ func TestInternalEngine_RejectsUnsupportedFilter(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrInvalidArg)
 }
 
+// --- regression: cross-device copy must preserve file permissions ---
+// Bug: os.CreateTemp creates files with 0600; Plex (and other processes) could not
+// read moved files because the target ended up root:root 0600 instead of the
+// original muadib:muadib 0644.
+
+func TestCopyFile_PreservesMode_0644(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "source.mkv")
+	dst := filepath.Join(dir, "dest.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	require.NoError(t, copyFile(src, dst))
+
+	info, err := os.Stat(dst)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
+func TestCopyFile_PreservesMode_0640(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "source.mkv")
+	dst := filepath.Join(dir, "dest.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0640))
+
+	require.NoError(t, copyFile(src, dst))
+
+	info, err := os.Stat(dst)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0640), info.Mode().Perm())
+}
+
+func TestApplyAction_Copy_PreservesMode(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "Movie.mkv")
+	dst := filepath.Join(dir, "out", "Movie.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	_, err := applyAction("copy", "skip", src, dst)
+	require.NoError(t, err)
+
+	info, err := os.Stat(dst)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+}
+
+func TestApplyAction_MkdirAll_Perms(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "Movie.mkv")
+	// deeply nested target to exercise MkdirAll
+	dst := filepath.Join(dir, "media", "Movies", "Dune (2021)", "Dune.mkv")
+	require.NoError(t, os.WriteFile(src, []byte("data"), 0644))
+
+	_, err := applyAction("move", "skip", src, dst)
+	require.NoError(t, err)
+	assert.FileExists(t, dst)
+
+	// parent dirs must be traversable (0755)
+	info, err := os.Stat(filepath.Join(dir, "media", "Movies"))
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
+}
+
 // countingResolver lets tests verify TMDB call count.
 type countingResolver struct {
 	movie  *domain.MovieMatch

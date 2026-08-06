@@ -180,11 +180,9 @@ All values validated against an allowlist before execution. Raw user input is ne
 
 | Parameter | UI control | Allowed values |
 |-----------|-----------|----------------|
-| `--db` | dropdown | `TheMovieDB`, `TheMovieDB::TV`, `TheTVDB`, `AniDB`, `AcoustID`, `OMDb` |
+| `--db` | dropdown | `TheMovieDB`, `TheMovieDB::TV`, `AniDB` |
 | `--action` | dropdown | `move`, `copy`, `symlink`, `hardlink`, `test` |
 | `--conflict` | dropdown | `skip`, `replace`, `auto`, `index`, `fail` |
-| `--log` | dropdown | `all`, `fine`, `info`, `warning`, `off` |
-| `--format` | text input | free-form; shell metacharacters rejected |
 | `--filter` | text input | optional Groovy expression |
 | `--q` | text input | override query (`aid:<id>` preferred for AniDB; title query requires `ANIDB_TITLES_FILE`) |
 | `-r` | checkbox | recursive mode |
@@ -236,7 +234,6 @@ Season inferred from `Season N` / `Stagione N` in path; defaults to 1.
 
 ### Other constraints
 
-- `--format` supports default / `{plex}` only
 - `--filter` unsupported in native engine
 
 ---

@@ -23,21 +23,16 @@ type Service struct {
 	allowedDB       map[string]bool
 	allowedAction   map[string]bool
 	allowedConflict map[string]bool
-	allowedLog      map[string]bool
 }
 
 func New(mediaRoot string, engine Engine, log logger.Logger) *Service {
 	return &Service{
-		mediaRoot: filepath.Clean(mediaRoot),
-		engine:    engine,
-		log:       log,
-		allowedDB: map[string]bool{
-			"TheMovieDB": true, "TheMovieDB::TV": true,
-			"TheTVDB": true, "AniDB": true, "AcoustID": true, "OMDb": true,
-		},
+		mediaRoot:       filepath.Clean(mediaRoot),
+		engine:          engine,
+		log:             log,
+		allowedDB:       map[string]bool{"TheMovieDB": true, "TheMovieDB::TV": true, "AniDB": true},
 		allowedAction:   map[string]bool{"move": true, "copy": true, "symlink": true, "hardlink": true, "test": true},
 		allowedConflict: map[string]bool{"skip": true, "replace": true, "auto": true, "index": true, "fail": true},
-		allowedLog:      map[string]bool{"all": true, "fine": true, "info": true, "warning": true, "off": true},
 	}
 }
 
@@ -75,9 +70,6 @@ func (s *Service) validate(job domain.FileBotJob) error {
 	if !s.allowedConflict[job.Conflict] {
 		return fmt.Errorf("%w: --conflict %q not allowed", domain.ErrInvalidArg, job.Conflict)
 	}
-	if !s.allowedLog[job.LogLevel] {
-		return fmt.Errorf("%w: --log %q not allowed", domain.ErrInvalidArg, job.LogLevel)
-	}
 
 	clean := filepath.Clean(job.Output)
 	if clean != s.mediaRoot && !strings.HasPrefix(clean, s.mediaRoot+string(filepath.Separator)) {
@@ -90,9 +82,6 @@ func (s *Service) validate(job domain.FileBotJob) error {
 		}
 	}
 
-	if err := rejectMetachars("--format", job.Format); err != nil {
-		return err
-	}
 	if err := rejectMetachars("--filter", job.Filter); err != nil {
 		return err
 	}
