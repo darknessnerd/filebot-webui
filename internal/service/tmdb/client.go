@@ -65,14 +65,10 @@ func (c *Client) SearchMovie(ctx context.Context, query string, year int) (*doma
 }
 
 func (c *Client) SearchTV(ctx context.Context, query string, year int) (*domain.TVMatch, error) {
-	endpoint, err := c.searchURL("/search/tv", query, year, "first_air_date_year")
-	if err != nil {
-		return nil, fmt.Errorf("tmdb.SearchTV url: %w", err)
-	}
-
-	c.log.Debug().Str("query", query).Int("year", year).Str("endpoint", endpoint).Msg("tmdb: searching tv")
-
-	var body struct {
+	// first_air_date_year is the show's premiere year, not the season year.
+	// A year in the filename (e.g. "Rick and Morty - Stagione 09 (2026)") refers to
+	// the current season, not the pilot — always retry without year filter on empty results.
+	type tvResult struct {
 		Results []struct {
 			ID           int     `json:"id"`
 			Name         string  `json:"name"`
@@ -80,8 +76,30 @@ func (c *Client) SearchTV(ctx context.Context, query string, year int) (*domain.
 			Popularity   float64 `json:"popularity"`
 		} `json:"results"`
 	}
-	if err := c.get(ctx, endpoint, &body); err != nil {
-		return nil, fmt.Errorf("tmdb.SearchTV: %w", err)
+
+	search := func(y int) (*tvResult, error) {
+		endpoint, err := c.searchURL("/search/tv", query, y, "first_air_date_year")
+		if err != nil {
+			return nil, fmt.Errorf("tmdb.SearchTV url: %w", err)
+		}
+		c.log.Debug().Str("query", query).Int("year", y).Str("endpoint", endpoint).Msg("tmdb: searching tv")
+		var body tvResult
+		if err := c.get(ctx, endpoint, &body); err != nil {
+			return nil, fmt.Errorf("tmdb.SearchTV: %w", err)
+		}
+		return &body, nil
+	}
+
+	body, err := search(year)
+	if err != nil {
+		return nil, err
+	}
+	if len(body.Results) == 0 && year > 0 {
+		c.log.Debug().Str("query", query).Int("year", year).Msg("tmdb: tv search with year returned no results, retrying without year")
+		body, err = search(0)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(body.Results) == 0 {
 		return nil, fmt.Errorf("tmdb.SearchTV: no results for %q", query)

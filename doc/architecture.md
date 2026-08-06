@@ -86,6 +86,7 @@ sequenceDiagram
 - Result payload includes per-torrent moved/deleted/failed status plus per-file outcomes so partial failures are visible.
 - AniDB flow prefers direct `aid:<id>` from `--q`; title-based lookup (via local index) strips episode markers before searching so bare `E01`, `- 01`, `#01`, `OVA N`, `Part N` in filenames do not corrupt the query.
 - Episode detection for TV accepts `SxxEyy`, `S01.E01`, `S01 E01`, and `NxYY`; for anime it additionally handles bare-dash, hash, OVA/SP, and Part (arabic + roman) markers.
+- `SearchTV` sends `first_air_date_year` (show premiere year) not season year. Filenames like `Rick and Morty - Stagione 09 (2026)` yield year=2026 which returns zero results. Client retries without year filter on empty response — the year-filter retry is transparent to callers.
 - Cross-device moves fall back to copy+delete; `copyFile` writes to a `.tmp-copy-*` temp in the target dir then renames atomically — startup cleanup removes any orphans left by a crash. After rename, `copyFile` calls `os.Chmod` to restore the source file's permission bits (default `os.CreateTemp` mask is `0600`, which blocks Plex from reading the file) and `os.Lchown` to preserve uid/gid when the process has `CAP_CHOWN`.
 - `--log`, `--format`, `TheTVDB`, `AcoustID`, and `OMDb` removed from the native engine allowlist and form — unsupported databases are rejected at validation, not silently ignored.
 

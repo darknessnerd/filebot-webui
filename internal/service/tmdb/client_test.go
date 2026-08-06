@@ -57,3 +57,37 @@ func TestSearchTV(t *testing.T) {
 	assert.Equal(t, "Breaking Bad", match.Name)
 	assert.Equal(t, 2008, match.Year)
 }
+
+// regression: filename year = current season year, not show premiere year.
+// e.g. "Rick and Morty - Stagione 09 (2026)" → year=2026, but TMDB first_air_date_year=2013.
+// SearchTV must retry without year filter when first attempt returns empty.
+func TestSearchTV_SeasonYearFallback(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		assert.Equal(t, "Rick and Morty", r.URL.Query().Get("query"))
+		if calls == 1 {
+			// first call: year filter → no results
+			assert.Equal(t, "2026", r.URL.Query().Get("first_air_date_year"))
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"results": []any{}}))
+			return
+		}
+		// second call: no year filter → results
+		assert.Equal(t, "", r.URL.Query().Get("first_air_date_year"))
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+			"results": []map[string]any{
+				{"id": 60625, "name": "Rick and Morty", "first_air_date": "2013-12-02", "popularity": 200},
+			},
+		}))
+	}))
+	defer srv.Close()
+
+	client := NewClient("tok", logger.New("error", false))
+	client.baseURL = srv.URL
+
+	match, err := client.SearchTV(context.Background(), "Rick and Morty", 2026)
+	require.NoError(t, err)
+	assert.Equal(t, "Rick and Morty", match.Name)
+	assert.Equal(t, 2013, match.Year)
+	assert.Equal(t, 2, calls, "must retry without year on empty result")
+}
