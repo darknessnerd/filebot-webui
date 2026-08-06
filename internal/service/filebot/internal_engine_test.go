@@ -423,6 +423,100 @@ func TestInternalEngine_RejectsUnsupportedFilter(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrInvalidArg)
 }
 
+// --- regression: anime season folder where episode files normalize to empty query ---
+// "Lo stregone Orphen (1998-2000) (1080p)" contains episodes like "[Group] - 01 [720p].mkv"
+// which strip to "". Engine must fall back to the torrent root path for query derivation.
+func TestInternalEngine_Anime_EpisodeFileEmptyQuery_FallsBackToFolder(t *testing.T) {
+	dir := t.TempDir()
+	seasonDir := filepath.Join(dir, "Lo stregone Orphen (1998-2000) (1080p)")
+	require.NoError(t, os.MkdirAll(seasonDir, 0755))
+	// episode filename that normalizes to empty: only group tag + episode number
+	require.NoError(t, os.WriteFile(
+		filepath.Join(seasonDir, "[AnimeGroup] - 01 [720p].mkv"),
+		[]byte("data"), 0644,
+	))
+
+	gotQuery := ""
+	srv := &captureResolver{
+		anime: &domain.AnimeMatch{ID: 1003, Title: "Sorcerous Stabber Orphen", Year: 1998},
+		onSearchTV: func(q string, _ int) {},
+	}
+	// capture via SearchAnime
+	captured := &captureAnimeResolver{
+		inner:   srv,
+		onQuery: func(q string) { gotQuery = q },
+	}
+
+	engine := NewInternalEngine(captured, logger.New("error", false))
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{seasonDir},
+		DB:          "AniDB",
+		Action:      "test",
+		Conflict:    "skip",
+		Output:      "/media",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, gotQuery, "query must not be empty — must use folder name as fallback")
+	assert.Contains(t, gotQuery, "Orphen")
+	assert.NotEmpty(t, result.Successes)
+}
+
+type captureAnimeResolver struct {
+	inner   metadataResolver
+	onQuery func(string)
+}
+
+func (r *captureAnimeResolver) SearchMovie(ctx context.Context, q string, y int) (*domain.MovieMatch, error) {
+	return r.inner.SearchMovie(ctx, q, y)
+}
+func (r *captureAnimeResolver) SearchTV(ctx context.Context, q string, y int) (*domain.TVMatch, error) {
+	return r.inner.SearchTV(ctx, q, y)
+}
+func (r *captureAnimeResolver) SearchAnimeByAID(ctx context.Context, aid int) (*domain.AnimeMatch, error) {
+	return r.inner.SearchAnimeByAID(ctx, aid)
+}
+func (r *captureAnimeResolver) SearchAnime(ctx context.Context, q string, y int) (*domain.AnimeMatch, error) {
+	if r.onQuery != nil {
+		r.onQuery(q)
+	}
+	return r.inner.SearchAnime(ctx, q, y)
+}
+
+// --- regression: nested S1/S2 season subfolders with group-tagged episode filenames ---
+// Structure: TorrentRoot/S1/[Group] - 01.mkv, TorrentRoot/S2/[Group] - 01.mkv
+// Without recursive=true the walk finds nothing. Auto-recurse must kick in.
+// Query must use TorrentRoot name, not the empty-normalizing episode filename.
+func TestInternalEngine_Anime_NestedSeasonFolders_AutoRecurse(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "Lo stregone Orphen (1998-2000) (1080p)")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "S1"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "S2"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "S1", "[AnimeGroup] Lo stregone Orphen - 01 [1080p].mkv"), []byte("ep"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "S2", "[AnimeGroup] Lo stregone Orphen - 01 [1080p].mkv"), []byte("ep"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "Lo stregone Orphen SP1 [1080p].mkv"), []byte("sp"), 0644))
+
+	gotQuery := ""
+	captured := &captureAnimeResolver{
+		inner: &captureResolver{
+			anime: &domain.AnimeMatch{ID: 1003, Title: "Sorcerous Stabber Orphen", Year: 1998},
+		},
+		onQuery: func(q string) { gotQuery = q },
+	}
+
+	engine := NewInternalEngine(captured, logger.New("error", false))
+	result, err := engine.Execute(context.Background(), domain.FileBotJob{
+		SourcePaths: []string{root},
+		DB:          "AniDB",
+		Action:      "move",
+		Conflict:    "skip",
+		Recursive:   false, // user did NOT tick recursive — auto-recurse must handle it
+		Output:      filepath.Join(dir, "media"),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, gotQuery, "Orphen", "query must come from torrent root, not episode file")
+	assert.Len(t, result.Successes, 3, "S1/ep + S2/ep + Speciale must all be processed")
+}
+
 // --- regression: season folder torrent — dry-run must walk real directory ---
 // Previously collectVideoFiles with action=test appended ".mkv" to the folder name,
 // producing "Rick and Morty - Stagione 09 (2026).mkv" with no episode marker.

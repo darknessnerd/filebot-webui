@@ -111,6 +111,17 @@ func (e *InternalEngine) Execute(ctx context.Context, job domain.FileBotJob) (do
 	if err != nil {
 		return domain.FileBotResult{Errors: []string{err.Error()}}, fmt.Errorf("%w: %v", domain.ErrFileBotFailed, err)
 	}
+	// Auto-recurse: if non-recursive walk found fewer files than a full recursive walk
+	// would find, and the source is a directory, retry recursively.
+	// Covers S1/S2/… season subfolders inside a torrent root without requiring the user
+	// to tick the recursive checkbox.
+	if !job.Recursive && job.Action != "test" && hasVideoSubdirs(job.SourcePaths) {
+		allFiles, rerr := collectVideoFiles(job.SourcePaths, true, false)
+		if rerr == nil && len(allFiles) > len(files) {
+			e.log.Info().Strs("source_paths", job.SourcePaths).Int("files_found", len(allFiles)).Msg("internal engine: auto-recurse activated (season subfolders detected)")
+			files = allFiles
+		}
+	}
 	if len(files) == 0 {
 		err := fmt.Errorf("no video files found in selected source paths")
 		return domain.FileBotResult{Errors: []string{err.Error()}}, fmt.Errorf("%w: %v", domain.ErrFileBotFailed, err)
@@ -251,7 +262,12 @@ func (e *InternalEngine) executeAnime(ctx context.Context, job domain.FileBotJob
 		}
 		e.log.Debug().Int("aid", aid).Str("title", match.Title).Int("year", match.Year).Int("anidb_id", match.ID).Msg("internal engine: anime match found by aid")
 	} else {
-		query, year := deriveQueryForFile(job.Query, files[0], true)
+		// Query cascade: torrent root → first-level subdir → first episode file.
+		// Episode filenames often normalize to "" (group tags + number only).
+		// Season subdirs (S1, S2) also normalize to "". The torrent root folder
+		// name is the most reliable source (e.g. "Lo stregone Orphen (1998-2000)").
+		queryFallback := bestQuerySource(job.SourcePaths[0], files[0])
+		query, year := deriveQueryForFile(job.Query, queryFallback, true)
 		match, err = e.resolver.SearchAnime(ctx, query, year)
 		if err != nil {
 			errMsg := fmt.Sprintf("AniDB title lookup failed for %q: %v", query, err)
@@ -391,11 +407,67 @@ func collectVideoFiles(sourcePaths []string, recursive bool, dryRun bool) ([]str
 	return files, nil
 }
 
+// hasVideoSubdirs returns true if any source path is a directory that contains
+// at least one immediate subdirectory which itself contains video files.
+func hasVideoSubdirs(sourcePaths []string) bool {
+	for _, src := range sourcePaths {
+		info, err := os.Stat(src)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		entries, err := os.ReadDir(src)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			subs, err := os.ReadDir(filepath.Join(src, e.Name()))
+			if err != nil {
+				continue
+			}
+			for _, s := range subs {
+				if !s.IsDir() && isVideoFile(s.Name()) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// bestQuerySource returns the most informative path to derive a search query from.
+// Cascade: torrent root → first-level subdir of the first episode file → episode file itself.
+func bestQuerySource(sourcePath, firstFile string) string {
+	candidates := []string{
+		sourcePath,
+		filepath.Dir(firstFile),  // immediate parent of episode (e.g. S1/)
+		firstFile,
+	}
+	for _, c := range candidates {
+		if q, _ := normalizeQuery(filepath.Base(c), true); q != "" {
+			return c
+		}
+	}
+	return firstFile
+}
+
 func deriveQueryForFile(jobQuery, fileFallback string, isTV bool) (string, int) {
 	if jobQuery != "" {
-		return normalizeQuery(jobQuery, isTV)
+		q, y := normalizeQuery(jobQuery, isTV)
+		if q != "" {
+			return q, y
+		}
 	}
-	return normalizeQuery(filepath.Base(fileFallback), isTV)
+	q, y := normalizeQuery(filepath.Base(fileFallback), isTV)
+	if q != "" {
+		return q, y
+	}
+	// normalizeQuery stripped everything — fall back to bare stem so the caller gets
+	// something to search with rather than an empty query error.
+	stem := strings.TrimSuffix(filepath.Base(fileFallback), filepath.Ext(fileFallback))
+	return strings.TrimSpace(stem), 0
 }
 
 func normalizeQuery(raw string, stripEpisode bool) (string, int) {
