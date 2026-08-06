@@ -61,6 +61,28 @@ var devTorrents = []domain.Torrent{
 		IsFinished:   true,
 		CompletedOn:  time.Now().Add(-45 * time.Minute),
 	},
+	// regression: episode title after SxxExx + streaming source noise (DSNP, DDP5.1, release group)
+	{
+		ID:           "fut001",
+		Name:         "Futurama.S14E02.Catfish.Hunter.1080p.DSNP.WEB-DL.ENG.ITA.DDP5.1.H264-TheBlackKing",
+		State:        "Seeding",
+		Progress:     100,
+		DownloadPath: "/downloads",
+		Size:         2_000_000_000,
+		IsFinished:   true,
+		CompletedOn:  time.Now().Add(-30 * time.Minute),
+	},
+	// regression: season year (2026) in filename != show premiere year (2013); SearchTV retries without year
+	{
+		ID:           "ram001",
+		Name:         "Rick and Morty - Stagione 09 (2026) S09E01",
+		State:        "Seeding",
+		Progress:     100,
+		DownloadPath: "/downloads",
+		Size:         1_500_000_000,
+		IsFinished:   true,
+		CompletedOn:  time.Now().Add(-15 * time.Minute),
+	},
 }
 
 type mockDelugeClient struct{}
