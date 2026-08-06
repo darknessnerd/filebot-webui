@@ -22,10 +22,18 @@ var (
 	// Matches (YYYY), (YYYY-YYYY), or (YYYY-YY) year ranges.
 	// Must be applied BEFORE sep normalization while the dash is still intact.
 	yearInParenPattern       = regexp.MustCompile(`\((19|20)\d{2}(?:[-/]\d{2,4})?\)`)
-	episodePattern           = regexp.MustCompile(`(?i)(?:s(\d{1,2})e(\d{1,2})(?:[-]?e(\d{1,2}))?|(\d{1,2})x(\d{1,2}))`)
+	episodePattern           = regexp.MustCompile(`(?i)(?:s(\d{1,2})[.\s]?e(\d{1,2})(?:[-]?e(\d{1,2}))?|(\d{1,2})x(\d{1,2}))`)
 	animeEpisodePattern      = regexp.MustCompile(`(?i)\b(?:e|ep)\s*0*(\d{1,3})(?:\s*[-_]\s*0*(\d{1,3}))?\b`)
-	animeProgressPattern     = regexp.MustCompile(`\[(\d{1,3})(?:\s*-\s*(\d{1,3}))?\s*(?:/|-)\s*(\d{1,3}|XX)\]`)
-	animeSeasonPattern       = regexp.MustCompile(`(?i)\b(?:stagione|season)\s*(\d{1,2})\b`)
+	// "- 01", "- 001" bare episode after dash separator (SubsPlease/Erai-raws style).
+	animeBareEpPattern = regexp.MustCompile(`(?:^|[\s._-])-\s*0*(\d{1,3})(?:\s*-\s*0*(\d{1,3}))?(?:\s|$|\.)`)
+	// "#01" / "#001"
+	animeHashEpPattern = regexp.MustCompile(`#0*(\d{1,3})(?:\s*-\s*0*(\d{1,3}))?`)
+	// "Part 1" / "Part I" (OVA style)
+	animePartPattern = regexp.MustCompile(`(?i)\bpart\s+([IVXLC]+|\d{1,2})\b`)
+	// "OVA 1" / "OVA1" / "SP 1" / "SP1" / "Special 1"
+	animeSpecialEpPattern = regexp.MustCompile(`(?i)\b(?:ova|sp|special)\s*0*(\d{1,2})\b`)
+	animeProgressPattern  = regexp.MustCompile(`\[(\d{1,3})(?:\s*-\s*(\d{1,3}))?\s*(?:/|-)\s*(\d{1,3}|XX)\]`)
+	animeSeasonPattern    = regexp.MustCompile(`(?i)\b(?:stagione|season)\s*(\d{1,2})\b`)
 	animeSingleSeasonPattern = regexp.MustCompile(`(?i)\bstagione\s+unica\b`)
 	// Italian "Stagione N" or "Stagioni N M" (after sep, range becomes space-separated digits).
 	stagionPattern = regexp.MustCompile(`(?i)\bstagion[ie](?:\s+\d+)*\b`)
@@ -408,6 +416,11 @@ func normalizeQuery(raw string, stripEpisode bool) (string, int) {
 
 	if stripEpisode {
 		raw = episodePattern.ReplaceAllString(raw, " ")
+		raw = animeEpisodePattern.ReplaceAllString(raw, " ")
+		raw = animeBareEpPattern.ReplaceAllString(raw, " ")
+		raw = animeHashEpPattern.ReplaceAllString(raw, " ")
+		raw = animePartPattern.ReplaceAllString(raw, " ")
+		raw = animeSpecialEpPattern.ReplaceAllString(raw, " ")
 		// Italian season / edition markers — "Stagione N", "Stagioni N M", "Edizione N".
 		raw = stagionPattern.ReplaceAllString(raw, " ")
 		raw = edizionPattern.ReplaceAllString(raw, " ")
@@ -497,7 +510,74 @@ func extractAnimeEpisode(path string) (season, firstEp, lastEp int, err error) {
 		return season, firstEp, lastEp, nil
 	}
 
+	if matches := animeBareEpPattern.FindStringSubmatch(base); matches != nil {
+		firstEp, err = strconv.Atoi(matches[1])
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("invalid bare episode in %s", base)
+		}
+		if matches[2] != "" {
+			lastEp, err = strconv.Atoi(matches[2])
+			if err != nil {
+				return 0, 0, 0, fmt.Errorf("invalid bare episode range in %s", base)
+			}
+		}
+		return season, firstEp, lastEp, nil
+	}
+
+	if matches := animeHashEpPattern.FindStringSubmatch(base); matches != nil {
+		firstEp, err = strconv.Atoi(matches[1])
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("invalid hash episode in %s", base)
+		}
+		if matches[2] != "" {
+			lastEp, err = strconv.Atoi(matches[2])
+			if err != nil {
+				return 0, 0, 0, fmt.Errorf("invalid hash episode range in %s", base)
+			}
+		}
+		return season, firstEp, lastEp, nil
+	}
+
+	if matches := animeSpecialEpPattern.FindStringSubmatch(base); matches != nil {
+		firstEp, err = strconv.Atoi(matches[1])
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("invalid special episode in %s", base)
+		}
+		return season, firstEp, 0, nil
+	}
+
+	if matches := animePartPattern.FindStringSubmatch(base); matches != nil {
+		firstEp = romanToInt(matches[1])
+		if firstEp <= 0 {
+			return 0, 0, 0, fmt.Errorf("invalid part number in %s", base)
+		}
+		return season, firstEp, 0, nil
+	}
+
 	return 0, 0, 0, fmt.Errorf("no anime episode marker found in %s", base)
+}
+
+func romanToInt(s string) int {
+	if n, err := strconv.Atoi(s); err == nil {
+		return n
+	}
+	vals := map[byte]int{'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100}
+	s = strings.ToUpper(s)
+	total := 0
+	for i := 0; i < len(s); i++ {
+		cur, ok := vals[s[i]]
+		if !ok {
+			return 0
+		}
+		if i+1 < len(s) {
+			if next, ok2 := vals[s[i+1]]; ok2 && next > cur {
+				total -= cur
+				continue
+			}
+		}
+		total += cur
+	}
+	return total
 }
 
 func deriveAnimeSeason(path string) int {

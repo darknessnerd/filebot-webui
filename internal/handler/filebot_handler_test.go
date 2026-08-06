@@ -74,8 +74,13 @@ func getFBTmpl() *template.Template {
 	}
 	tmpl, err := template.New("").Funcs(template.FuncMap{
 		"formatBytes": func(b int64) string { return "0 B" },
-		"or":          func(a, b string) string { if a != "" { return a }; return b },
-		"list":        func(args ...string) []string { return args },
+		"or": func(a, b string) string {
+			if a != "" {
+				return a
+			}
+			return b
+		},
+		"list": func(args ...string) []string { return args },
 	}).Parse(`
 {{define "filebot_form"}}FORM:{{range .TorrentIDs}}{{.}},{{end}}PATHS:{{range .SourcePaths}}{{.}},{{end}}{{end}}
 {{define "filebot_result"}}RESULT:{{range .Successes}}OK{{end}}{{range .Errors}}ERR{{end}}:plex={{.PlexRefreshed}}:OUTCOMES={{range .TorrentOutcomes}}{{.TorrentID}}|{{.Moved}}|{{.Deleted}}|{{.Failed}}|{{.Message}};{{end}}{{end}}
@@ -89,7 +94,7 @@ func getFBTmpl() *template.Template {
 }
 
 func newFBHandler(fb *stubFBSvc, del *stubDelSvc, px *stubPlexSvc) *handler.FileBotHandler {
-	return handler.NewFileBotHandler(fb, del, px, getFBTmpl(), "/media", logger.New("error", false))
+	return handler.NewFileBotHandler(fb, del, px, getFBTmpl(), "/media", true, logger.New("error", false))
 }
 
 // ── Form ───────────────────────────────────────────────────────────
@@ -101,7 +106,7 @@ func TestFileBotForm_PassesTorrentIDs(t *testing.T) {
 	}}
 	h := handler.NewFileBotHandler(
 		&stubFBSvc{}, del, &stubPlexSvc{},
-		fbTmpl(t), "/media", logger.New("error", false),
+		fbTmpl(t), "/media", true, logger.New("error", false),
 	)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/filebot?torrent_ids=abc&torrent_ids=def", nil)
@@ -125,12 +130,12 @@ func postForm(fields map[string][]string) *http.Request {
 
 func validForm() map[string][]string {
 	return map[string][]string{
-		"db":          {"TheMovieDB"},
-		"action":      {"move"},
-		"conflict":    {"skip"},
-		"log_level":   {"info"},
-		"output":      {"/media/movies"},
-		"torrent_ids": {"t1"},
+		"db":           {"TheMovieDB"},
+		"action":       {"move"},
+		"conflict":     {"skip"},
+		"log_level":    {"info"},
+		"output":       {"/media/movies"},
+		"torrent_ids":  {"t1"},
 		"source_paths": {"/downloads/file.mkv"},
 	}
 }
@@ -138,7 +143,7 @@ func validForm() map[string][]string {
 func TestFileBotExecute_Happy_RendersSuccesses(t *testing.T) {
 	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"renamed ok"}}}
 	h := handler.NewFileBotHandler(fb, &stubDelSvc{}, &stubPlexSvc{},
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	w := httptest.NewRecorder()
 	r := postForm(validForm())
@@ -157,6 +162,22 @@ func TestFileBotExecute_InvalidArg_Returns400(t *testing.T) {
 	h.Execute(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestFileBotExecute_TMDBDisabledAndRequested_Returns400(t *testing.T) {
+	h := handler.NewFileBotHandler(
+		&stubFBSvc{}, &stubDelSvc{}, &stubPlexSvc{},
+		fbTmpl(t), "/media", false, logger.New("error", false),
+	)
+
+	fields := validForm()
+	fields["db"] = []string{"TheMovieDB"}
+	w := httptest.NewRecorder()
+	r := postForm(fields)
+	h.Execute(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "TMDB provider is unavailable")
 }
 
 func TestFileBotExecute_FileBotError_RendersErrorsIn200(t *testing.T) {
@@ -181,7 +202,7 @@ func TestFileBotExecute_MoveSuccess_DeletesTorrentAndRefreshPlex(t *testing.T) {
 	pxWrapper := &capturePlexSvc{called: new(bool)}
 
 	h := handler.NewFileBotHandler(fb, delWrapper, pxWrapper,
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	// Inject user with PlexToken into context
 	w := httptest.NewRecorder()
@@ -206,7 +227,7 @@ func TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh(t *testing.T) 
 	px := &capturePlexSvc{called: new(bool)}
 
 	h := handler.NewFileBotHandler(fb, del, px,
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	w := httptest.NewRecorder()
 	r := postForm(validForm()) // action=move
@@ -231,7 +252,7 @@ func TestFileBotExecute_Exit3Error_NonMove_SkipsDeleteAndRefresh(t *testing.T) {
 	px := &capturePlexSvc{called: new(bool)}
 
 	h := handler.NewFileBotHandler(fb, del, px,
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	fields := validForm()
 	fields["action"] = []string{"copy"}
@@ -251,7 +272,7 @@ func TestFileBotExecute_NoMoveAction_SkipsDeleteAndRefresh(t *testing.T) {
 	px := &capturePlexSvc{called: new(bool)}
 
 	h := handler.NewFileBotHandler(fb, del, px,
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	fields := validForm()
 	fields["action"] = []string{"test"} // not "move"
@@ -272,7 +293,7 @@ func TestFileBotForm_AllIDsMissingFromDeluge_Returns422NotFound(t *testing.T) {
 	del := &stubDelSvc{torrents: []domain.Torrent{}}
 	h := handler.NewFileBotHandler(
 		&stubFBSvc{}, del, &stubPlexSvc{},
-		fbTmpl(t), "/media", logger.New("error", false),
+		fbTmpl(t), "/media", true, logger.New("error", false),
 	)
 
 	w := httptest.NewRecorder()
@@ -290,7 +311,7 @@ func TestFileBotForm_SomeIDsMissingFromDeluge_RendersOnlyFoundPaths(t *testing.T
 	}}
 	h := handler.NewFileBotHandler(
 		&stubFBSvc{}, del, &stubPlexSvc{},
-		fbTmpl(t), "/media", logger.New("error", false),
+		fbTmpl(t), "/media", true, logger.New("error", false),
 	)
 
 	w := httptest.NewRecorder()
@@ -313,7 +334,7 @@ func TestFileBotForm_DelugeError_Returns502(t *testing.T) {
 	del := &stubDelSvc{err: errors.New("deluge unreachable")}
 	h := handler.NewFileBotHandler(
 		&stubFBSvc{}, del, &stubPlexSvc{},
-		fbTmpl(t), "/media", logger.New("error", false),
+		fbTmpl(t), "/media", true, logger.New("error", false),
 	)
 
 	w := httptest.NewRecorder()
@@ -415,7 +436,7 @@ func TestFileBotExecute_MovePartialSuccess_DeletesOnlySucceededTorrent(t *testin
 	px := &capturePlexSvc{called: new(bool)}
 
 	h := handler.NewFileBotHandler(fb, del, px,
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	fields := validForm()
 	fields["torrent_ids"] = []string{"t1", "t2"}
@@ -456,7 +477,7 @@ func TestFileBotExecute_MoveMixedResults_DeletesEverySucceededTorrent(t *testing
 	px := &capturePlexSvc{called: new(bool)}
 
 	h := handler.NewFileBotHandler(fb, del, px,
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	fields := validForm()
 	fields["torrent_ids"] = []string{"tA", "tB", "tC"}
@@ -482,7 +503,7 @@ func TestFileBotExecute_MoveSuccess_DeleteFails_SkipsPlexRefresh(t *testing.T) {
 	px := &capturePlexSvc{called: new(bool)}
 
 	h := handler.NewFileBotHandler(fb, del, px,
-		fbTmpl(t), "/media", logger.New("error", false))
+		fbTmpl(t), "/media", true, logger.New("error", false))
 
 	w := httptest.NewRecorder()
 	r := postForm(validForm())
@@ -499,8 +520,8 @@ func TestFileBotExecute_MoveSuccess_DeleteFails_SkipsPlexRefresh(t *testing.T) {
 // ── capture stubs ──────────────────────────────────────────────────
 
 type captureDelSvc struct {
-	called *bool
-	ids    *[]string
+	called  *bool
+	ids     *[]string
 	errByID map[string]error
 }
 

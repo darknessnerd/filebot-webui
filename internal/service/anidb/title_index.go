@@ -20,7 +20,10 @@ func loadTitleIndexFromFile(path string) (*titleIndex, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read titles file: %w", err)
 	}
+	return loadTitleIndexFromBytes(data)
+}
 
+func loadTitleIndexFromBytes(data []byte) (*titleIndex, error) {
 	var doc animeTitlesDoc
 	if err := xml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("decode titles xml: %w", err)
@@ -33,6 +36,9 @@ func loadTitleIndexFromFile(path string) (*titleIndex, error) {
 			continue
 		}
 		for _, t := range anime.Titles {
+			if t.Type == "short" || t.Type == "kana" {
+				continue
+			}
 			key := normalizeLookupTitle(t.Value)
 			if key == "" {
 				continue
@@ -87,5 +93,6 @@ type animeTitleItem struct {
 }
 
 type animeTitleName struct {
+	Type  string `xml:"type,attr"`
 	Value string `xml:",chardata"`
 }

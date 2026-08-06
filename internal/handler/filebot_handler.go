@@ -31,6 +31,7 @@ type FileBotHandler struct {
 	plex      plexSvc
 	tmpl      *template.Template
 	mediaRoot string
+	hasTMDB   bool
 	log       logger.Logger
 }
 
@@ -43,8 +44,8 @@ type torrentOutcome struct {
 	Message    string
 }
 
-func NewFileBotHandler(fb fileBotService, del delugeSvc, plex plexSvc, tmpl *template.Template, mediaRoot string, log logger.Logger) *FileBotHandler {
-	return &FileBotHandler{fb: fb, del: del, plex: plex, tmpl: tmpl, mediaRoot: mediaRoot, log: log}
+func NewFileBotHandler(fb fileBotService, del delugeSvc, plex plexSvc, tmpl *template.Template, mediaRoot string, hasTMDB bool, log logger.Logger) *FileBotHandler {
+	return &FileBotHandler{fb: fb, del: del, plex: plex, tmpl: tmpl, mediaRoot: mediaRoot, hasTMDB: hasTMDB, log: log}
 }
 
 func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
@@ -91,10 +92,16 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
+	defaultDB := "AniDB"
+	if h.hasTMDB {
+		defaultDB = "TheMovieDB"
+	}
 	if err := h.tmpl.ExecuteTemplate(w, "filebot_form", map[string]any{
 		"TorrentIDs":  resolvedIDs,
 		"SourcePaths": sourcePaths,
 		"MediaRoot":   h.mediaRoot,
+		"HasTMDB":     h.hasTMDB,
+		"DefaultDB":   defaultDB,
 		"User":        user,
 		"Action":      "",
 		"DB":          "",
@@ -147,6 +154,11 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		Query:     r.FormValue("query"),
 		Recursive: r.FormValue("recursive") == "true",
 		Output:    r.FormValue("output"),
+	}
+	if !h.hasTMDB && isTMDBDatabase(baseJob.DB) {
+		h.log.Warn().Str("db", baseJob.DB).Msg("filebot execute: tmdb db requested but token not configured")
+		http.Error(w, "TMDB provider is unavailable: TMDB_ACCESS_TOKEN is not configured", http.StatusBadRequest)
+		return
 	}
 
 	h.log.Info().
@@ -242,10 +254,10 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	if err := h.tmpl.ExecuteTemplate(w, "filebot_result", map[string]any{
-		"Successes":     result.Successes,
-		"Errors":        result.Errors,
-		"RawOutput":     result.RawOutput,
-		"PlexRefreshed": plexRefreshed,
+		"Successes":       result.Successes,
+		"Errors":          result.Errors,
+		"RawOutput":       result.RawOutput,
+		"PlexRefreshed":   plexRefreshed,
 		"TorrentOutcomes": outcomes,
 	}); err != nil {
 		h.log.Error().Err(err).Msg("filebot result render")
@@ -262,4 +274,8 @@ func setToast(w http.ResponseWriter, level, msg string) {
 		"showToast": {Level: level, Msg: msg},
 	})
 	w.Header().Set("HX-Trigger", string(payload))
+}
+
+func isTMDBDatabase(db string) bool {
+	return db == "TheMovieDB" || db == "TheMovieDB::TV"
 }

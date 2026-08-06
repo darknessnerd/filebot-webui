@@ -23,8 +23,9 @@ func TestRefreshTitlesFile_PlainXML(t *testing.T) {
 	defer srv.Close()
 
 	target := filepath.Join(t.TempDir(), "anime-titles.xml")
-	err := RefreshTitlesFile(context.Background(), srv.URL, target, logger.New("error", false))
+	content, err := RefreshTitlesFile(context.Background(), srv.URL, target, logger.New("error", false))
 	require.NoError(t, err)
+	assert.Contains(t, string(content), "<animetitles>")
 
 	data, err := os.ReadFile(target)
 	require.NoError(t, err)
@@ -43,8 +44,9 @@ func TestRefreshTitlesFile_GzipXML(t *testing.T) {
 	defer srv.Close()
 
 	target := filepath.Join(t.TempDir(), "anime-titles.xml")
-	err := RefreshTitlesFile(context.Background(), srv.URL, target, logger.New("error", false))
+	content, err := RefreshTitlesFile(context.Background(), srv.URL, target, logger.New("error", false))
 	require.NoError(t, err)
+	assert.Contains(t, string(content), "Dirty Pair Flash")
 
 	data, err := os.ReadFile(target)
 	require.NoError(t, err)

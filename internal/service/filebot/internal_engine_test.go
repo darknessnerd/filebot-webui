@@ -2,6 +2,7 @@ package filebot
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,6 +19,30 @@ type stubResolver struct {
 	tv    *domain.TVMatch
 	anime *domain.AnimeMatch
 	err   error
+}
+
+type aidOnlyResolver struct {
+	anime      *domain.AnimeMatch
+	aidCalls   int
+	titleCalls int
+}
+
+func (r *aidOnlyResolver) SearchMovie(_ context.Context, _ string, _ int) (*domain.MovieMatch, error) {
+	return nil, nil
+}
+
+func (r *aidOnlyResolver) SearchTV(_ context.Context, _ string, _ int) (*domain.TVMatch, error) {
+	return nil, nil
+}
+
+func (r *aidOnlyResolver) SearchAnimeByAID(_ context.Context, _ int) (*domain.AnimeMatch, error) {
+	r.aidCalls++
+	return r.anime, nil
+}
+
+func (r *aidOnlyResolver) SearchAnime(_ context.Context, _ string, _ int) (*domain.AnimeMatch, error) {
+	r.titleCalls++
+	return nil, errors.New("title lookup should not be called")
 }
 
 func (s *stubResolver) SearchMovie(_ context.Context, _ string, _ int) (*domain.MovieMatch, error) {
@@ -160,6 +185,79 @@ func TestInternalEngine_TV_MultiEpisode(t *testing.T) {
 	}
 }
 
+func TestInternalEngine_TV_CorpusEpisodePatterns(t *testing.T) {
+	engine := NewInternalEngine(&stubResolver{
+		tv: &domain.TVMatch{ID: 1, Name: "Corpus Show", Year: 2020},
+	}, logger.New("error", false))
+
+	cases := []struct {
+		name    string
+		source  string
+		wantEp  string
+	}{
+		{"standard SxxExx",         "Corpus.Show.S02E05.1080p.mkv",                    "S02E05"},
+		{"SxxExxExx double",        "Corpus.Show.S01E01E02.mkv",                        "S01E01-E02"},
+		{"SxxExx-Exx range",        "Corpus.Show.S01E01-E02.mkv",                       "S01E01-E02"},
+		{"NxNN format",             "Corpus.Show.2x05.HDTV.mkv",                        "S02E05"},
+		{"S01.E01 dot sep",         "Corpus.Show.S01.E01.mkv",                          "S01E01"},
+		{"[S01E01] brackets",       "[Group] Corpus Show [S01E01] [1080p].mkv",         "S01E01"},
+		{"season_episode underscore","corpus_show_s03e07_1080p.mkv",                    "S03E07"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := engine.Execute(context.Background(), domain.FileBotJob{
+				SourcePaths: []string{tc.source},
+				DB:          "TheMovieDB::TV",
+				Action:      "test",
+				Conflict:    "skip",
+				Query:       "Corpus Show",
+				Output:      "/media",
+			})
+			require.NoError(t, err, "source=%s", tc.source)
+			assert.Contains(t, result.Successes[0], tc.wantEp, "source=%s", tc.source)
+		})
+	}
+}
+
+func TestInternalEngine_Movie_CorpusQueryNormalization(t *testing.T) {
+	engine := NewInternalEngine(&stubResolver{
+		movie: &domain.MovieMatch{ID: 1, Title: "Corpus Movie", Year: 2024},
+	}, logger.New("error", false))
+
+	cases := []struct {
+		name   string
+		source string
+	}{
+		{"dot separated year",        "Corpus.Movie.2024.1080p.BluRay.mkv"},
+		{"space separated year",      "Corpus Movie 2024 1080p.mkv"},
+		{"year in parens",            "Corpus Movie (2024) BluRay.mkv"},
+		{"year in brackets",          "Corpus Movie [2024] 1080p.mkv"},
+		{"underscore separated",      "Corpus_Movie_2024_1080p.mkv"},
+		{"codec noise",               "Corpus.Movie.2024.2160p.UHD.BluRay.x265.DTS-HD.mkv"},
+		{"release group tag",         "Corpus.Movie.2024.BluRay.REMUX.mkv"},
+		{"hdr noise",                 "Corpus.Movie.2024.HDR10.DOVI.mkv"},
+		{"remastered suffix",         "Corpus Movie (2024) Remastered 1080p.mkv"},
+		{"year range in parens",      "Corpus Movie (2024-2025) BluRay.mkv"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := engine.Execute(context.Background(), domain.FileBotJob{
+				SourcePaths: []string{tc.source},
+				DB:          "TheMovieDB",
+				Action:      "test",
+				Conflict:    "skip",
+				Output:      "/media",
+			})
+			require.NoError(t, err, "source=%s", tc.source)
+			assert.Contains(t, result.Successes[0], "Corpus Movie", "source=%s", tc.source)
+		})
+	}
+}
+
 func TestInternalEngine_AnimeTest_StagioneMarker(t *testing.T) {
 	dir := t.TempDir()
 	sourceDir := filepath.Join(dir, "Mushoku Tensei - Stagione 3 (2026) [03-14]")
@@ -225,6 +323,7 @@ func TestInternalEngine_Anime_TitleLookupFallback(t *testing.T) {
 	assert.Contains(t, result.Successes[0], "One Piece - S01E01")
 }
 
+
 func TestInternalEngine_Anime_CorpusEpisodePatterns(t *testing.T) {
 	engine := NewInternalEngine(&stubResolver{
 		anime: &domain.AnimeMatch{ID: 999, Title: "Corpus Anime", Year: 2026},
@@ -254,6 +353,41 @@ func TestInternalEngine_Anime_CorpusEpisodePatterns(t *testing.T) {
 			name:    "ep range plus ova suffix",
 			source:  "Fullmetal Alchemist Brotherhood (2009) [EP 1-64 + 4 OVA] 1080p H265.mkv",
 			wantStr: "Season 1/Corpus Anime - S01E01-E64.mkv",
+		},
+		{
+			name:    "bare ep after dash subsplease style",
+			source:  "[SubsPlease] Cowboy Bebop - 01 (1080p) [ABCD1234].mkv",
+			wantStr: "Season 1/Corpus Anime - S01E01.mkv",
+		},
+		{
+			name:    "bare ep range after dash",
+			source:  "[SubsPlease] Cowboy Bebop - 01-26 (1080p) [ABCD1234].mkv",
+			wantStr: "Season 1/Corpus Anime - S01E01-E26.mkv",
+		},
+		{
+			name:    "hash episode",
+			source:  "Neon Genesis Evangelion #01 (1080p).mkv",
+			wantStr: "Season 1/Corpus Anime - S01E01.mkv",
+		},
+		{
+			name:    "ova episode number",
+			source:  "Hellsing OVA 3 (2006) [1080p].mkv",
+			wantStr: "Season 1/Corpus Anime - S01E03.mkv",
+		},
+		{
+			name:    "special episode number",
+			source:  "Sword Art Online SP2 1080p.mkv",
+			wantStr: "Season 1/Corpus Anime - S01E02.mkv",
+		},
+		{
+			name:    "part roman numeral",
+			source:  "Tenchi Muyo Part III (1992).mkv",
+			wantStr: "Season 1/Corpus Anime - S01E03.mkv",
+		},
+		{
+			name:    "part arabic numeral",
+			source:  "Macross Part 2 (1984).mkv",
+			wantStr: "Season 1/Corpus Anime - S01E02.mkv",
 		},
 	}
 

@@ -30,14 +30,17 @@ type Client struct {
 	clientVer string
 	protoVer  string
 
-	mu            sync.Mutex
+	pacingMu      sync.Mutex
 	lastRequestAt time.Time
-	cacheByAID    map[int]*domain.AnimeMatch
-	titleIndex    *titleIndex
-	titleIndexErr error
+
+	cacheMu    sync.RWMutex
+	cacheByAID map[int]*domain.AnimeMatch
+
+	idxMu      sync.RWMutex
+	titleIndex *titleIndex
 }
 
-func NewClient(clientName, clientVer, protoVer, baseURL, titlesFile string, log logger.Logger) *Client {
+func NewClient(clientName, clientVer, protoVer, baseURL string, log logger.Logger) *Client {
 	cleanBaseURL := strings.TrimSpace(baseURL)
 	if cleanBaseURL == "" {
 		cleanBaseURL = defaultBaseURL
@@ -47,7 +50,7 @@ func NewClient(clientName, clientVer, protoVer, baseURL, titlesFile string, log 
 		cleanProto = defaultProtoVer
 	}
 
-	c := &Client{
+	return &Client{
 		http:       &http.Client{Timeout: 10 * time.Second},
 		log:        log,
 		baseURL:    cleanBaseURL,
@@ -56,26 +59,44 @@ func NewClient(clientName, clientVer, protoVer, baseURL, titlesFile string, log 
 		protoVer:   cleanProto,
 		cacheByAID: make(map[int]*domain.AnimeMatch),
 	}
-	if strings.TrimSpace(titlesFile) != "" {
-		idx, err := loadTitleIndexFromFile(strings.TrimSpace(titlesFile))
-		if err != nil {
-			c.titleIndexErr = err
-			c.log.Warn().Err(err).Str("titles_file", titlesFile).Msg("anidb: failed to load title index")
-		} else {
-			c.titleIndex = idx
-		}
+}
+
+// LoadIndexFromFile loads the title index from disk at the given path.
+// Called once at startup when a titles file already exists on disk.
+func (c *Client) LoadIndexFromFile(path string) error {
+	idx, err := loadTitleIndexFromFile(strings.TrimSpace(path))
+	if err != nil {
+		return err
 	}
-	return c
+	c.idxMu.Lock()
+	c.titleIndex = idx
+	c.idxMu.Unlock()
+	return nil
+}
+
+// ReloadIndex parses new title XML bytes and atomically swaps the live index.
+// Safe to call from the background scheduler while searches are in flight.
+func (c *Client) ReloadIndex(data []byte) error {
+	idx, err := loadTitleIndexFromBytes(data)
+	if err != nil {
+		return err
+	}
+	c.idxMu.Lock()
+	c.titleIndex = idx
+	c.idxMu.Unlock()
+	c.log.Info().Int("titles", len(idx.byTitle)).Msg("anidb: title index reloaded")
+	return nil
 }
 
 func (c *Client) SearchAnime(ctx context.Context, query string, _ int) (*domain.AnimeMatch, error) {
-	if c.titleIndexErr != nil {
-		return nil, fmt.Errorf("anidb.SearchAnime: title index unavailable: %w", c.titleIndexErr)
+	c.idxMu.RLock()
+	idx := c.titleIndex
+	c.idxMu.RUnlock()
+
+	if idx == nil {
+		return nil, fmt.Errorf("anidb.SearchAnime: title index not loaded; scheduler must run first or set ANIDB_REFRESH_TITLES_ON_START=true")
 	}
-	if c.titleIndex == nil {
-		return nil, fmt.Errorf("anidb.SearchAnime: title index not configured; set ANIDB_TITLES_FILE or use --q aid:<id>")
-	}
-	aid, err := c.titleIndex.FindAID(query)
+	aid, err := idx.FindAID(query)
 	if err != nil {
 		return nil, fmt.Errorf("anidb.SearchAnime: %w", err)
 	}
@@ -161,14 +182,14 @@ func (c *Client) animeURL(aid int) (string, error) {
 }
 
 func (c *Client) waitForPacing(ctx context.Context) error {
-	c.mu.Lock()
+	c.pacingMu.Lock()
 	wait := time.Until(c.lastRequestAt.Add(minRequestSpacing))
 	if wait <= 0 {
 		c.lastRequestAt = time.Now()
-		c.mu.Unlock()
+		c.pacingMu.Unlock()
 		return nil
 	}
-	c.mu.Unlock()
+	c.pacingMu.Unlock()
 
 	timer := time.NewTimer(wait)
 	defer timer.Stop()
@@ -178,15 +199,15 @@ func (c *Client) waitForPacing(ctx context.Context) error {
 	case <-timer.C:
 	}
 
-	c.mu.Lock()
+	c.pacingMu.Lock()
 	c.lastRequestAt = time.Now()
-	c.mu.Unlock()
+	c.pacingMu.Unlock()
 	return nil
 }
 
 func (c *Client) cachedMatch(aid int) (*domain.AnimeMatch, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.cacheMu.RLock()
+	defer c.cacheMu.RUnlock()
 	match, ok := c.cacheByAID[aid]
 	if !ok || match == nil {
 		return nil, false
@@ -199,8 +220,8 @@ func (c *Client) storeCache(match *domain.AnimeMatch) {
 	if match == nil || match.ID <= 0 {
 		return
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
 	cp := *match
 	c.cacheByAID[match.ID] = &cp
 }

@@ -24,8 +24,15 @@
       <div class="form-group">
         <label>Database</label>
         <select name="db" @change="fmt = '{plex}'">
-          {{range $db := list "TheMovieDB" "TheMovieDB::TV" "TheTVDB" "AniDB" "AcoustID" "OMDb"}}
-          <option value="{{$db}}" {{if eq $db (or $.DB "TheMovieDB")}}selected{{end}}>{{$db}}</option>
+          {{if .HasTMDB}}
+          <option value="TheMovieDB" {{if eq "TheMovieDB" (or $.DB $.DefaultDB)}}selected{{end}}>TheMovieDB</option>
+          <option value="TheMovieDB::TV" {{if eq "TheMovieDB::TV" (or $.DB $.DefaultDB)}}selected{{end}}>TheMovieDB::TV</option>
+          {{else}}
+          <option value="TheMovieDB" disabled>TheMovieDB (requires TMDB_ACCESS_TOKEN)</option>
+          <option value="TheMovieDB::TV" disabled>TheMovieDB::TV (requires TMDB_ACCESS_TOKEN)</option>
+          {{end}}
+          {{range $db := list "TheTVDB" "AniDB" "AcoustID" "OMDb"}}
+          <option value="{{$db}}" {{if eq $db (or $.DB $.DefaultDB)}}selected{{end}}>{{$db}}</option>
           {{end}}
         </select>
       </div>

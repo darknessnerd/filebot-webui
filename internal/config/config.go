@@ -28,6 +28,9 @@ type Config struct {
 	AniDBTitlesFile           string
 	AniDBTitlesURL            string
 	AniDBRefreshTitlesOnStart bool
+	AniDBSchedulerEnabled     bool
+	AniDBSchedulerInterval    time.Duration
+	AniDBMinFetchInterval     time.Duration
 
 	DelugeHost     string
 	DelugePort     string
@@ -82,6 +85,21 @@ func Load() (*Config, error) {
 	cfg.Debug, _ = strconv.ParseBool(getEnv("DEBUG", "false"))
 	cfg.DevMode, _ = strconv.ParseBool(getEnv("DEV_MODE", "false"))
 	cfg.AniDBRefreshTitlesOnStart, _ = strconv.ParseBool(getEnv("ANIDB_REFRESH_TITLES_ON_START", "false"))
+	cfg.AniDBSchedulerEnabled, _ = strconv.ParseBool(getEnv("ANIDB_SCHEDULER_ENABLED", "false"))
+
+	siStr := getEnv("ANIDB_SCHEDULER_INTERVAL", "12h")
+	schedulerInterval, err := time.ParseDuration(siStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ANIDB_SCHEDULER_INTERVAL %q: %w", siStr, err)
+	}
+	cfg.AniDBSchedulerInterval = schedulerInterval
+
+	mfStr := getEnv("ANIDB_MIN_FETCH_INTERVAL", "24h")
+	minFetchInterval, err := time.ParseDuration(mfStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ANIDB_MIN_FETCH_INTERVAL %q: %w", mfStr, err)
+	}
+	cfg.AniDBMinFetchInterval = minFetchInterval
 
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
