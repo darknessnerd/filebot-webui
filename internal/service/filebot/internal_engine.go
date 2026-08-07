@@ -74,22 +74,17 @@ type tvResolver interface {
 	SearchTV(ctx context.Context, query string, year int) (*domain.TVMatch, error)
 }
 
-type metadataResolver interface {
-	movieResolver
-	tvResolver
-	animeResolver
-}
 
 type InternalEngine struct {
-	resolver metadataResolver
+	resolver MetadataResolver
 	log      logger.Logger
 }
 
-func NewInternal(mediaRoot string, resolver metadataResolver, log logger.Logger) *Service {
+func NewInternal(mediaRoot string, resolver MetadataResolver, log logger.Logger) *Service {
 	return New(mediaRoot, NewInternalEngine(resolver, log), log)
 }
 
-func NewInternalEngine(resolver metadataResolver, log logger.Logger) *InternalEngine {
+func NewInternalEngine(resolver MetadataResolver, log logger.Logger) *InternalEngine {
 	return &InternalEngine{resolver: resolver, log: log}
 }
 

@@ -12,6 +12,15 @@ type animeResolver interface {
 	SearchAnimeByAID(ctx context.Context, aid int) (*domain.AnimeMatch, error)
 }
 
+// MetadataResolver is the union of all external metadata lookups consumed by the
+// internal engine. Implement this interface to inject a stub in tests.
+type MetadataResolver interface {
+	SearchMovie(ctx context.Context, query string, year int) (*domain.MovieMatch, error)
+	SearchTV(ctx context.Context, query string, year int) (*domain.TVMatch, error)
+	SearchAnime(ctx context.Context, query string, year int) (*domain.AnimeMatch, error)
+	SearchAnimeByAID(ctx context.Context, aid int) (*domain.AnimeMatch, error)
+}
+
 type resolverSet struct {
 	movie movieResolver
 	tv    tvResolver

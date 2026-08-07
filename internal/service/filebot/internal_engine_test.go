@@ -462,7 +462,7 @@ func TestInternalEngine_Anime_EpisodeFileEmptyQuery_FallsBackToFolder(t *testing
 }
 
 type captureAnimeResolver struct {
-	inner   metadataResolver
+	inner   MetadataResolver
 	onQuery func(string)
 }
 
