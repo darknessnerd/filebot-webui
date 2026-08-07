@@ -83,7 +83,7 @@ func (c *Client) DeleteTorrent(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("deluge.DeleteTorrent: %w", err)
 	}
-	resp, err := c.rpc(ctx, cookie, "core.remove_torrent", []any{id, true})
+	resp, err := c.rpc(ctx, cookie, "core.remove_torrent", []any{id, false})
 	if err != nil {
 		return fmt.Errorf("deluge.DeleteTorrent: %w", err)
 	}

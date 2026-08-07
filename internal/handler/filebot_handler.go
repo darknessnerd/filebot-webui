@@ -6,6 +6,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/darknessnerd/filebot-webui/internal/domain"
@@ -122,23 +123,7 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 
 	torrentIDs := r.Form["torrent_ids"]
 	sourcePaths := r.Form["source_paths"]
-
-	if len(sourcePaths) == 0 {
-		h.log.Warn().Msg("filebot execute: no source_paths in request")
-		http.Error(w, "no source paths — torrents may have been removed from Deluge", http.StatusUnprocessableEntity)
-		return
-	}
-	if len(torrentIDs) == 0 {
-		h.log.Warn().Msg("filebot execute: no torrent_ids in request")
-		http.Error(w, "no torrent ids", http.StatusBadRequest)
-		return
-	}
-	if len(torrentIDs) != len(sourcePaths) {
-		h.log.Warn().
-			Int("torrent_ids", len(torrentIDs)).
-			Int("source_paths", len(sourcePaths)).
-			Msg("filebot execute: mismatched torrent/source counts")
-		http.Error(w, "mismatched torrent/source paths", http.StatusBadRequest)
+	if h.hasError(w, sourcePaths, torrentIDs) {
 		return
 	}
 
@@ -211,6 +196,7 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 
 		if baseJob.Action == "move" && len(currentResult.Errors) == 0 && execErr == nil {
 			outcome.Moved = true
+			h.removeSourceDir(sourcePaths[i])
 			if derr := h.del.DeleteTorrent(r.Context(), torrentIDs[i]); derr != nil {
 				h.log.Warn().Err(derr).Str("torrent_id", torrentIDs[i]).Msg("delete torrent failed")
 				outcome.Message = derr.Error()
@@ -260,6 +246,28 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *FileBotHandler) hasError(w http.ResponseWriter, sourcePaths []string, torrentIDs []string) bool {
+	if len(sourcePaths) == 0 {
+		h.log.Warn().Msg("filebot execute: no source_paths in request")
+		http.Error(w, "no source paths — torrents may have been removed from Deluge", http.StatusUnprocessableEntity)
+		return true
+	}
+	if len(torrentIDs) == 0 {
+		h.log.Warn().Msg("filebot execute: no torrent_ids in request")
+		http.Error(w, "no torrent ids", http.StatusBadRequest)
+		return true
+	}
+	if len(torrentIDs) != len(sourcePaths) {
+		h.log.Warn().
+			Int("torrent_ids", len(torrentIDs)).
+			Int("source_paths", len(sourcePaths)).
+			Msg("filebot execute: mismatched torrent/source counts")
+		http.Error(w, "mismatched torrent/source paths", http.StatusBadRequest)
+		return true
+	}
+	return false
+}
+
 // setToast writes an HX-Trigger header so the frontend toast listener fires.
 func setToast(w http.ResponseWriter, level, msg string) {
 	type toastPayload struct {
@@ -274,4 +282,41 @@ func setToast(w http.ResponseWriter, level, msg string) {
 
 func isTMDBDatabase(db string) bool {
 	return db == "TheMovieDB" || db == "TheMovieDB::TV"
+}
+
+// removeSourceDir removes the source path if it is a directory and is now empty
+// (or contains only empty subdirectories) after a successful FileBot move.
+// Deluge no longer handles data deletion (removeData=false), so we clean up here.
+func (h *FileBotHandler) removeSourceDir(sourcePath string) {
+	info, err := os.Stat(sourcePath)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	if err := removeEmptyDirs(sourcePath); err != nil {
+		h.log.Warn().Err(err).Str("path", sourcePath).Msg("filebot: cleanup source dir failed")
+	}
+}
+
+func removeEmptyDirs(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			sub := filepath.Join(dir, e.Name())
+			if err := removeEmptyDirs(sub); err != nil {
+				return err
+			}
+		}
+	}
+	// Re-read after recursing — subdirs may now be gone.
+	entries, err = os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	if len(entries) == 0 {
+		return os.Remove(dir)
+	}
+	return nil
 }

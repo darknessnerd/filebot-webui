@@ -70,7 +70,8 @@ sequenceDiagram
     end
     API->>FS: Rename + move files to MEDIA_ROOT (Filesystem I/O)
     alt This torrent moved successfully and action=move
-      API->>Deluge: Delete this torrent + data (HTTP JSON-RPC)
+      API->>FS: Remove empty source directory (and empty subdirs) left by move
+      API->>Deluge: Delete torrent entry only — removeData=false (HTTP JSON-RPC)
     else This torrent failed
       API->>API: Keep torrent in Deluge
     end
@@ -82,7 +83,7 @@ sequenceDiagram
 ```
 
 **Decisions recorded here:**
-- Deluge cleanup is conditional per torrent, so successful moves are cleaned even when another selected torrent fails.
+- Deluge cleanup is conditional per torrent, so successful moves are cleaned even when another selected torrent fails. After a successful move the handler removes the (now-empty) source directory tree itself, then calls `core.remove_torrent` with `removeData=false` — removing only the torrent entry. Passing `true` caused Deluge to stat/delete already-moved files, surfacing a Python stat error in the JSON-RPC response.
 - Result payload includes per-torrent moved/deleted/failed status plus per-file outcomes so partial failures are visible.
 - AniDB flow prefers direct `aid:<id>` from `--q`; title-based lookup (via local index) strips episode markers before searching so bare `E01`, `- 01`, `#01`, `OVA N`, `Part N` in filenames do not corrupt the query.
 - Episode detection for TV accepts `SxxEyy`, `S01.E01`, `S01 E01`, and `NxYY`; for anime it additionally handles bare-dash, hash, OVA/SP, and Part (arabic + roman) markers.

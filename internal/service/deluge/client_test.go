@@ -137,7 +137,7 @@ func TestDeleteTorrent_SendsCorrectPayload(t *testing.T) {
 	params, _ := capturedBody["params"].([]any)
 	require.Len(t, params, 2)
 	assert.Equal(t, "torrent-xyz", params[0])
-	assert.Equal(t, true, params[1])
+	assert.Equal(t, false, params[1])
 }
 
 func TestListCompleted_AuthFailure(t *testing.T) {
