@@ -233,7 +233,7 @@ func main() {
 		Addr:         addr,
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: 20 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 	}
 
