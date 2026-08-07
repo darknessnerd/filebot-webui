@@ -90,7 +90,7 @@ func TestE2EError_Movie_SourceMissing(t *testing.T) {
 
 	meta := &stubMetadata{movie: &domain.MovieMatch{ID: 1, Title: "Ghost", Year: 1990}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -122,7 +122,7 @@ func TestE2EError_TV_NoEpisodeMarker(t *testing.T) {
 
 	meta := &stubMetadata{tv: &domain.TVMatch{ID: 1396, Name: "Breaking Bad", Year: 2008}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -152,7 +152,7 @@ func TestE2EError_Anime_NoEpisodeMarker(t *testing.T) {
 
 	meta := &stubMetadata{anime: &domain.AnimeMatch{ID: 21, Title: "One Piece", Year: 1999}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -189,7 +189,7 @@ func TestE2EError_Movie_MetadataResolverFails(t *testing.T) {
 		failErr: errors.New("TMDB unavailable"),
 	}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -223,7 +223,7 @@ func TestE2EError_TV_MetadataResolverFails(t *testing.T) {
 		failErr: errors.New("TMDB rate limited"),
 	}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -257,7 +257,7 @@ func TestE2EError_Anime_MetadataResolverFails(t *testing.T) {
 		failErr: errors.New("AniDB timeout"),
 	}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -295,7 +295,7 @@ func TestE2EError_TV_ConflictFail_TargetExists(t *testing.T) {
 
 	meta := &stubMetadata{tv: &domain.TVMatch{ID: 1396, Name: "Breaking Bad", Year: 2008}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -333,7 +333,7 @@ func TestE2EError_MultipleTorrents_OneFailsOneSucceeds(t *testing.T) {
 
 	meta := &stubMetadata{tv: &domain.TVMatch{ID: 1396, Name: "Breaking Bad", Year: 2008}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -357,6 +357,7 @@ func TestE2EError_MultipleTorrents_OneFailsOneSucceeds(t *testing.T) {
 	assert.FileExists(t, src2)
 	assert.NotContains(t, del.deletedIDs, "tB")
 	// Plex refreshed because at least one move succeeded.
+	px.waitCalled()
 	assert.True(t, px.called)
 
 	body := w.Body.String()
@@ -389,7 +390,7 @@ func TestE2EError_Anime_NestedFolders_OneSeasonConflictFail(t *testing.T) {
 
 	meta := &stubMetadata{anime: &domain.AnimeMatch{ID: 1003, Title: "Sorcerous Stabber Orphen", Year: 1998}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newErrE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()

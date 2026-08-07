@@ -216,15 +216,21 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		outcomes = append(outcomes, outcome)
 	}
 
+	// Plex refresh runs after the response is written so a slow Plex API cannot
+	// cause a client i/o timeout and trigger a form re-submission.
 	plexRefreshed := false
 	if baseJob.Action == "move" && deletedAny {
-		user, ok := UserFromContext(r.Context())
-		if ok && user.PlexToken != "" {
-			if perr := h.plex.RefreshLibraries(r.Context(), user.PlexToken); perr != nil {
-				h.log.Warn().Err(perr).Msg("plex refresh failed")
-			} else {
-				plexRefreshed = true
-			}
+		if user, ok := UserFromContext(r.Context()); ok && user.PlexToken != "" {
+			plexRefreshed = true
+			token := user.PlexToken
+			// context.WithoutCancel keeps the background call alive after the
+			// HTTP handler returns and its context is cancelled.
+			bgCtx := context.WithoutCancel(r.Context())
+			go func() {
+				if perr := h.plex.RefreshLibraries(bgCtx, token); perr != nil {
+					h.log.Warn().Err(perr).Msg("plex refresh failed")
+				}
+			}()
 		}
 	}
 

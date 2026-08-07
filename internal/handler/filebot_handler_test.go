@@ -198,7 +198,7 @@ func TestFileBotExecute_FileBotError_RendersErrorsIn200(t *testing.T) {
 func TestFileBotExecute_MoveSuccess_DeletesTorrentAndRefreshPlex(t *testing.T) {
 	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
 	delWrapper := &captureDelSvc{called: new(bool)}
-	pxWrapper := &capturePlexSvc{called: new(bool)}
+	pxWrapper := newCapturePlex()
 
 	h := handler.NewFileBotHandler(fb, delWrapper, pxWrapper,
 		fbTmpl(t), "/media", true, logger.New("error", false))
@@ -212,6 +212,7 @@ func TestFileBotExecute_MoveSuccess_DeletesTorrentAndRefreshPlex(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, *delWrapper.called, "DeleteTorrent should have been called")
+	pxWrapper.waitCalled()
 	assert.True(t, *pxWrapper.called, "RefreshLibraries should have been called")
 	assert.Contains(t, w.Body.String(), "plex=true")
 	assert.Contains(t, w.Body.String(), "OUTCOMES=t1|true|true|false|moved and deleted;", "UI should render moved+deleted status")
@@ -223,7 +224,7 @@ func TestFileBotExecute_MoveSuccess_DeletesTorrentAndRefreshPlex(t *testing.T) {
 func TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh(t *testing.T) {
 	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"No input files"}}}
 	del := &captureDelSvc{called: new(bool)}
-	px := &capturePlexSvc{called: new(bool)}
+	px := newCapturePlex()
 
 	h := handler.NewFileBotHandler(fb, del, px,
 		fbTmpl(t), "/media", true, logger.New("error", false))
@@ -236,6 +237,7 @@ func TestFileBotExecute_Exit3Success_MoveTriggersDeleteAndRefresh(t *testing.T) 
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, *del.called, "DeleteTorrent must be called when exit 3 treated as success")
+	px.waitCalled()
 	assert.True(t, *px.called, "RefreshLibraries must be called when exit 3 treated as success")
 	assert.Contains(t, w.Header().Get("HX-Trigger"), "success")
 }
@@ -248,7 +250,7 @@ func TestFileBotExecute_Exit3Error_NonMove_SkipsDeleteAndRefresh(t *testing.T) {
 		err:    fmt.Errorf("wrap: %w", domain.ErrFileBotFailed),
 	}
 	del := &captureDelSvc{called: new(bool)}
-	px := &capturePlexSvc{called: new(bool)}
+	px := newCapturePlex()
 
 	h := handler.NewFileBotHandler(fb, del, px,
 		fbTmpl(t), "/media", true, logger.New("error", false))
@@ -268,7 +270,7 @@ func TestFileBotExecute_Exit3Error_NonMove_SkipsDeleteAndRefresh(t *testing.T) {
 func TestFileBotExecute_NoMoveAction_SkipsDeleteAndRefresh(t *testing.T) {
 	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
 	del := &captureDelSvc{called: new(bool)}
-	px := &capturePlexSvc{called: new(bool)}
+	px := newCapturePlex()
 
 	h := handler.NewFileBotHandler(fb, del, px,
 		fbTmpl(t), "/media", true, logger.New("error", false))
@@ -432,7 +434,7 @@ func TestFileBotExecute_MovePartialSuccess_DeletesOnlySucceededTorrent(t *testin
 	}
 	deletedIDs := []string{}
 	del := &captureDelSvc{called: new(bool), ids: &deletedIDs}
-	px := &capturePlexSvc{called: new(bool)}
+	px := newCapturePlex()
 
 	h := handler.NewFileBotHandler(fb, del, px,
 		fbTmpl(t), "/media", true, logger.New("error", false))
@@ -450,6 +452,7 @@ func TestFileBotExecute_MovePartialSuccess_DeletesOnlySucceededTorrent(t *testin
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, *del.called, "DeleteTorrent should be called for successful moved torrent")
 	assert.Equal(t, []string{"t1"}, deletedIDs, "only successfully moved torrent should be deleted")
+	px.waitCalled()
 	assert.True(t, *px.called, "RefreshLibraries should be called when at least one torrent moved")
 	assert.Contains(t, w.Header().Get("HX-Trigger"), "error", "partial failure should set error toast")
 	assert.Contains(t, w.Body.String(), "t1|true|true|false|moved and deleted;", "UI should mark succeeded torrent moved+deleted")
@@ -473,7 +476,7 @@ func TestFileBotExecute_MoveMixedResults_DeletesEverySucceededTorrent(t *testing
 	}
 	deletedIDs := []string{}
 	del := &captureDelSvc{called: new(bool), ids: &deletedIDs}
-	px := &capturePlexSvc{called: new(bool)}
+	px := newCapturePlex()
 
 	h := handler.NewFileBotHandler(fb, del, px,
 		fbTmpl(t), "/media", true, logger.New("error", false))
@@ -490,6 +493,7 @@ func TestFileBotExecute_MoveMixedResults_DeletesEverySucceededTorrent(t *testing
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, []string{"tA", "tC"}, deletedIDs, "all and only successful moved torrents should be deleted")
+	px.waitCalled()
 	assert.True(t, *px.called, "RefreshLibraries should be called when at least one torrent moved")
 }
 
@@ -499,7 +503,7 @@ func TestFileBotExecute_MoveSuccess_DeleteFails_SkipsPlexRefresh(t *testing.T) {
 		called:  new(bool),
 		errByID: map[string]error{"t1": errors.New("delete failed")},
 	}
-	px := &capturePlexSvc{called: new(bool)}
+	px := newCapturePlex()
 
 	h := handler.NewFileBotHandler(fb, del, px,
 		fbTmpl(t), "/media", true, logger.New("error", false))
@@ -592,9 +596,22 @@ func (c *captureDelSvc) DeleteTorrent(_ context.Context, id string) error {
 	return nil
 }
 
-type capturePlexSvc struct{ called *bool }
+type capturePlexSvc struct {
+	called *bool
+	ch     chan struct{}
+}
+
+func newCapturePlex() *capturePlexSvc {
+	called := false
+	return &capturePlexSvc{called: &called, ch: make(chan struct{}, 1)}
+}
+
+func (c *capturePlexSvc) waitCalled() { <-c.ch }
 
 func (c *capturePlexSvc) RefreshLibraries(_ context.Context, _ string) error {
 	*c.called = true
+	if c.ch != nil {
+		c.ch <- struct{}{}
+	}
 	return nil
 }

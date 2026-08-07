@@ -76,14 +76,15 @@ sequenceDiagram
       API->>API: Keep torrent in Deluge
     end
   end
-  opt At least one torrent deleted
-    API->>Plex: Refresh library section (HTTPS REST) using PlexToken from JWT claims
-  end
   API-->>User: 200 OK + per-torrent outcomes + per-file results (HTTPS)
+  opt At least one torrent deleted (async — after response written)
+    API-)Plex: Refresh library section (HTTPS REST) using PlexToken from JWT claims
+  end
 ```
 
 **Decisions recorded here:**
 - Deluge cleanup is conditional per torrent, so successful moves are cleaned even when another selected torrent fails. After a successful move the handler removes the (now-empty) source directory tree itself, then calls `core.remove_torrent` with `removeData=false` — removing only the torrent entry. Passing `true` caused Deluge to stat/delete already-moved files, surfacing a Python stat error in the JSON-RPC response.
+- Plex library refresh fires in a background goroutine using `context.WithoutCancel` **after** the HTTP response is written. A slow Plex API (~2s) was causing browser i/o timeouts which triggered duplicate form POSTs; the duplicate hit the already-moved source path and produced a misleading stat error. Firing async eliminates the timeout window. The response always reports `plexRefreshed=true` when a refresh is scheduled (not confirmed), which is sufficient for the UI toast.
 - Result payload includes per-torrent moved/deleted/failed status plus per-file outcomes so partial failures are visible.
 - AniDB flow prefers direct `aid:<id>` from `--q`; title-based lookup (via local index) strips episode markers before searching so bare `E01`, `- 01`, `#01`, `OVA N`, `Part N` in filenames do not corrupt the query.
 - Episode detection for TV accepts `SxxEyy`, `S01.E01`, `S01 E01`, and `NxYY`; for anime it additionally handles bare-dash, hash, OVA/SP, and Part (arabic + roman) markers.

@@ -79,12 +79,25 @@ func (d *e2eDeluge) deletedID() string {
 }
 
 // e2ePlex records whether RefreshLibraries was called.
-type e2ePlex struct{ called bool }
+// waitCalled() blocks until the goroutine-fired refresh arrives (buffered channel,
+// safe to call even when refresh is not expected — just don't call waitCalled then).
+type e2ePlex struct {
+	called bool
+	ch     chan struct{}
+}
+
+func newE2EPlex() *e2ePlex { return &e2ePlex{ch: make(chan struct{}, 1)} }
 
 func (p *e2ePlex) RefreshLibraries(_ context.Context, _ string) error {
 	p.called = true
+	if p.ch != nil {
+		p.ch <- struct{}{}
+	}
 	return nil
 }
+
+// waitCalled blocks until RefreshLibraries is invoked.
+func (p *e2ePlex) waitCalled() { <-p.ch }
 
 // newE2EHandler wires a real InternalEngine (with stub metadata resolver) to the
 // FileBotHandler. mediaRoot and downloadDir are temp directories owned by the test.
@@ -115,7 +128,7 @@ func TestE2E_Movie_MoveDeleteRefresh(t *testing.T) {
 	del := &e2eDeluge{torrents: []domain.Torrent{
 		{ID: "t1", Name: "Dune.Part.Two.2024.1080p.mkv", DownloadPath: downloadDir},
 	}}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
@@ -142,6 +155,7 @@ func TestE2E_Movie_MoveDeleteRefresh(t *testing.T) {
 	// Deluge entry removed.
 	assert.Equal(t, "t1", del.deletedID())
 	// Plex refreshed.
+	px.waitCalled()
 	assert.True(t, px.called)
 
 	body := w.Body.String()
@@ -162,7 +176,7 @@ func TestE2E_TV_MoveDeleteRefresh(t *testing.T) {
 	del := &e2eDeluge{torrents: []domain.Torrent{
 		{ID: "t2", Name: "Breaking.Bad.S01E01.1080p.mkv", DownloadPath: downloadDir},
 	}}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
@@ -184,6 +198,7 @@ func TestE2E_TV_MoveDeleteRefresh(t *testing.T) {
 	assert.FileExists(t, filepath.Join(mediaRoot, "TV", "Breaking Bad", "Season 1", "Breaking Bad - S01E01.mkv"))
 	assert.NoFileExists(t, src)
 	assert.Equal(t, "t2", del.deletedID())
+	px.waitCalled()
 	assert.True(t, px.called)
 	assert.Contains(t, w.Body.String(), "t2|true|true|false|moved and deleted;")
 }
@@ -200,7 +215,7 @@ func TestE2E_Anime_SeasonFolder_MoveDeleteRefresh(t *testing.T) {
 
 	meta := &stubMetadata{anime: &domain.AnimeMatch{ID: 21, Title: "One Piece", Year: 1999}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
@@ -224,6 +239,7 @@ func TestE2E_Anime_SeasonFolder_MoveDeleteRefresh(t *testing.T) {
 	// Season folder should be cleaned up after move.
 	assert.NoDirExists(t, torrentRoot)
 	assert.Equal(t, "t3", del.deletedID())
+	px.waitCalled()
 	assert.True(t, px.called)
 	assert.Contains(t, w.Body.String(), "t3|true|true|false|moved and deleted;")
 }
@@ -242,7 +258,7 @@ func TestE2E_Movie_WithSubtitle_MovesBothFiles(t *testing.T) {
 
 	meta := &stubMetadata{movie: &domain.MovieMatch{ID: 1, Title: "Dune Part Two", Year: 2024}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -273,7 +289,7 @@ func TestE2E_Movie_TestAction_NoMutation(t *testing.T) {
 
 	meta := &stubMetadata{movie: &domain.MovieMatch{ID: 1, Title: "Dune Part Two", Year: 2024}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -310,7 +326,7 @@ func TestE2E_MultipleTorrents_BothSucceed(t *testing.T) {
 
 	meta := &stubMetadata{tv: &domain.TVMatch{ID: 1396, Name: "Breaking Bad", Year: 2008}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -330,6 +346,7 @@ func TestE2E_MultipleTorrents_BothSucceed(t *testing.T) {
 	assert.NoFileExists(t, src1)
 	assert.NoFileExists(t, src2)
 	assert.ElementsMatch(t, []string{"tA", "tB"}, del.deletedIDs)
+	px.waitCalled()
 	assert.True(t, px.called)
 	body := w.Body.String()
 	assert.Contains(t, body, "tA|true|true|false|moved and deleted;")
@@ -353,7 +370,7 @@ func TestE2E_TV_SeasonFolder_MoveDeleteRefresh(t *testing.T) {
 
 	meta := &stubMetadata{tv: &domain.TVMatch{ID: 60625, Name: "Rick and Morty", Year: 2013}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -370,6 +387,7 @@ func TestE2E_TV_SeasonFolder_MoveDeleteRefresh(t *testing.T) {
 	assert.FileExists(t, filepath.Join(seasonDir, "Rick and Morty - S09E02.mkv"))
 	assert.NoDirExists(t, torrentRoot)
 	assert.Equal(t, "t4", del.deletedID())
+	px.waitCalled()
 	assert.True(t, px.called)
 }
 
@@ -392,7 +410,7 @@ func TestE2E_Anime_NestedSeasonFolders_AutoRecurse(t *testing.T) {
 
 	meta := &stubMetadata{anime: &domain.AnimeMatch{ID: 1003, Title: "Sorcerous Stabber Orphen", Year: 1998}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -411,6 +429,7 @@ func TestE2E_Anime_NestedSeasonFolders_AutoRecurse(t *testing.T) {
 	assert.FileExists(t, filepath.Join(animeDir, "Season 2", "Sorcerous Stabber Orphen - S02E01.mkv"))
 	assert.NoDirExists(t, torrentRoot)
 	assert.Equal(t, "t5", del.deletedID())
+	px.waitCalled()
 	assert.True(t, px.called)
 	assert.Contains(t, w.Header().Get("HX-Trigger"), "success")
 }
@@ -428,7 +447,7 @@ func TestE2E_TV_SingleEpisodeInFolder_Move(t *testing.T) {
 
 	meta := &stubMetadata{tv: &domain.TVMatch{ID: 1396, Name: "Breaking Bad", Year: 2008}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -444,6 +463,7 @@ func TestE2E_TV_SingleEpisodeInFolder_Move(t *testing.T) {
 	assert.NoFileExists(t, src)
 	assert.NoDirExists(t, torrentRoot)
 	assert.Equal(t, "t6", del.deletedID())
+	px.waitCalled()
 	assert.True(t, px.called)
 }
 
@@ -459,7 +479,7 @@ func TestE2E_Anime_SingleFlatFile_Move(t *testing.T) {
 
 	meta := &stubMetadata{anime: &domain.AnimeMatch{ID: 21, Title: "One Piece", Year: 1999}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -474,6 +494,7 @@ func TestE2E_Anime_SingleFlatFile_Move(t *testing.T) {
 	assert.FileExists(t, filepath.Join(mediaRoot, "Anime", "One Piece", "Season 1", "One Piece - S01E01.mkv"))
 	assert.NoFileExists(t, src)
 	assert.Equal(t, "t7", del.deletedID())
+	px.waitCalled()
 	assert.True(t, px.called)
 }
 
@@ -494,7 +515,7 @@ func TestE2E_Anime_MultiEpisodeFlatFolder_Move(t *testing.T) {
 
 	meta := &stubMetadata{anime: &domain.AnimeMatch{ID: 21, Title: "One Piece", Year: 1999}}
 	del := &e2eDeluge{}
-	px := &e2ePlex{}
+	px := newE2EPlex()
 	h := newE2EHandler(t, meta, del, px, mediaRoot)
 
 	w := httptest.NewRecorder()
@@ -512,6 +533,7 @@ func TestE2E_Anime_MultiEpisodeFlatFolder_Move(t *testing.T) {
 	assert.FileExists(t, filepath.Join(seasonDir, "One Piece - S01E03.mkv"))
 	assert.NoDirExists(t, torrentRoot)
 	assert.Equal(t, "t8", del.deletedID())
+	px.waitCalled()
 	assert.True(t, px.called)
 	assert.Contains(t, w.Header().Get("HX-Trigger"), "success")
 }
