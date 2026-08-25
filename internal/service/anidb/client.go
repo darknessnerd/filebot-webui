@@ -88,7 +88,7 @@ func (c *Client) ReloadIndex(data []byte) error {
 	return nil
 }
 
-func (c *Client) SearchAnime(ctx context.Context, query string, _ int) (*domain.AnimeMatch, error) {
+func (c *Client) SearchAnime(ctx context.Context, query string, year int) (*domain.AnimeMatch, error) {
 	c.idxMu.RLock()
 	idx := c.titleIndex
 	c.idxMu.RUnlock()
@@ -96,11 +96,35 @@ func (c *Client) SearchAnime(ctx context.Context, query string, _ int) (*domain.
 	if idx == nil {
 		return nil, fmt.Errorf("anidb.SearchAnime: title index not loaded; scheduler must run first or set ANIDB_REFRESH_TITLES_ON_START=true")
 	}
-	aid, err := idx.FindAID(query)
+	candidates, err := idx.FindCandidates(query)
 	if err != nil {
 		return nil, fmt.Errorf("anidb.SearchAnime: %w", err)
 	}
-	return c.SearchAnimeByAID(ctx, aid)
+	if len(candidates) == 1 {
+		return c.SearchAnimeByAID(ctx, candidates[0])
+	}
+	if year <= 0 {
+		return nil, fmt.Errorf("anidb.SearchAnime: ambiguous title %q (candidate aids: %v)", query, candidates)
+	}
+
+	var yearMatches []*domain.AnimeMatch
+	for _, aid := range candidates {
+		match, err := c.SearchAnimeByAID(ctx, aid)
+		if err != nil {
+			return nil, fmt.Errorf("anidb.SearchAnime: resolving candidate aid=%d for %q: %w", aid, query, err)
+		}
+		if match.Year == year {
+			yearMatches = append(yearMatches, match)
+		}
+	}
+	switch len(yearMatches) {
+	case 1:
+		return yearMatches[0], nil
+	case 0:
+		return nil, fmt.Errorf("anidb.SearchAnime: ambiguous title %q, no candidate matches year %d (candidate aids: %v)", query, year, candidates)
+	default:
+		return nil, fmt.Errorf("anidb.SearchAnime: ambiguous title %q, multiple candidates match year %d (candidate aids: %v)", query, year, candidates)
+	}
 }
 
 func (c *Client) SearchAnimeByAID(ctx context.Context, aid int) (*domain.AnimeMatch, error) {

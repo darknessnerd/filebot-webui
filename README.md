@@ -229,6 +229,7 @@ Season inferred from `Season N` / `Stagione N` in path; defaults to 1.
 
 - `--q aid:<id>` — deterministic direct lookup (recommended)
 - Title-based lookup when `ANIDB_TITLES_FILE` configured; title cleaned of episode markers before index search
+- Ambiguous titles (same text mapping to multiple AIDs) are narrowed by title type (`main` > `official` > other), then by release year if still tied; unresolved ambiguity errors with an `aid:<id>` hint
 - Startup refresh when `ANIDB_REFRESH_TITLES_ON_START=true`, `ANIDB_TITLES_URL`, and `ANIDB_TITLES_FILE` set
 - Background scheduler when `ANIDB_SCHEDULER_ENABLED=true`, `ANIDB_TITLES_URL`, and `ANIDB_TITLES_FILE` set (see below)
 

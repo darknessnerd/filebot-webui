@@ -113,3 +113,46 @@ func TestSearchAnime_ResolvesTitleViaIndex(t *testing.T) {
 	assert.Equal(t, 42, match.ID)
 	assert.Equal(t, 1, calls)
 }
+
+func TestSearchAnime_AmbiguousWithoutYearFails(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Fatal("no API call expected when candidates remain ambiguous and no year is given")
+	}))
+	defer srv.Close()
+
+	c := NewClient("myclient", "1", "1", srv.URL, logger.New("error", false))
+	c.titleIndex = &titleIndex{
+		byTitle: map[string][]titleRef{
+			"black clover": {{AID: 100, Type: "main"}, {AID: 200, Type: "main"}},
+		},
+	}
+
+	_, err := c.SearchAnime(context.Background(), "Black Clover", 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ambiguous")
+}
+
+func TestSearchAnime_ResolvesAmbiguousTitleByYear(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Query().Get("aid") {
+		case "100":
+			_, _ = w.Write([]byte(`<anime id="100"><titles><title type="main">Black Clover</title></titles><startdate>2017-10-03</startdate></anime>`))
+		case "200":
+			_, _ = w.Write([]byte(`<anime id="200"><titles><title type="main">Black Clover: Jump Festa</title></titles><startdate>2018-12-16</startdate></anime>`))
+		default:
+			t.Fatalf("unexpected aid %q", r.URL.Query().Get("aid"))
+		}
+	}))
+	defer srv.Close()
+
+	c := NewClient("myclient", "1", "1", srv.URL, logger.New("error", false))
+	c.titleIndex = &titleIndex{
+		byTitle: map[string][]titleRef{
+			"black clover": {{AID: 100, Type: "main"}, {AID: 200, Type: "main"}},
+		},
+	}
+
+	match, err := c.SearchAnime(context.Background(), "Black Clover", 2017)
+	require.NoError(t, err)
+	assert.Equal(t, 100, match.ID)
+}

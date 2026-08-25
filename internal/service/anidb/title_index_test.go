@@ -51,11 +51,37 @@ func TestLoadTitleIndexFromFile_AndFindAID(t *testing.T) {
 
 func TestTitleIndex_AmbiguousTitle(t *testing.T) {
 	idx := &titleIndex{
-		byTitle: map[string][]int{
-			"ghost in the shell": {1, 2},
+		byTitle: map[string][]titleRef{
+			"ghost in the shell": {{AID: 1, Type: "main"}, {AID: 2, Type: "main"}},
 		},
 	}
 	_, err := idx.FindAID("Ghost in the Shell")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ambiguous")
+
+	candidates, err := idx.FindCandidates("Ghost in the Shell")
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2}, candidates)
+}
+
+func TestTitleIndex_PrefersMainTitleOverSynonym(t *testing.T) {
+	idx := &titleIndex{
+		byTitle: map[string][]titleRef{
+			"black clover": {{AID: 100, Type: "main"}, {AID: 200, Type: "synonym"}},
+		},
+	}
+	aid, err := idx.FindAID("Black Clover")
+	require.NoError(t, err)
+	assert.Equal(t, 100, aid)
+}
+
+func TestTitleIndex_PrefersOfficialOverSynonymWhenNoMain(t *testing.T) {
+	idx := &titleIndex{
+		byTitle: map[string][]titleRef{
+			"black clover": {{AID: 200, Type: "synonym"}, {AID: 300, Type: "official"}},
+		},
+	}
+	aid, err := idx.FindAID("Black Clover")
+	require.NoError(t, err)
+	assert.Equal(t, 300, aid)
 }
