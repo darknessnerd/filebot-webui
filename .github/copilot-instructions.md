@@ -167,18 +167,22 @@ go test -tags=integration ./test/integration/...
 - Parameterized queries only — no SQL string concatenation
 - FileBot exec: allowlist commands and args — **never pass raw user input to `exec.Command`**
 
-### FileBot Exec Allowlist
+### FileBot Job Allowlist
+
+No real FileBot binary exec — `internal/service/filebot/internal_engine.go` is a native Go re-implementation
+(builds target paths with `fmt.Sprintf`, not FileBot binding syntax). `executor.go` still validates job args
+against an allowlist before the engine runs:
 
 | Arg | Allowed values |
 |-----|---------------|
-| `--db` | `TheMovieDB`, `TheTVDB`, `AniDB`, `AcoustID` |
+| `--db` | `TheMovieDB`, `TheMovieDB::TV`, `AniDB` (`TheTVDB`, `AcoustID`, `OMDb` rejected — unsupported by the native engine) |
 | `--action` | `move`, `copy`, `symlink`, `hardlink`, `test` |
 | `--conflict` | `skip`, `replace`, `auto`, `index`, `fail` |
-| `--log` | `all`, `fine`, `info`, `warning`, `off` |
 | `--output` | Must be under `MEDIA_ROOT` — validate with `filepath.Clean` **and** require `clean == mediaRoot \|\| strings.HasPrefix(clean, mediaRoot+"/")` |
-| `--format` | Reject if contains shell metacharacters |
-| `source_paths` | Each path validated against shell metacharacters before appended to args |
-| `-r` | Boolean flag, safe |
+| `--filter`, `--q` | Reject if contains shell metacharacters |
+| `source_paths` | Each path validated against shell metacharacters |
+
+`--log` and `--format` are not supported — no underlying FileBot process to pass them to.
 
 ### Auth
 

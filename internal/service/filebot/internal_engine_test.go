@@ -409,6 +409,69 @@ func TestInternalEngine_Anime_CorpusEpisodePatterns(t *testing.T) {
 	}
 }
 
+// regression: 3-digit episode numbers (S01E100+) collided onto their 2-digit
+// prefix (e.g. S01E100, S01E101, S01E102 all resolved to S01E10) because
+// episodePattern capped the episode digit group at \d{1,2}.
+func TestInternalEngine_Anime_ThreeDigitEpisode_Regression(t *testing.T) {
+	engine := NewInternalEngine(&stubResolver{
+		anime: &domain.AnimeMatch{ID: 1234, Title: "Black Clover", Year: 2017},
+	}, logger.New("error", false))
+
+	cases := []struct {
+		name    string
+		source  string
+		wantStr string
+	}{
+		{
+			name:    "episode 100",
+			source:  "Black Clover - S01E100 - Non perderemo contro di voi - 1080p by stress.mkv",
+			wantStr: "Season 1/Black Clover - S01E100.mkv",
+		},
+		{
+			name:    "episode 101",
+			source:  "Black Clover - S01E101 - La vita del villaggio al confine estremo - 1080p by stress.mkv",
+			wantStr: "Season 1/Black Clover - S01E101.mkv",
+		},
+		{
+			name:    "episode 102",
+			source:  "Black Clover - S01E102 - Due miracoli - 1080p by stress.mkv",
+			wantStr: "Season 1/Black Clover - S01E102.mkv",
+		},
+		{
+			name:    "episode 31 unaffected",
+			source:  "Black Clover - S01E31 - Tracce nella neve - 1080p v2 by stress.mkv",
+			wantStr: "Season 1/Black Clover - S01E31.mkv",
+		},
+	}
+
+	targets := make(map[string]string, len(cases))
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := engine.Execute(context.Background(), domain.FileBotJob{
+				SourcePaths: []string{tc.source},
+				DB:          "AniDB",
+				Action:      "test",
+				Conflict:    "skip",
+				Query:       "aid:1234",
+				Output:      "/media",
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, result.Successes)
+			assert.Contains(t, result.Successes[0], tc.wantStr)
+			targets[tc.name] = result.Successes[0]
+		})
+	}
+
+	seen := make(map[string]string, len(targets))
+	for name, target := range targets {
+		if prev, ok := seen[target]; ok {
+			t.Fatalf("target collision: %q and %q both resolved to %q", prev, name, target)
+		}
+		seen[target] = name
+	}
+}
+
 func TestInternalEngine_RejectsUnsupportedFilter(t *testing.T) {
 	engine := NewInternalEngine(&stubResolver{}, logger.New("error", false))
 	_, err := engine.Execute(context.Background(), domain.FileBotJob{

@@ -22,7 +22,7 @@ var (
 	// Matches (YYYY), (YYYY-YYYY), or (YYYY-YY) year ranges.
 	// Must be applied BEFORE sep normalization while the dash is still intact.
 	yearInParenPattern       = regexp.MustCompile(`\((19|20)\d{2}(?:[-/]\d{2,4})?\)`)
-	episodePattern           = regexp.MustCompile(`(?i)(?:s(\d{1,2})[.\s]?e(\d{1,2})(?:[-]?e(\d{1,2}))?|(\d{1,2})x(\d{1,2}))`)
+	episodePattern           = regexp.MustCompile(`(?i)(?:s(\d{1,2})[.\s]?e(\d{1,3})(?:[-]?e(\d{1,3}))?|(\d{1,2})x(\d{1,3}))`)
 	animeEpisodePattern      = regexp.MustCompile(`(?i)\b(?:e|ep)\s*0*(\d{1,3})(?:\s*[-_]\s*0*(\d{1,3}))?\b`)
 	// "- 01", "- 001" bare episode after dash separator (SubsPlease/Erai-raws style).
 	animeBareEpPattern = regexp.MustCompile(`(?:^|[\s._-])-\s*0*(\d{1,3})(?:\s*-\s*0*(\d{1,3}))?(?:\s|$|\.)`)
