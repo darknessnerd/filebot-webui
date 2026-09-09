@@ -33,25 +33,29 @@ type Client struct {
 
 // NewClient creates a new Plex client
 func NewClient(log logger.Logger) *Client {
-	return &Client{
-		http: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout:   5 * time.Second,
-					KeepAlive: 30 * time.Second,
-				}).DialContext,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ResponseHeaderTimeout: 10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-				MaxIdleConns:          10,
-				IdleConnTimeout:       30 * time.Second,
-			},
-		},
+	dialer := &net.Dialer{
+		Timeout:   5 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	client := &Client{
 		log:          log,
 		resourcesURL: "https://clients.plex.tv/api/v2/resources?includeHttps=1&includeRelay=1&includeIPv6=1",
 		dnsResolver:  net.DefaultResolver.LookupHost,
 	}
+	client.http = &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			DialContext:           client.dialContext(dialer),
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			MaxIdleConns:          10,
+			IdleConnTimeout:       30 * time.Second,
+		},
+	}
+
+	return client
 }
 
 // RefreshLibraries refreshes all Plex libraries
@@ -280,14 +284,10 @@ func (c *Client) logConnectionDetails(rawURI string) {
 			Msg("Host is a hostname")
 
 		// Check if it's a plex.direct hostname
-		if strings.Contains(host, "plex.direct") {
-			m := plexDirectRe.FindStringSubmatch(host)
-			if m != nil {
-				ip := strings.ReplaceAll(m[1], "-", ".")
-				c.log.Debug().
-					Str("extracted_ip_from_hostname", ip).
-					Msg("Extracted IP from plex.direct hostname")
-			}
+		if ip, ok := plexDirectHostIP(host); ok {
+			c.log.Debug().
+				Str("extracted_ip_from_hostname", ip).
+				Msg("Extracted IP from plex.direct hostname")
 		}
 	}
 }
@@ -338,7 +338,15 @@ func (c *Client) resolveConnectionDNS(ctx context.Context, rawURI string) bool {
 		return true
 	}
 
-	// For plex.direct domains, try to resolve
+	if ip, ok := plexDirectHostIP(host); ok {
+		c.log.Debug().
+			Str("host", host).
+			Str("extracted_ip_from_hostname", ip).
+			Msg("Using plex.direct embedded IP, skipping DNS resolution")
+		return true
+	}
+
+	// For non-plex.direct hostnames, require DNS resolution.
 	ips, err := c.dnsResolver(ctx, host)
 	if err != nil {
 		c.log.Debug().
@@ -380,6 +388,32 @@ func (c *Client) resolveConnectionDNS(ctx context.Context, rawURI string) bool {
 	}
 
 	return true
+}
+
+func (c *Client) dialContext(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return dialer.DialContext(ctx, network, addr)
+		}
+		if ip, ok := plexDirectHostIP(host); ok {
+			rewrite := net.JoinHostPort(ip, port)
+			c.log.Debug().
+				Str("host", host).
+				Str("dial_target", rewrite).
+				Msg("Dialing plex.direct host via embedded IP")
+			return dialer.DialContext(ctx, network, rewrite)
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+}
+
+func plexDirectHostIP(host string) (string, bool) {
+	m := plexDirectRe.FindStringSubmatch(host)
+	if m == nil {
+		return "", false
+	}
+	return strings.ReplaceAll(m[1], "-", "."), true
 }
 
 // isPrivateIP checks if an IP is private (RFC 1918, etc.)

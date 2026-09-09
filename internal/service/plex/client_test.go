@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
-	"net"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -214,4 +215,48 @@ func TestResolveServerURL_FailsWhenPlexDirectDNSUnresolvable(t *testing.T) {
 	require.Error(t, err)
 	assert.Empty(t, resolvedURL)
 	assert.Contains(t, err.Error(), "no reachable Plex server")
+}
+
+func TestResolveServerURL_UsesPlexDirectEmbeddedIPWhenDNSFails(t *testing.T) {
+	plexSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/identity":
+			w.WriteHeader(http.StatusOK)
+		case "/library/sections":
+			json.NewEncoder(w).Encode(map[string]any{
+				"MediaContainer": map[string]any{
+					"Directory": []map[string]any{{"key": "9"}},
+				},
+			})
+		case "/library/sections/9/refresh":
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer plexSrv.Close()
+
+	parsed, err := url.Parse(plexSrv.URL)
+	require.NoError(t, err)
+	_, port, err := net.SplitHostPort(parsed.Host)
+	require.NoError(t, err)
+
+	fakePlexDirect := fmt.Sprintf("http://127-0-0-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0.plex.direct:%s", port)
+
+	resourcesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode([]map[string]any{{
+			"provides": "server",
+			"connections": []map[string]any{
+				{"uri": fakePlexDirect, "local": true},
+			},
+		}})
+	}))
+	defer resourcesSrv.Close()
+
+	c := newTestClient(plexSrv.Client(), resourcesSrv.URL+"/api/v2/resources")
+	c.dnsResolver = func(_ context.Context, host string) ([]string, error) {
+		return nil, fmt.Errorf("dns failed for %s", host)
+	}
+
+	resolvedURL, _, err := c.resolveServerURL(context.Background(), "tok")
+	require.NoError(t, err)
+	assert.Equal(t, fakePlexDirect, resolvedURL)
 }
