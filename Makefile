@@ -1,10 +1,7 @@
 .PHONY: run test test-race lint build docker-build
 
 run:
-	@set -a; [ -f .env ] && . ./.env; set +a; \
-	: "$${JWT_SECRET:?JWT_SECRET required}"; \
-	: "$${MEDIA_ROOT:?MEDIA_ROOT required}"; \
-	go run ./cmd/webui-be
+	air
 
 test:
 	go test ./...

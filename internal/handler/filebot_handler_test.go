@@ -452,8 +452,7 @@ func TestFileBotExecute_MovePartialSuccess_DeletesOnlySucceededTorrent(t *testin
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, *del.called, "DeleteTorrent should be called for successful moved torrent")
 	assert.Equal(t, []string{"t1"}, deletedIDs, "only successfully moved torrent should be deleted")
-	px.waitCalled()
-	assert.True(t, *px.called, "RefreshLibraries should be called when at least one torrent moved")
+	assert.False(t, *px.called, "RefreshLibraries should not run when any torrent execute call failed")
 	assert.Contains(t, w.Header().Get("HX-Trigger"), "error", "partial failure should set error toast")
 	assert.Contains(t, w.Body.String(), "t1|true|true|false|moved and deleted;", "UI should mark succeeded torrent moved+deleted")
 	assert.Contains(t, w.Body.String(), "t2|false|false|true|rename failed;", "UI should mark failed torrent as not deleted")
@@ -493,11 +492,10 @@ func TestFileBotExecute_MoveMixedResults_DeletesEverySucceededTorrent(t *testing
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, []string{"tA", "tC"}, deletedIDs, "all and only successful moved torrents should be deleted")
-	px.waitCalled()
-	assert.True(t, *px.called, "RefreshLibraries should be called when at least one torrent moved")
+	assert.False(t, *px.called, "RefreshLibraries should not run when any torrent execute call failed")
 }
 
-func TestFileBotExecute_MoveSuccess_DeleteFails_SkipsPlexRefresh(t *testing.T) {
+func TestFileBotExecute_MoveSuccess_DeleteFails_StillRefreshesPlex(t *testing.T) {
 	fb := &stubFBSvc{result: domain.FileBotResult{Successes: []string{"ok"}}}
 	del := &captureDelSvc{
 		called:  new(bool),
@@ -516,7 +514,8 @@ func TestFileBotExecute_MoveSuccess_DeleteFails_SkipsPlexRefresh(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, *del.called, "DeleteTorrent should be attempted")
-	assert.False(t, *px.called, "RefreshLibraries should not run when no torrent deletion succeeded")
+	px.waitCalled()
+	assert.True(t, *px.called, "RefreshLibraries should run when move succeeded and there was no execute error")
 	assert.Contains(t, w.Body.String(), "OUTCOMES=t1|true|false|false|delete failed;", "UI should surface delete-failed status")
 }
 

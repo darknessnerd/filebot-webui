@@ -356,9 +356,8 @@ func TestE2EError_MultipleTorrents_OneFailsOneSucceeds(t *testing.T) {
 	// t2 failed: source intact, not deleted.
 	assert.FileExists(t, src2)
 	assert.NotContains(t, del.deletedIDs, "tB")
-	// Plex refreshed because at least one move succeeded.
-	px.waitCalled()
-	assert.True(t, px.called)
+	// Plex does not refresh when any execute call fails.
+	assert.False(t, px.called)
 
 	body := w.Body.String()
 	assert.Contains(t, body, "tA|true|true|false|moved and deleted;")

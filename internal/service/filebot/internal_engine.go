@@ -21,9 +21,9 @@ var (
 	yearPattern = regexp.MustCompile(`\b(19|20)\d{2}\b`)
 	// Matches (YYYY), (YYYY-YYYY), or (YYYY-YY) year ranges.
 	// Must be applied BEFORE sep normalization while the dash is still intact.
-	yearInParenPattern       = regexp.MustCompile(`\((19|20)\d{2}(?:[-/]\d{2,4})?\)`)
-	episodePattern           = regexp.MustCompile(`(?i)(?:s(\d{1,2})[.\s]?e(\d{1,3})(?:[-]?e(\d{1,3}))?|(\d{1,2})x(\d{1,3}))`)
-	animeEpisodePattern      = regexp.MustCompile(`(?i)\b(?:e|ep)\s*0*(\d{1,3})(?:\s*[-_]\s*0*(\d{1,3}))?\b`)
+	yearInParenPattern  = regexp.MustCompile(`\((19|20)\d{2}(?:[-/]\d{2,4})?\)`)
+	episodePattern      = regexp.MustCompile(`(?i)(?:s(\d{1,2})[.\s]?e(\d{1,3})(?:[-]?e(\d{1,3}))?|(\d{1,2})x(\d{1,3}))`)
+	animeEpisodePattern = regexp.MustCompile(`(?i)\b(?:e|ep)\s*0*(\d{1,3})(?:\s*[-_]\s*0*(\d{1,3}))?\b`)
 	// "- 01", "- 001" bare episode after dash separator (SubsPlease/Erai-raws style).
 	animeBareEpPattern = regexp.MustCompile(`(?:^|[\s._-])-\s*0*(\d{1,3})(?:\s*-\s*0*(\d{1,3}))?(?:\s|$|\.)`)
 	// "#01" / "#001"
@@ -31,9 +31,9 @@ var (
 	// "Part 1" / "Part I" (OVA style)
 	animePartPattern = regexp.MustCompile(`(?i)\bpart\s+([IVXLC]+|\d{1,2})\b`)
 	// "OVA 1" / "OVA1" / "SP 1" / "SP1" / "Special 1"
-	animeSpecialEpPattern = regexp.MustCompile(`(?i)\b(?:ova|sp|special)\s*0*(\d{1,2})\b`)
-	animeProgressPattern  = regexp.MustCompile(`\[(\d{1,3})(?:\s*-\s*(\d{1,3}))?\s*(?:/|-)\s*(\d{1,3}|XX)\]`)
-	animeSeasonPattern    = regexp.MustCompile(`(?i)\b(?:stagione|season)\s*(\d{1,2})\b`)
+	animeSpecialEpPattern    = regexp.MustCompile(`(?i)\b(?:ova|sp|special)\s*0*(\d{1,2})\b`)
+	animeProgressPattern     = regexp.MustCompile(`\[(\d{1,3})(?:\s*-\s*(\d{1,3}))?\s*(?:/|-)\s*(\d{1,3}|XX)\]`)
+	animeSeasonPattern       = regexp.MustCompile(`(?i)\b(?:stagione|season)\s*(\d{1,2})\b`)
 	animeSingleSeasonPattern = regexp.MustCompile(`(?i)\bstagione\s+unica\b`)
 	// Italian "Stagione N" or "Stagioni N M" (after sep, range becomes space-separated digits).
 	stagionPattern = regexp.MustCompile(`(?i)\bstagion[ie](?:\s+\d+)*\b`)
@@ -44,11 +44,11 @@ var (
 	// Unclosed paren group at end of string, left after year truncation
 	// e.g. "(Fuori orario," or "(27/12/" from air-date parens.
 	orphanParenPattern = regexp.MustCompile(`\([^)]*$`)
-	noisePattern = regexp.MustCompile(`(?i)\b(?:1080p|720p|2160p|480p|4k|sd|imax|dovi|hdr10|hdr|bluray|blu[\s.-]?ray|webrip|web[\s.-]?dl|brrip|hdrip|bdmux|bdrip|bdremux|remux|dvdrip|dvd|hdtv|repack|proper|extended|uncut|unrated|fanedit|versione integrale|x264|x265|h264|h265|h262|hevc|av1|aac|ac3|eac3|e[\s-]?ac3|dts|dolby|opus|flac|pcm|multisub|sub|nuita|nueng|sample|miniserie|hardsub|multilang|10bit|dsnp|amzn|nflx|hmax|pcok|atvp|crkl|ddp\d*)\b`)
+	noisePattern       = regexp.MustCompile(`(?i)\b(?:1080p|720p|2160p|480p|4k|sd|imax|dovi|hdr10|hdr|bluray|blu[\s.-]?ray|webrip|web[\s.-]?dl|brrip|hdrip|bdmux|bdrip|bdremux|remux|dvdrip|dvd|hdtv|repack|proper|extended|uncut|unrated|fanedit|versione integrale|x264|x265|h264|h265|h262|hevc|av1|aac|ac3|eac3|e[\s-]?ac3|dts|dolby|opus|flac|pcm|multisub|sub|nuita|nueng|sample|miniserie|hardsub|multilang|10bit|dsnp|amzn|nflx|hmax|pcok|atvp|crkl|ddp\d*)\b`)
 	// Release group: "-Tag" at the very end of the raw filename (before sep normalization),
 	// e.g. "H264-TheBlackKing" or "Sub.Ita-MIRCrew". Applied pre-sep so the hyphen is intact.
 	releaseGroupPattern = regexp.MustCompile(`-[A-Za-z0-9]+$`)
-	langPattern        = regexp.MustCompile(`(?i)\b(?:ita|eng|spa|fre|ger|rus|jpn|kor|por|ara|fil|dut|swe|dan|nor|fin|tur|hin|slo|cze|pol|hun)\b`)
+	langPattern         = regexp.MustCompile(`(?i)\b(?:ita|eng|spa|fre|ger|rus|jpn|kor|por|ara|fil|dut|swe|dan|nor|fin|tur|hin|slo|cze|pol|hun)\b`)
 	// Must run BEFORE filepath.Ext and before sep: "5.1" in a non-file string would otherwise be
 	// detected as the file extension ".1 …" by filepath.Ext.
 	audioChannelPattern = regexp.MustCompile(`\b\d+\.\d+\b`)
@@ -74,7 +74,6 @@ type tvResolver interface {
 	SearchTV(ctx context.Context, query string, year int) (*domain.TVMatch, error)
 }
 
-
 type InternalEngine struct {
 	resolver MetadataResolver
 	log      logger.Logger
@@ -95,14 +94,14 @@ func (e *InternalEngine) Execute(ctx context.Context, job domain.FileBotJob) (do
 	e.log.Debug().
 		Strs("source_paths", job.SourcePaths).
 		Str("db", job.DB).
-		Str("action", job.Action).
+		Str("action", string(job.Action)).
 		Str("conflict", job.Conflict).
 		Str("output", job.Output).
 		Bool("recursive", job.Recursive).
-		Bool("dry_run", job.Action == "test").
+		Bool("dry_run", job.Action == domain.ActionTest).
 		Msg("internal engine: executing job")
 
-	files, err := collectVideoFiles(job.SourcePaths, job.Recursive, job.Action == "test")
+	files, err := collectVideoFiles(job.SourcePaths, job.Recursive, job.Action == domain.ActionTest)
 	if err != nil {
 		return domain.FileBotResult{Errors: []string{err.Error()}}, fmt.Errorf("%w: %v", domain.ErrFileBotFailed, err)
 	}
@@ -110,7 +109,7 @@ func (e *InternalEngine) Execute(ctx context.Context, job domain.FileBotJob) (do
 	// would find, and the source is a directory, retry recursively.
 	// Covers S1/S2/… season subfolders inside a torrent root without requiring the user
 	// to tick the recursive checkbox.
-	if !job.Recursive && job.Action != "test" && hasVideoSubdirs(job.SourcePaths) {
+	if !job.Recursive && job.Action != domain.ActionTest && hasVideoSubdirs(job.SourcePaths) {
 		allFiles, rerr := collectVideoFiles(job.SourcePaths, true, false)
 		if rerr == nil && len(allFiles) > len(files) {
 			e.log.Info().Strs("source_paths", job.SourcePaths).Int("files_found", len(allFiles)).Msg("internal engine: auto-recurse activated (season subfolders detected)")
@@ -164,11 +163,11 @@ func (e *InternalEngine) executeMovies(ctx context.Context, job domain.FileBotJo
 		}
 
 		target := filepath.Join(job.Output, "Movies", folderName, title+filepath.Ext(source))
-		e.log.Debug().Str("source", source).Str("target", target).Str("action", job.Action).Msg("internal engine: applying action")
+		e.log.Debug().Str("source", source).Str("target", target).Str("action", string(job.Action)).Msg("internal engine: applying action")
 		msg, err := applyAction(job.Action, job.Conflict, source, target)
 		appendResult(&result, msg, err)
 
-		if job.Action != "test" {
+		if job.Action != domain.ActionTest {
 			for _, sub := range findCompanionSubtitles(source, e.log) {
 				subTarget := subtitleTargetName(target, source, sub)
 				e.log.Debug().Str("sub", sub).Str("target", subTarget).Msg("internal engine: moving subtitle")
@@ -223,11 +222,11 @@ func (e *InternalEngine) executeTV(ctx context.Context, job domain.FileBotJob, f
 			fmt.Sprintf("Season %d", season),
 			fmt.Sprintf("%s - %s%s", showName, epLabel, filepath.Ext(source)),
 		)
-		e.log.Debug().Str("source", source).Str("target", target).Int("season", season).Int("first_ep", firstEp).Int("last_ep", lastEp).Str("action", job.Action).Msg("internal engine: applying action")
+		e.log.Debug().Str("source", source).Str("target", target).Int("season", season).Int("first_ep", firstEp).Int("last_ep", lastEp).Str("action", string(job.Action)).Msg("internal engine: applying action")
 		msg, err := applyAction(job.Action, job.Conflict, source, target)
 		appendResult(&result, msg, err)
 
-		if job.Action != "test" {
+		if job.Action != domain.ActionTest {
 			for _, sub := range findCompanionSubtitles(source, e.log) {
 				subTarget := subtitleTargetName(target, source, sub)
 				e.log.Debug().Str("sub", sub).Str("target", subTarget).Msg("internal engine: moving subtitle")
@@ -296,11 +295,11 @@ func (e *InternalEngine) executeAnime(ctx context.Context, job domain.FileBotJob
 			fmt.Sprintf("Season %d", season),
 			fmt.Sprintf("%s - %s%s", animeName, epLabel, filepath.Ext(source)),
 		)
-		e.log.Debug().Str("source", source).Str("target", target).Int("season", season).Int("first_ep", firstEp).Int("last_ep", lastEp).Str("action", job.Action).Msg("internal engine: applying anime action")
+		e.log.Debug().Str("source", source).Str("target", target).Int("season", season).Int("first_ep", firstEp).Int("last_ep", lastEp).Str("action", string(job.Action)).Msg("internal engine: applying anime action")
 		msg, err := applyAction(job.Action, job.Conflict, source, target)
 		appendResult(&result, msg, err)
 
-		if job.Action != "test" {
+		if job.Action != domain.ActionTest {
 			for _, sub := range findCompanionSubtitles(source, e.log) {
 				subTarget := subtitleTargetName(target, source, sub)
 				e.log.Debug().Str("sub", sub).Str("target", subTarget).Msg("internal engine: moving anime subtitle")
@@ -437,7 +436,7 @@ func hasVideoSubdirs(sourcePaths []string) bool {
 func bestQuerySource(sourcePath, firstFile string) string {
 	candidates := []string{
 		sourcePath,
-		filepath.Dir(firstFile),  // immediate parent of episode (e.g. S1/)
+		filepath.Dir(firstFile), // immediate parent of episode (e.g. S1/)
 		firstFile,
 	}
 	for _, c := range candidates {
@@ -742,7 +741,7 @@ func subtitleTargetName(videoTarget, videoSource, subSource string) string {
 	return filepath.Join(filepath.Dir(videoTarget), videoTargetStem+extra+subExt)
 }
 
-func applyAction(action, conflict, source, target string) (string, error) {
+func applyAction(action domain.Action, conflict, source, target string) (string, error) {
 	finalTarget, skipped, err := resolveTarget(target, conflict)
 	if err != nil {
 		return "", err
@@ -750,7 +749,7 @@ func applyAction(action, conflict, source, target string) (string, error) {
 	if skipped {
 		return fmt.Sprintf("SKIP %s -> %s", source, finalTarget), nil
 	}
-	if action == "test" {
+	if action == domain.ActionTest {
 		return fmt.Sprintf("TEST %s -> %s", source, finalTarget), nil
 	}
 
@@ -759,26 +758,26 @@ func applyAction(action, conflict, source, target string) (string, error) {
 	}
 
 	switch action {
-	case "move":
+	case domain.ActionMove:
 		if err := moveFile(source, finalTarget); err != nil {
 			return "", err
 		}
-	case "copy":
+	case domain.ActionCopy:
 		if err := copyFile(source, finalTarget); err != nil {
 			return "", err
 		}
-	case "symlink":
+	case domain.ActionSymlink:
 		if err := os.Symlink(source, finalTarget); err != nil {
 			return "", fmt.Errorf("symlink %s -> %s: %w", source, finalTarget, err)
 		}
-	case "hardlink":
+	case domain.ActionHardlink:
 		if err := os.Link(source, finalTarget); err != nil {
 			return "", fmt.Errorf("hardlink %s -> %s: %w", source, finalTarget, err)
 		}
 	default:
 		return "", fmt.Errorf("unsupported action %q", action)
 	}
-	return fmt.Sprintf("%s %s -> %s", strings.ToUpper(action), source, finalTarget), nil
+	return fmt.Sprintf("%s %s -> %s", strings.ToUpper(string(action)), source, finalTarget), nil
 }
 
 func resolveTarget(target, conflict string) (string, bool, error) {

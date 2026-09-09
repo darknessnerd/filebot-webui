@@ -104,12 +104,12 @@ func (h *FileBotHandler) Form(w http.ResponseWriter, r *http.Request) {
 		"HasTMDB":     h.hasTMDB,
 		"DefaultDB":   defaultDB,
 		"User":        user,
-		"Action":    "",
-		"DB":        "",
-		"Conflict":  "",
-		"Query":     "",
-		"Output":    "",
-		"Recursive": false,
+		"Action":      "",
+		"DB":          "",
+		"Conflict":    "",
+		"Query":       "",
+		"Output":      "",
+		"Recursive":   false,
 	}); err != nil {
 		h.log.Error().Err(err).Msg("filebot form render")
 	}
@@ -129,7 +129,7 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 
 	baseJob := domain.FileBotJob{
 		DB:        r.FormValue("db"),
-		Action:    r.FormValue("action"),
+		Action:    domain.Action(r.FormValue("action")),
 		Conflict:  r.FormValue("conflict"),
 		Filter:    r.FormValue("filter"),
 		Query:     r.FormValue("query"),
@@ -143,7 +143,7 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.log.Info().
-		Str("action", baseJob.Action).
+		Str("action", string(baseJob.Action)).
 		Str("db", baseJob.DB).
 		Int("torrent_count", len(torrentIDs)).
 		Msg("filebot: execute request")
@@ -151,7 +151,6 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	var result domain.FileBotResult
 	hadExecError := false
 	hadResultErrors := false
-	deletedAny := false
 	outcomes := make([]torrentOutcome, 0, len(torrentIDs))
 
 	for i := range torrentIDs {
@@ -194,23 +193,23 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 			outcome.Message = currentResult.Errors[0]
 		}
 
-		if baseJob.Action == "move" && len(currentResult.Errors) == 0 && execErr == nil {
+		if baseJob.Action == domain.ActionMove && len(currentResult.Errors) == 0 && execErr == nil {
 			outcome.Moved = true
 			h.removeSourceDir(sourcePaths[i])
 			if derr := h.del.DeleteTorrent(r.Context(), torrentIDs[i]); derr != nil {
 				h.log.Warn().Err(derr).Str("torrent_id", torrentIDs[i]).Msg("delete torrent failed")
 				outcome.Message = derr.Error()
 			} else {
-				deletedAny = true
+
 				outcome.Deleted = true
 				outcome.Message = "moved and deleted"
 			}
-		} else if baseJob.Action == "move" && outcome.Failed {
+		} else if baseJob.Action == domain.ActionMove && outcome.Failed {
 			if outcome.Message == "" {
 				outcome.Message = "not moved"
 			}
-		} else if baseJob.Action != "move" {
-			outcome.Message = "not moved (" + baseJob.Action + " action)"
+		} else if baseJob.Action != domain.ActionMove {
+			outcome.Message = "not moved (" + string(baseJob.Action) + " action)"
 		}
 
 		outcomes = append(outcomes, outcome)
@@ -219,7 +218,7 @@ func (h *FileBotHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Plex refresh runs after the response is written so a slow Plex API cannot
 	// cause a client i/o timeout and trigger a form re-submission.
 	plexRefreshed := false
-	if baseJob.Action == "move" && deletedAny {
+	if baseJob.Action != domain.ActionTest && len(result.Successes) > 0 && !hadExecError {
 		if user, ok := UserFromContext(r.Context()); ok && user.PlexToken != "" {
 			plexRefreshed = true
 			token := user.PlexToken

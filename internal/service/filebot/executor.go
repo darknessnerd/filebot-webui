@@ -21,17 +21,23 @@ type Service struct {
 	engine          Engine
 	log             logger.Logger
 	allowedDB       map[string]bool
-	allowedAction   map[string]bool
+	allowedAction   map[domain.Action]bool
 	allowedConflict map[string]bool
 }
 
 func New(mediaRoot string, engine Engine, log logger.Logger) *Service {
 	return &Service{
-		mediaRoot:       filepath.Clean(mediaRoot),
-		engine:          engine,
-		log:             log,
-		allowedDB:       map[string]bool{"TheMovieDB": true, "TheMovieDB::TV": true, "AniDB": true},
-		allowedAction:   map[string]bool{"move": true, "copy": true, "symlink": true, "hardlink": true, "test": true},
+		mediaRoot: filepath.Clean(mediaRoot),
+		engine:    engine,
+		log:       log,
+		allowedDB: map[string]bool{"TheMovieDB": true, "TheMovieDB::TV": true, "AniDB": true},
+		allowedAction: map[domain.Action]bool{
+			domain.ActionMove:     true,
+			domain.ActionCopy:     true,
+			domain.ActionSymlink:  true,
+			domain.ActionHardlink: true,
+			domain.ActionTest:     true,
+		},
 		allowedConflict: map[string]bool{"skip": true, "replace": true, "auto": true, "index": true, "fail": true},
 	}
 }
@@ -42,19 +48,19 @@ func (s *Service) Execute(ctx context.Context, job domain.FileBotJob) (domain.Fi
 	}
 
 	s.log.Info().
-		Str("action", job.Action).
+		Str("action", string(job.Action)).
 		Str("db", job.DB).
 		Int("source_count", len(job.SourcePaths)).
 		Msg("filebot: starting job")
 
 	result, err := s.engine.Execute(ctx, job)
 	if err != nil {
-		s.log.Warn().Err(err).Str("action", job.Action).Msg("filebot: job failed")
+		s.log.Warn().Err(err).Str("action", string(job.Action)).Msg("filebot: job failed")
 		return result, err
 	}
 
 	s.log.Info().
-		Str("action", job.Action).
+		Str("action", string(job.Action)).
 		Int("source_count", len(job.SourcePaths)).
 		Msg("filebot: job complete")
 	return result, nil

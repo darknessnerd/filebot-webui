@@ -1,10 +1,20 @@
 package domain
 
+type Action string
+
+const (
+	ActionMove     Action = "move"
+	ActionCopy     Action = "copy"
+	ActionSymlink  Action = "symlink"
+	ActionHardlink Action = "hardlink"
+	ActionTest     Action = "test"
+)
+
 type FileBotJob struct {
 	TorrentIDs  []string
 	SourcePaths []string
 	DB          string
-	Action      string
+	Action      Action
 	Conflict    string
 	Filter      string
 	Query       string

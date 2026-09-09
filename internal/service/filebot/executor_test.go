@@ -28,7 +28,7 @@ func validJob() domain.FileBotJob {
 	return domain.FileBotJob{
 		SourcePaths: []string{"/downloads/file.mkv"},
 		DB:          "TheMovieDB",
-		Action:      "move",
+		Action:      domain.ActionMove,
 		Conflict:    "skip",
 		Output:      "/media/movies",
 	}
@@ -74,7 +74,13 @@ func TestValidate_UnsupportedDBs_Rejected(t *testing.T) {
 }
 
 func TestValidate_AllAllowedActions(t *testing.T) {
-	for _, action := range []string{"move", "copy", "symlink", "hardlink", "test"} {
+	for _, action := range []domain.Action{
+		domain.ActionMove,
+		domain.ActionCopy,
+		domain.ActionSymlink,
+		domain.ActionHardlink,
+		domain.ActionTest,
+	} {
 		j := validJob()
 		j.Action = action
 		assert.NoError(t, newExec().validate(j), "action=%s", action)
@@ -105,7 +111,6 @@ func TestValidate_Output_ValidSubpath(t *testing.T) {
 }
 
 // --- shell metachar rejection ---
-
 
 func TestValidate_Filter_Metachar(t *testing.T) {
 	j := validJob()
