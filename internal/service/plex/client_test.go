@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
+	"net"
 	"strings"
 	"testing"
 
@@ -16,23 +16,6 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/logger"
 )
 
-// plexDirectBlockingClient returns an *http.Client whose transport fails DNS for
-// any *.plex.direct host and dials normally for everything else. This simulates
-// real CI behaviour where plex.direct hostnames cannot be resolved.
-func plexDirectBlockingClient() *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				host, _, _ := net.SplitHostPort(addr)
-				if strings.HasSuffix(host, ".plex.direct") {
-					return nil, fmt.Errorf("dial %s: simulated DNS failure", host)
-				}
-				return (&net.Dialer{}).DialContext(ctx, network, addr)
-			},
-		},
-	}
-}
-
 // newTestClient returns a Client pointing the resources endpoint at resourcesURL,
 // using the provided HTTP client (typically srv.Client() for test server routing).
 func newTestClient(httpClient *http.Client, resourcesURL string) *Client {
@@ -40,6 +23,7 @@ func newTestClient(httpClient *http.Client, resourcesURL string) *Client {
 		http:         httpClient,
 		log:          logger.New("error", false),
 		resourcesURL: resourcesURL,
+		dnsResolver:  net.DefaultResolver.LookupHost,
 	}
 }
 
@@ -208,22 +192,8 @@ func TestResolveServerURL_ConnectionOrdering(t *testing.T) {
 	assert.Contains(t, resolvedURL, "/local")
 }
 
-func TestResolveServerURL_FallsBackToDirectIP(t *testing.T) {
-	// plex.direct DNS won't resolve; direct-IP fallback must succeed.
-	// Use a client that blocks *.plex.direct so the fallback path is exercised
-	// consistently regardless of the test host's real DNS behaviour.
-	var probed []string
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/identity" {
-			probed = append(probed, r.Host)
-			w.WriteHeader(http.StatusOK)
-		}
-	}))
-	defer srv.Close()
-
-	port := srv.URL[len("http://127.0.0.1:"):]
-	fakePlexDirect := "http://127-0-0-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0.plex.direct:" + port
+func TestResolveServerURL_FailsWhenPlexDirectDNSUnresolvable(t *testing.T) {
+	fakePlexDirect := "http://127-0-0-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0.plex.direct:32400"
 
 	resourcesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode([]map[string]any{{
@@ -235,38 +205,13 @@ func TestResolveServerURL_FallsBackToDirectIP(t *testing.T) {
 	}))
 	defer resourcesSrv.Close()
 
-	// plexDirectBlockingClient fails DNS for *.plex.direct; dials 127.0.0.1 normally.
-	c := newTestClient(plexDirectBlockingClient(), resourcesSrv.URL+"/api/v2/resources")
-	resolvedURL, _, err := c.resolveServerURL(context.Background(), "tok")
-	require.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("http://127.0.0.1:%s", port), resolvedURL)
-	assert.NotEmpty(t, probed, "/identity must have been called on direct IP")
-}
+	c := newTestClient(resourcesSrv.Client(), resourcesSrv.URL+"/api/v2/resources")
+	c.dnsResolver = func(_ context.Context, host string) ([]string, error) {
+		return nil, fmt.Errorf("dns failed for %s", host)
+	}
 
-func TestPlexDirectToIP(t *testing.T) {
-	cases := []struct {
-		in   string
-		want string
-	}{
-		{
-			in:   "https://192-168-178-51.817f028c30374197a2dedb0cbaabc45f.plex.direct:32400",
-			want: "https://192.168.178.51:32400",
-		},
-		{
-			in:   "https://10-0-0-1.abcdef1234567890abcdef1234567890.plex.direct:32400",
-			want: "https://10.0.0.1:32400",
-		},
-		{
-			in:   "https://192-168-1-1.abcdef1234567890abcdef1234567890.plex.direct",
-			want: "https://192.168.1.1",
-		},
-		{
-			in:   "https://192.168.1.1:32400",
-			want: "",
-		},
-	}
-	for _, tc := range cases {
-		got := plexDirectToIP(tc.in)
-		assert.Equal(t, tc.want, got, "input: %s", tc.in)
-	}
+	resolvedURL, _, err := c.resolveServerURL(context.Background(), "tok")
+	require.Error(t, err)
+	assert.Empty(t, resolvedURL)
+	assert.Contains(t, err.Error(), "no reachable Plex server")
 }
