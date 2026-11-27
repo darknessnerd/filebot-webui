@@ -1,0 +1,33 @@
+- text: FileBot 2 torrent(s)
+- button "Settings" [expanded]
+- text: Database
+- combobox:
+  - option "TheMovieDB (requires TMDB_ACCESS_TOKEN)" [disabled]
+  - option "TheMovieDB::TV (requires TMDB_ACCESS_TOKEN)" [disabled]
+  - option "AniDB — Anime" [selected]
+- text: Action
+- combobox:
+  - option "move" [selected]
+  - option "copy"
+  - option "symlink"
+  - option "hardlink"
+  - option "test"
+- text: Conflict
+- combobox:
+  - option "skip" [selected]
+  - option "replace"
+  - option "auto"
+  - option "index"
+  - option "fail"
+- text: Query override
+- 'textbox /Optional \(AniDB: title or aid:\d+\)/'
+- text: "AniDB: use"
+- code: aid:<id>
+- text: for exact match, or a title when
+- code: ANIDB_TITLES_FILE
+- text: is configured. Output
+- textbox: /tmp/media
+- checkbox "Recursive (-r)"
+- text: Recursive (-r)
+- button "Execute"
+- button "Cancel"

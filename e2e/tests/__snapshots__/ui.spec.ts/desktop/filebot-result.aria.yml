@@ -1,0 +1,19 @@
+- text: Result
+- paragraph: Torrent outcomes
+- table:
+  - rowgroup:
+    - row "Torrent Moved Deleted Status":
+      - columnheader "Torrent"
+      - columnheader "Moved"
+      - columnheader "Deleted"
+      - columnheader "Status"
+  - rowgroup:
+    - 'row /The\.Matrix[\d,.]+[hmsp]+\.BluRay abc123 no no stat \/downloads\/The\.Matrix[\d,.]+[hmsp]+\.BluRay: stat \/downloads\/The\.Matrix[\d,.]+[hmsp]+\.BluRay: no such file or directory/':
+      - cell /The\.Matrix[\d,.]+[hmsp]+\.BluRay abc123/
+      - cell "no"
+      - cell "no"
+      - 'cell /stat \/downloads\/The\.Matrix[\d,.]+[hmsp]+\.BluRay: stat \/downloads\/The\.Matrix[\d,.]+[hmsp]+\.BluRay: no such file or directory/'
+- paragraph: Errors
+- list:
+  - listitem: "/stat \\/downloads\\/The\\.Matrix[\\d,.]+[hmsp]+\\.BluRay: stat \\/downloads\\/The\\.Matrix[\\d,.]+[hmsp]+\\.BluRay: no such file or directory/"
+- button "Back to torrents"

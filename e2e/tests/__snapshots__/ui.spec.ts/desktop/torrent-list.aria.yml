@@ -1,0 +1,59 @@
+- table:
+  - rowgroup:
+    - row "Name Size Progress State":
+      - columnheader:
+        - checkbox
+      - columnheader "Name"
+      - columnheader "Size"
+      - columnheader "Progress"
+      - columnheader "State"
+  - rowgroup:
+    - row /The\.Matrix[\d,.]+[hmsp]+\.BluRay 8\.0 GB \d+ Done/:
+      - cell:
+        - checkbox
+      - cell /The\.Matrix[\d,.]+[hmsp]+\.BluRay/
+      - cell "8.0 GB"
+      - cell /\d+/:
+        - progressbar
+      - cell "Done"
+    - row /Breaking\.Bad\.S01E01[\d,.]+[hmsp]+ 2\.0 GB \d+ Done/:
+      - cell:
+        - checkbox
+      - cell /Breaking\.Bad\.S01E01[\d,.]+[hmsp]+/
+      - cell "2.0 GB"
+      - cell /\d+/:
+        - progressbar
+      - cell "Done"
+    - row /Dune\.Part\.Two[\d,.]+[hmsp]+\.UHD \d+\.\d+ GB \d+ Done/:
+      - cell:
+        - checkbox
+      - cell /Dune\.Part\.Two[\d,.]+[hmsp]+\.UHD/
+      - cell /\d+\.\d+ GB/
+      - cell /\d+/:
+        - progressbar
+      - cell "Done"
+    - row /\[SubsPlease\] Cowboy Bebop - E01 \(\d+[hmsp]+\) \[aid:1\] 1\.5 GB \d+ Done/:
+      - cell:
+        - checkbox
+      - cell /\[SubsPlease\] Cowboy Bebop - E01 \(\d+[hmsp]+\) \[aid:1\]/
+      - cell "1.5 GB"
+      - cell /\d+/:
+        - progressbar
+      - cell "Done"
+    - row /Futurama\.S14E02\.Catfish\.Hunter[\d,.]+[hmsp]+\.DSNP\.WEB-DL\.ENG\.ITA\.DDP5\.1\.H264-TheBlackKing 1\.9 GB \d+ Done/:
+      - cell:
+        - checkbox
+      - cell /Futurama\.S14E02\.Catfish\.Hunter[\d,.]+[hmsp]+\.DSNP\.WEB-DL\.ENG\.ITA\.DDP5\.1\.H264-TheBlackKing/
+      - cell "1.9 GB"
+      - cell /\d+/:
+        - progressbar
+      - cell "Done"
+    - row /Rick and Morty - Stagione \d+ \(\d+\) 4\.7 GB \d+ Done/:
+      - cell:
+        - checkbox
+      - cell /Rick and Morty - Stagione \d+ \(\d+\)/
+      - cell "4.7 GB"
+      - cell /\d+/:
+        - progressbar
+      - cell "Done"
+- button "Process with FileBot" [disabled]

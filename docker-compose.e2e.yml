@@ -1,0 +1,35 @@
+services:
+  app:
+    build: .
+    network_mode: bridge
+    environment:
+      DEV_MODE: "true"
+      JWT_SECRET: e2e-only-not-a-secret
+      DB_DATABASE: /tmp/app.db
+      MEDIA_ROOT: /tmp/media
+      LOG_LEVEL: warn
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  playwright:
+    # Keep the tag in sync with @playwright/test in e2e/package.json.
+    image: mcr.microsoft.com/playwright:v1.64.1-noble
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: /e2e
+    ipc: host
+    # Share app's network namespace: no compose network needed, app reachable on localhost.
+    network_mode: "service:app"
+    environment:
+      HOME: /tmp
+      CI: ${CI:-}
+      BASE_URL: http://localhost:8080
+      PLAYWRIGHT_IN_DOCKER: "1"
+    volumes:
+      - ./e2e:/e2e
+    depends_on:
+      app:
+        condition: service_healthy
+    entrypoint: ["sh", "-c", "npm ci --no-audit --no-fund && npx playwright test \"$$@\"", "--"]
