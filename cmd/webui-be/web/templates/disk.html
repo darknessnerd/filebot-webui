@@ -1,0 +1,11 @@
+{{define "disk"}}
+{{range .Disks}}
+<div class="disk{{if ge .UsedPercent 90}} disk-crit{{else if ge .UsedPercent 75}} disk-warn{{end}}"
+     title="{{.Label}} ({{.Path}}): {{formatBytes .Used}} used of {{formatBytes .Total}}, {{formatBytes .Free}} free">
+  <div class="disk-text"><span class="disk-label">{{.Label}}</span> {{formatBytes .Free}} free</div>
+  <div class="disk-bar" role="progressbar" aria-label="{{.Label}} disk usage" aria-valuenow="{{.UsedPercent}}" aria-valuemin="0" aria-valuemax="100">
+    <div class="disk-fill" style="width:{{.UsedPercent}}%"></div>
+  </div>
+</div>
+{{end}}
+{{end}}

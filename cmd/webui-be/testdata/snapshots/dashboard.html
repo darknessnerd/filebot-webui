@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — FileBot WebUI</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/icons.css">
+  <script>window.__FILEBOT_DEBUG__=false;</script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous" defer></script>
+  <script>
+    document.addEventListener('alpine:init', function() {
+      Alpine.store('torrentPicks', { selected: [] });
+    });
+  </script>
+  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" integrity="sha384-l8f0VcPi/M1iHPv8egOnY/15TDwqgbOR1anMIJWvU6nLRgZVLTLSaNqi/TOoT5Fh" crossorigin="anonymous" defer></script>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-brand">
+    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+    </svg>
+    FileBot WebUI
+  </div>
+  <div class="nav-right">
+      <div id="disk-widget" class="disk-widget" hx-get="/disk" hx-trigger="load, every 60s" hx-swap="innerHTML"></div>
+      <span class="nav-username">snapshot-user</span>
+      <button class="btn btn-ghost btn-sm"
+        hx-post="/plex/refresh"
+        hx-swap="none"
+        title="Refresh Plex libraries">
+        <span class="nf nf-cod-library" aria-hidden="true"></span> Refresh Plex
+      </button>
+      <form method="POST" action="/auth/logout" style="margin:0">
+        <button class="btn btn-ghost btn-sm" type="submit"><span class="nf nf-fa-sign_out" aria-hidden="true"></span> Sign out</button>
+      </form>
+  </div>
+</nav>
+<main class="main">
+<div class="dashboard" x-data="{drawerOpen: false}" :class="drawerOpen ? 'drawer-open' : ''" @open-drawer="drawerOpen = true" @close-drawer="drawerOpen = false">
+  <div class="dash-torrents">
+    <div class="card dash-card">
+      <div class="card-header">
+        <span class="card-title">Completed Torrents</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="htmx-indicator" class="spinner"></span>
+          <button
+            class="btn btn-ghost btn-sm"
+            hx-get="/torrents"
+            hx-target="#torrent-list"
+            hx-swap="innerHTML"
+            hx-indicator="#htmx-indicator"
+          >Refresh</button>
+        </div>
+      </div>
+      <div
+        id="torrent-list"
+        class="dash-scroll"
+        hx-get="/torrents"
+        hx-trigger="load, every 30s"
+        hx-swap="innerHTML"
+        hx-indicator="#htmx-indicator"
+        @htmx:after-swap="
+          const ids = new Set([...document.querySelectorAll('#torrent-list input[type=checkbox][value]')].map(el => el.value));
+          Alpine.store('torrentPicks').selected = Alpine.store('torrentPicks').selected.filter(id => ids.has(id));
+        "
+      >
+        <div class="empty"><span class="spinner"></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="dash-filebot">
+    <div class="drawer-handle" @click="drawerOpen = !drawerOpen" aria-label="Toggle FileBot panel">
+      <div class="drawer-pill"></div>
+    </div>
+    <div id="filebot-slot" class="dash-scroll">
+      <div class="card">
+        <div class="card-header"><span class="card-title">FileBot</span></div>
+        <div class="card-body">
+          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Select completed torrents, then click <strong style="color:var(--text)">Process with FileBot</strong>.</p>
+          <div class="term-box">
+            <div style="color:rgba(34,197,94,.4);margin-bottom:8px;font-size:9px;letter-spacing:.1em;">// filebot.rename</div>
+            <div>
+              <span style="color:rgba(34,197,94,.5);">$</span>
+              <span style="color:rgba(255,255,255,.4);"> filebot -rename </span>
+              <span id="fb-term-q" style="color:#4ade80;"></span><span style="color:#4ade80;animation:blink 1s step-end infinite;font-weight:bold;">_</span>
+            </div>
+            <div id="fb-term-results" style="min-height:72px;margin-top:12px;display:flex;flex-direction:column;gap:4px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var SCENARIOS = [
+        {
+          cmd: '"Inception.2010.1080p.BluRay.mkv"',
+          results: [
+            { color:'#22c55e', text:'TheMovieDB → Inception (2010)' },
+            { color:'#4ade80', text:'rename → /media/Movies/Inception (2010)/Inception.mkv' },
+            { color:'#4ade80', text:'Done ✓  1 file renamed' },
+          ]
+        },
+        {
+          cmd: '"The.Wire.S01E03.720p.mkv"',
+          results: [
+            { color:'#22c55e', text:'TheTVDB → The Wire — S01E03' },
+            { color:'#4ade80', text:'rename → /media/TV/The Wire/Season 1/The Wire - S01E03.mkv' },
+            { color:'#4ade80', text:'Done ✓  1 file renamed' },
+          ]
+        },
+        {
+          cmd: '"random.name.mkv"',
+          results: [
+            { color:'#f59e0b', text:'TheMovieDB → no match found' },
+            { color:'#f59e0b', text:'conflict → skip (--conflict skip)' },
+            { color:'#ef4444', text:'Done ✗  0 renamed, 1 skipped' },
+          ]
+        },
+        {
+          cmd: '"/downloads/Dune.Part.Two.2024.2160p"',
+          results: [
+            { color:'#22c55e', text:'TheMovieDB → Dune: Part Two (2024)' },
+            { color:'#4ade80', text:'rename → /media/Movies/Dune Part Two (2024)/Dune Part Two.mkv' },
+            { color:'#4ade80', text:'Done ✓  1 file renamed' },
+          ]
+        },
+      ];
+      var qEl = document.getElementById('fb-term-q');
+      var resEl = document.getElementById('fb-term-results');
+      if (!qEl || !resEl) return;
+      var idx = 0;
+      var timer = null;
+      function dot(color) {
+        var s = document.createElement('span');
+        s.style.cssText = 'background:'+color+';width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:5px;display:inline-block;';
+        return s;
+      }
+      function buildRow(r) {
+        var row = document.createElement('div');
+        row.className = 'term-result';
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;';
+        row.appendChild(dot(r.color));
+        var txt = document.createElement('span');
+        txt.style.cssText = 'font-size:10px;color:rgba(220,255,220,.55);';
+        txt.textContent = r.text;
+        row.appendChild(txt);
+        return row;
+      }
+      function typeText(target, text, done) {
+        target.textContent = '';
+        var i = 0;
+        var speed = Math.max(18, Math.floor(900 / text.length));
+        function tick() {
+          if (!document.getElementById('fb-term-q')) return;
+          target.textContent = text.slice(0, ++i);
+          if (i < text.length) setTimeout(tick, speed);
+          else if (done) done();
+        }
+        tick();
+      }
+      function showResults(rows, i, done) {
+        if (i >= rows.length) { if (done) done(); return; }
+        rows[i].classList.add('show');
+        setTimeout(function(){ showResults(rows, i+1, done); }, 220);
+      }
+      function runScenario() {
+        if (!document.getElementById('fb-term-q')) { clearInterval(timer); return; }
+        var s = SCENARIOS[idx % SCENARIOS.length];
+        idx++;
+        resEl.innerHTML = '';
+        typeText(qEl, s.cmd, function() {
+          var rows = s.results.map(buildRow);
+          rows.forEach(function(r){ resEl.appendChild(r); });
+          setTimeout(function(){ showResults(rows, 0, null); }, 200);
+        });
+      }
+      runScenario();
+      timer = setInterval(runScenario, 4000);
+    })();
+    </script>
+  </div>
+</div>
+</main>
+<div id="toast-region" role="log" aria-live="polite" aria-label="Notifications"></div>
+<script>
+(function(){
+  'use strict';
+  var APP      = 'FILEBOT';
+  var LS_KEY   = 'filebot:loglevel';
+  var LEVELS   = { debug: 0, info: 1, warn: 2, error: 3 };
+  var VALID    = Object.keys(LEVELS);
+  var _serverDebug = window.__FILEBOT_DEBUG__ === true;
+  var _default     = _serverDebug ? 'debug' : 'info';
+  var _stored; try { _stored = localStorage.getItem(LS_KEY); } catch(_) { _stored = null; }
+  var _level = (_stored && LEVELS[_stored] !== undefined) ? _stored : _default;
+  if (_serverDebug && LEVELS[_level] > LEVELS['debug']) _level = 'debug';
+  var S = {
+    app:   'background:#00e676;color:#080c08;font-weight:700;padding:2px 7px;border-radius:3px;font-family:monospace;font-size:10px;letter-spacing:.06em',
+    debug: 'background:#1a221a;color:#4a6e4a;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    info:  'background:rgba(0,230,118,.15);color:#00e676;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    warn:  'background:rgba(251,191,36,.15);color:#fbbf24;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    error: 'background:rgba(248,113,113,.15);color:#f87171;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    htmx:  'background:#1e2d3d;color:#7ab3d4;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    store: 'background:#2a1a3a;color:#c084fc;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    action:'background:#1e1a0a;color:#d97706;font-weight:600;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:10px',
+    reset: '',
+    ts:    'color:#4a6e4a;font-family:monospace;font-size:11px',
+    msg:   'color:#c8ddc8',
+    ok:    'color:#00e676;font-family:monospace;font-size:12px',
+    fail:  'color:#f87171;font-family:monospace;font-size:12px',
+    dim:   'color:#4a6e4a;font-family:monospace;font-size:11px',
+  };
+  function ts() {
+    var d = new Date();
+    return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+  function allowed(level) {
+    return (LEVELS[level] || 0) >= (LEVELS[_level] || 0);
+  }
+  function emit(level, msg, ctx, badge) {
+    if (!allowed(level)) return;
+    var fn    = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+    var style = badge || S[level] || S.info;
+    var label = level.toUpperCase().padEnd(5);
+    var args  = [
+      '%c' + APP + '%c %c' + label + '%c %c' + ts() + '%c  ' + msg,
+      S.app, S.reset, style, S.reset, S.ts, S.msg,
+    ];
+    if (ctx && typeof ctx === 'object' && Object.keys(ctx).length) args.push(ctx);
+    fn.apply(console, args);
+  }
+  function emitGroup(level, badge, label, rows, collapsed) {
+    if (!allowed(level)) return;
+    var fn = collapsed ? console.groupCollapsed : console.group;
+    fn('%c' + APP + '%c %c' + level.toUpperCase().padEnd(5) + '%c %c' + label + '%c',
+      S.app, S.reset, badge, S.reset, level === 'error' ? S.fail : S.ok, S.reset);
+    rows.forEach(function(r) { console.log(r[0], r[1]); });
+    console.groupEnd();
+  }
+  window.Log = {
+    debug:    function(m, c) { emit('debug', m, c); },
+    info:     function(m, c) { emit('info',  m, c); },
+    warn:     function(m, c) { emit('warn',  m, c); },
+    error:    function(m, c) { emit('error', m, c); },
+    setLevel: function(l) {
+      if (LEVELS[l] === undefined) {
+        console.warn('[Log] unknown level "' + l + '". Valid: ' + VALID.join(', '));
+        return;
+      }
+      if (_serverDebug && LEVELS[l] > LEVELS['debug']) {
+        console.warn('[Log] server has DEBUG=true — cannot raise level above "debug"');
+        return;
+      }
+      _level = l;
+      try { localStorage.setItem(LS_KEY, l); } catch(_) {}
+      emit('info', 'log level → ' + l + '  [localStorage]');
+    },
+    getLevel: function() { return _level; },
+    store: function() {
+      if (window.Alpine) {
+        var s = Alpine.store('torrentPicks');
+        console.groupCollapsed('%c' + APP + '%c %cSTORE%c  torrentPicks',
+          S.app, S.reset, S.store, S.reset);
+        console.log('selected  ', s.selected.slice());
+        console.log('count     ', s.selected.length);
+        console.groupEnd();
+      } else {
+        console.warn('[Log.store] Alpine not ready');
+      }
+    },
+  };
+  console.log(
+    '\n%cFileBot WebUI%c\n',
+    'font-size:28px;font-weight:900;color:#00e676;font-family:"Space Grotesk",system-ui,sans-serif;letter-spacing:-0.5px',
+    ''
+  );
+  var _src = _serverDebug ? 'server' : (_stored && LEVELS[_stored] !== undefined ? 'localStorage' : 'default');
+  console.log(
+    '%c  media renamer  ·  ' + location.host + '  ·  level: ' + _level + '  [' + _src + ']\n',
+    'color:#4a6e4a;font-family:monospace;font-size:12px'
+  );
+  if (!_serverDebug && LEVELS[_level] > LEVELS['debug']) {
+    console.log(
+      '%c  verbose mode off — run %cLog.setLevel("debug")%c to enable  (or set %cDEBUG=true%c on the server)\n',
+      'color:#4a6e4a;font-size:11px',
+      'color:#00e676;font-family:monospace;font-size:11px',
+      'color:#4a6e4a;font-size:11px',
+      'color:#00e676;font-family:monospace;font-size:11px',
+      'color:#4a6e4a;font-size:11px'
+    );
+  }
+  console.log('%c⚠  Stop!', 'color:#f87171;font-size:16px;font-weight:800');
+  console.log(
+    '%cThis console is for developers only. Do not paste or run code here unless you fully understand it — doing so could expose your session to attackers.\n',
+    'color:#fbbf24;font-size:12px'
+  );
+  var _t = {};
+  document.addEventListener('htmx:beforeRequest', function(e) {
+    if (!allowed('debug')) return;
+    var cfg  = e.detail.requestConfig || {};
+    var verb = (cfg.verb || 'GET').toUpperCase();
+    var path = cfg.path || '?';
+    _t[verb + ':' + path] = performance.now();
+    emit('debug', '→ ' + verb + ' ' + path, null, S.htmx);
+  });
+  document.addEventListener('htmx:afterRequest', function(e) {
+    var cfg    = e.detail.requestConfig || {};
+    var verb   = (cfg.verb || 'GET').toUpperCase();
+    var path   = cfg.path || '?';
+    var status = e.detail.xhr ? e.detail.xhr.status : 0;
+    var k      = verb + ':' + path;
+    var dur    = _t[k] ? Math.round(performance.now() - _t[k]) : null;
+    delete _t[k];
+    var ok     = status >= 200 && status < 300;
+    var label  = '← ' + status + '  ' + verb + ' ' + path + (dur !== null ? '  ' + dur + 'ms' : '');
+    if (!allowed(ok ? 'info' : 'warn')) return;
+    var fn = ok ? console.groupCollapsed : console.group;
+    fn('%c' + APP + '%c %cHTMX%c %c' + label + '%c',
+      S.app, S.reset, S.htmx, S.reset, ok ? S.ok : S.fail, S.reset);
+    if (dur !== null) console.log('duration ', dur + 'ms');
+    if (e.detail.target) console.log('target   ', e.detail.target);
+    if (!ok) console.log('response ', e.detail.xhr && e.detail.xhr.responseText);
+    console.groupEnd();
+  });
+  document.addEventListener('htmx:afterSwap', function(e) {
+    if (!allowed('debug')) return;
+    var tgt = e.detail.target;
+    var id  = tgt ? (tgt.id ? '#' + tgt.id : tgt.tagName.toLowerCase()) : '?';
+    emit('debug', 'swap → ' + id, null, S.htmx);
+  });
+  document.addEventListener('open-drawer',  function() { emit('debug', 'action: open-drawer',  null, S.action); });
+  document.addEventListener('close-drawer', function() { emit('debug', 'action: close-drawer', null, S.action); });
+  document.addEventListener('submit', function(e) {
+    if (!allowed('debug')) return;
+    var form   = e.target;
+    var action = form.action || location.pathname;
+    var method = (form.method || 'GET').toUpperCase();
+    emit('debug', 'action: form submit  ' + method + ' ' + action, null, S.action);
+  });
+  document.addEventListener('alpine:initialized', function() {
+    emit('debug', 'alpine initialized');
+    var _prev = [];
+    Alpine.effect(function() {
+      var next = Alpine.store('torrentPicks').selected.slice();
+      if (!allowed('debug')) { _prev = next; return; }
+      var added   = next.filter(function(id) { return _prev.indexOf(id) === -1; });
+      var removed = _prev.filter(function(id) { return next.indexOf(id) === -1; });
+      var changed = added.length || removed.length;
+      if (!changed && _prev.length === 0 && next.length === 0) { _prev = next; return; }
+      console.groupCollapsed(
+        '%c' + APP + '%c %cSTORE%c  torrentPicks.selected  ' + next.length + ' item' + (next.length === 1 ? '' : 's'),
+        S.app, S.reset, S.store, S.reset
+      );
+      console.log('selected ', next.slice());
+      if (added.length)   console.log('%c+ added   ', 'color:#4ade80;font-family:monospace', added);
+      if (removed.length) console.log('%c− removed ', 'color:#f87171;font-family:monospace', removed);
+      console.groupEnd();
+      _prev = next;
+    });
+  });
+  Log.info('page ready', { path: location.pathname });
+})();
+</script>
+<script>
+(function(){
+  var ICONS = {
+    success: '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>',
+    error:   '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>',
+    warn:    '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2L14 13H2L8 2z"/><line x1="8" y1="7" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r=".5" fill="currentColor"/></svg>',
+    info:    '<svg class="toast-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7" x2="8" y2="11"/><circle cx="8" cy="5" r=".5" fill="currentColor"/></svg>',
+  };
+  function showToast(level, msg) {
+    if (window.Log) {
+      var fn = level === 'error' ? window.Log.error : level === 'warn' ? window.Log.warn : window.Log.info;
+      fn('toast: ' + msg, { level: level });
+    }
+    var region = document.getElementById('toast-region');
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.setAttribute('data-level', level);
+    t.setAttribute('role', 'alert');
+    t.innerHTML = (ICONS[level] || ICONS.info) +
+      '<span class="toast-msg">' + msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') + '</span>' +
+      '<button class="toast-dismiss" aria-label="Dismiss"><span class="nf nf-fa-close" aria-hidden="true"></span></button>';
+    t.querySelector('.toast-dismiss').addEventListener('click', function(){ dismiss(t); });
+    region.appendChild(t);
+    var timer = setTimeout(function(){ dismiss(t); }, 4000);
+    t._timer = timer;
+  }
+  function dismiss(t) {
+    if (t._dismissed) return;
+    t._dismissed = true;
+    clearTimeout(t._timer);
+    t.classList.add('toast-out');
+    t.addEventListener('animationend', function(){ t.remove(); }, {once: true});
+  }
+  document.addEventListener('htmx:afterRequest', function(e) {
+    var hdrs = e.detail && e.detail.xhr && e.detail.xhr.getResponseHeader('HX-Trigger');
+    if (!hdrs) return;
+    try {
+      var payload = JSON.parse(hdrs);
+      if (payload.showToast) showToast(payload.showToast.level, payload.showToast.msg);
+    } catch(_) {}
+  });
+  window.showToast = showToast;
+})();
+</script>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  var COLORS=['#00e676','#69ff47','#69ff47','#4ade80'];
+  function burst(x,y){
+    var svg=document.createElementNS(NS,'svg');
+    var R=36;
+    svg.setAttribute('viewBox',-R+' '+-R+' '+(R*2)+' '+(R*2));
+    svg.style.cssText='position:fixed;left:'+(x-R)+'px;top:'+(y-R)+'px;width:'+(R*2)+'px;height:'+(R*2)+'px;pointer-events:none;z-index:99999;overflow:visible;';
+    var count=3+Math.floor(Math.random()*3);
+    for(var i=0;i<count;i++){
+      var angle=(Math.PI*2/count)*i+Math.random()*0.6;
+      var dist=16+Math.random()*14;
+      var nx=Math.cos(angle)*dist, ny=Math.sin(angle)*dist;
+      var col=COLORS[Math.floor(Math.random()*COLORS.length)];
+      var line=document.createElementNS(NS,'line');
+      line.setAttribute('x1','0'); line.setAttribute('y1','0');
+      line.setAttribute('x2',''+nx); line.setAttribute('y2',''+ny);
+      line.setAttribute('stroke',col); line.setAttribute('stroke-width','1.5');
+      line.setAttribute('stroke-linecap','round'); line.setAttribute('opacity','0.7');
+      svg.appendChild(line);
+      var dot=document.createElementNS(NS,'circle');
+      dot.setAttribute('cx',''+nx); dot.setAttribute('cy',''+ny);
+      dot.setAttribute('r','2.5'); dot.setAttribute('fill',col);
+      svg.appendChild(dot);
+    }
+    var hub=document.createElementNS(NS,'circle');
+    hub.setAttribute('cx','0'); hub.setAttribute('cy','0');
+    hub.setAttribute('r','3'); hub.setAttribute('fill','#00e676');
+    svg.appendChild(hub);
+    document.body.appendChild(svg);
+    svg.animate(
+      [{opacity:1,transform:'scale(0.4)'},{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(1.1)'}],
+      {duration:520,easing:'ease-out',fill:'forwards'}
+    ).onfinish=function(){svg.remove();};
+  }
+  var SKIP='a,button,input,select,textarea,label,[role="button"]';
+  document.addEventListener('click',function(e){
+    if(e.target.closest(SKIP)) return;
+    burst(e.clientX,e.clientY);
+  });
+  var _tx=0,_ty=0;
+  document.addEventListener('touchstart',function(e){_tx=e.touches[0].clientX;_ty=e.touches[0].clientY;},{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(e.target.closest(SKIP)) return;
+    var t=e.changedTouches[0];
+    if(Math.hypot(t.clientX-_tx,t.clientY-_ty)<10) burst(t.clientX,t.clientY);
+  },{passive:true});
+})();
+</script>
+</body>
+</html>

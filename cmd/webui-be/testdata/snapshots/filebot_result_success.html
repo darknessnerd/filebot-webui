@@ -1,0 +1,57 @@
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Result</span>
+      <span class="badge badge-success">Plex refreshed</span>
+  </div>
+  <div class="card-body">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Torrent outcomes</p>
+    <div class="table-wrap" style="margin-bottom:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>Torrent</th>
+            <th>Moved</th>
+            <th>Deleted</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div style="font-weight:600">The.Matrix.1999.1080p.BluRay</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">abc123</div>
+            </td>
+            <td>
+                <span class="badge badge-warn">no</span>
+            </td>
+            <td>
+                <span class="badge badge-warn">no</span>
+            </td>
+            <td>
+                <span class="badge badge-info">not moved (copy action)</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Processed</p>
+    <ul class="result-list">
+      <li class="ok">/media/Movies/The Matrix (1999)/The Matrix (1999).mkv</li>
+    </ul>
+    <details class="raw-output">
+      <summary>Raw output</summary>
+      <pre>[COPY] from [/downloads/The.Matrix.1999.1080p.BluRay/matrix.mkv] to [/media/Movies/The Matrix (1999)/The Matrix (1999).mkv]</pre>
+    </details>
+    <template id="filebot-idle-tpl">
+      <div class="card"><div class="card-header"><span class="card-title">FileBot</span></div><div class="card-body"><p style="color:var(--muted);font-size:13px">Select completed torrents, then click Process with FileBot.</p></div></div>
+    </template>
+    <div style="margin-top:16px">
+      <button class="btn btn-ghost btn-sm"
+        hx-get="/torrents"
+        hx-target="#torrent-list"
+        hx-swap="innerHTML"
+        onclick="var s=document.getElementById('filebot-slot');var tpl=document.getElementById('filebot-idle-tpl');s.replaceChildren(tpl.content.cloneNode(true));"
+      ><span class="nf nf-fa-arrow_left" aria-hidden="true"></span> Back to torrents</button>
+    </div>
+  </div>
+</div>

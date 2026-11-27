@@ -44,6 +44,20 @@ body {
   display: flex;
   flex-direction: column;
 }
+/* ─── Scrollbars ─────────────────────────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*:hover { scrollbar-color: var(--muted) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--accent-hi); }
 
@@ -88,6 +102,17 @@ a:hover { color: var(--accent-hi); }
   max-width: 120px;
 }
 
+/* ─── Disk widget ────────────────────────────────────────────────── */
+.disk-widget { display: flex; align-items: center; gap: 12px; }
+.disk { display: flex; flex-direction: column; gap: 3px; min-width: 90px; }
+.disk-text { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.disk-label { color: var(--text); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.disk-bar { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.disk-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+.disk-warn .disk-fill { background: var(--warn); }
+.disk-crit .disk-fill { background: var(--error); }
+@media (max-width: 700px) { .disk-widget { display: none; } }
+
 /* ─── Layout ─────────────────────────────────────────────────────── */
 .main { flex: 1; padding: 24px; min-height: 0; display: flex; flex-direction: column; }
 .page-title {
@@ -112,6 +137,8 @@ a:hover { color: var(--accent-hi); }
 
 /* Desktop: both panels scroll independently, fill available height */
 @media (min-width: 1101px) {
+  /* Pin app shell to the viewport so panels scroll internally, not the page */
+  body { height: 100%; overflow: hidden; }
   .main { height: 0; /* flex child — fills remaining viewport */ }
   .dashboard { height: 100%; align-items: stretch; }
   .dash-torrents,
@@ -195,6 +222,78 @@ a:hover { color: var(--accent-hi); }
 /* Hide drawer handle on desktop/tablet */
 @media (min-width: 601px) {
   .drawer-handle { display: none; }
+}
+
+/* ─── Collapsible sections ───────────────────────────────────────── */
+[x-cloak] { display: none !important; }
+.collapse-head {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 44px;
+  padding: 8px 0; margin-bottom: 8px;
+  background: none; border: 0; border-bottom: 1px solid var(--border);
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.collapse-title {
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.collapse-summary {
+  flex: 1; min-width: 0; font-size: 12px; color: var(--accent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.collapse-chevron { margin-left: auto; color: var(--muted); transition: transform .2s; transform: rotate(-90deg); }
+.collapse-chevron.open { transform: none; }
+
+/* ─── FileBot form: layout helpers ───────────────────────────────── */
+.form-row { display: contents; }
+.filebot-result { margin-top: 8px; scroll-margin-top: 8px; }
+.filebot-result:empty { display: none; }
+.form-actions { display: flex; gap: 10px; margin-top: 6px; }
+.form-actions .btn-primary { flex: 1; justify-content: center; }
+
+@media (max-width: 600px) {
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-row .form-group { min-width: 0; }
+
+  /* Taller drawer so form + result are usable */
+  .dashboard.drawer-open .dash-filebot { max-height: 90vh; max-height: 90dvh; }
+
+  /* 16px inputs stop iOS zoom-on-focus; bigger tap targets */
+  .dash-filebot input[type=text],
+  .dash-filebot select { font-size: 16px; min-height: 44px; }
+  .form-actions .btn { min-height: 46px; }
+
+  /* Execute/Cancel stay reachable while scrolling form or result */
+  .dash-filebot .dash-scroll { padding-bottom: 0; }
+  .dash-filebot .card { overflow: visible; } /* overflow:hidden would break sticky */
+  .dash-filebot .card-body { padding-bottom: 0; }
+  .form-actions {
+    position: sticky;
+    bottom: 0;
+    margin: 12px -20px 0; /* bleed over .card-body side padding */
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 2;
+  }
+
+  /* Result sits flat under the form, not as a card inside a card */
+  .filebot-result > .card { border: 0; background: transparent; box-shadow: none; }
+  .filebot-result > .card > .card-header { padding-left: 0; padding-right: 0; }
+  .filebot-result > .card > .card-body { padding-left: 0; padding-right: 0; }
+}
+
+/* Desktop: form card fills the panel; body scrolls, actions pinned at bottom */
+@media (min-width: 1101px) {
+  #filebot-slot { display: flex; flex-direction: column; }
+  .filebot-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .filebot-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 0; display: flex; flex-direction: column; }
+  .filebot-body > * { flex-shrink: 0; }
+  .filebot-body .form-actions {
+    position: sticky; bottom: 0; margin: auto -20px 0; padding: 12px 20px;
+    background: var(--surface); border-top: 1px solid var(--border); z-index: 2;
+  }
 }
 
 /* ─── Card ───────────────────────────────────────────────────────── */

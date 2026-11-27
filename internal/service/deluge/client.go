@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/darknessnerd/filebot-webui/internal/domain"
@@ -73,6 +74,15 @@ func (c *Client) ListCompleted(ctx context.Context) ([]domain.Torrent, error) {
 			CompletedOn:  time.Unix(int64(completedUnix), 0),
 		})
 	}
+	sort.Slice(out, func(i, j int) bool {
+		if !out[i].CompletedOn.Equal(out[j].CompletedOn) {
+			return out[i].CompletedOn.After(out[j].CompletedOn)
+		}
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].ID < out[j].ID
+	})
 	c.log.Info().Int("count", len(out)).Msg("deluge: completed torrents fetched")
 	return out, nil
 }

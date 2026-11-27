@@ -39,6 +39,7 @@ type Config struct {
 	DelugePassword string
 
 	MediaRoot string
+	DiskPaths string // optional "label=path,..." extra mounts for the disk widget
 
 	DBType     string
 	DBDatabase string
@@ -81,6 +82,7 @@ func Load() (*Config, error) {
 		DBPassword:      getEnv("DB_PASSWORD", ""),
 		DBSSLMode:       getEnv("DB_SSL_MODE", "disable"),
 		LogLevel:        getEnv("LOG_LEVEL", "info"),
+		DiskPaths:       getEnv("DISK_PATHS", ""),
 	}
 
 	cfg.Debug, _ = strconv.ParseBool(getEnv("DEBUG", "false"))

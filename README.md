@@ -15,12 +15,13 @@ Self-hosted web UI that connects **Deluge + FileBot + Plex** into a single workf
 ## What it does
 
 1. **Login** via Plex PIN OAuth (single-user, no local accounts)
-2. **View completed torrents** fetched live from Deluge
+2. **View completed torrents** fetched live from Deluge — newest first; click a column header (Name, Size, Progress, State) to sort, click again to reverse
 3. **Select** one or more finished torrents
 4. **Configure FileBot** — DB, format, action, conflict resolution
 5. **Execute** — media engine validates request, renames and moves files to `MEDIA_ROOT`
 6. **On move success (per torrent)** — each successfully moved torrent is deleted from Deluge; failed torrents are kept
 7. **See results** — per-file success/failure, per-torrent moved/deleted status, raw FileBot output toggle
+8. **Watch disk space** — nav-bar widget shows free space and a usage bar per configured disk (yellow ≥ 75%, red ≥ 90%), refreshed every 60s
 
 ---
 
@@ -148,6 +149,7 @@ make lint        # go vet + staticcheck
 | `SERVER_PORT` | `8080` | HTTP port |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `DEBUG` | `false` | Pretty-print logs |
+| `DISK_PATHS` | _(empty)_ | Extra disks for the nav-bar widget, comma-separated `label=path` (or bare `path`), e.g. `downloads=/data/downloads,backup=/mnt/backup`. `MEDIA_ROOT` is always shown as `media`. Unreadable paths are skipped |
 | `DEV_MODE` | `false` | Bypass auth and mock Deluge/Plex — metadata resolvers (TMDB, AniDB, scheduler) stay real |
 | `JWT_EXPIRES_IN` | `24h` | JWT token lifetime |
 | `JWT_ISSUER` | `filebot-webui` | JWT issuer claim |
@@ -305,7 +307,8 @@ See [doc/architecture.md](doc/architecture.md) for:
 │  ├── AuthHandler       Plex PIN OAuth · JWT cookie              │
 │  ├── TorrentHandler    list completed Deluge torrents           │
 │  ├── FileBotHandler    form + execute + result                  │
-│  └── PlexHandler       library refresh                          │
+│  ├── PlexHandler       library refresh                          │
+│  └── DiskHandler       disk-usage nav widget (GET /disk)        │
 └────────┬───────────────┬──────────────────┬─────────────────────┘
          │               │                  │
 ┌────────▼──────┐ ┌──────▼──────┐ ┌────────▼────────────────────┐

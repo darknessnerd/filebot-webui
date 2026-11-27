@@ -4,7 +4,19 @@
 {{else if not .Torrents}}
   <div class="empty">No completed torrents found.</div>
 {{else}}
-<div x-data style="adpadding-bottom:12px">
+<div style="padding-bottom:12px" x-data="{
+  key: '', dir: 1,
+  sortBy(k, i, num) {
+    this.dir = this.key === k ? -this.dir : 1;
+    this.key = k;
+    const body = this.$refs.tbody, d = this.dir;
+    const val = r => r.children[i].dataset.v;
+    [...body.rows].sort((a, b) => {
+      const x = val(a), y = val(b);
+      return d * (num ? x - y : x.localeCompare(y, undefined, {numeric: true, sensitivity: 'base'}));
+    }).forEach(r => body.appendChild(r));
+  }
+}">
 
   <div class="table-wrap">
     <table class="torrent-table">
@@ -19,13 +31,13 @@
                 ">
             </label>
           </th>
-          <th>Name</th>
-          <th>Size</th>
-          <th>Progress</th>
-          <th>State</th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('name', 1, false)">Name <span x-show="key === 'name'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('size', 2, true)">Size <span x-show="key === 'size'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('progress', 3, true)">Progress <span x-show="key === 'progress'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('state', 4, false)">State <span x-show="key === 'state'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody x-ref="tbody">
         {{range .Torrents}}
         <tr>
           <td class="center">
@@ -34,14 +46,14 @@
                 @change="window.Log && window.Log.debug(($event.target.checked ? '☑' : '☐') + ' torrent: {{.ID}}  {{.Name}}', { store: $store.torrentPicks.selected.slice() })">
             </label>
           </td>
-          <td class="col-name" title="{{.Name}}">{{.Name}}</td>
-          <td>{{formatBytes .Size}}</td>
-          <td class="col-progress">
+          <td class="col-name" data-v="{{.Name}}" title="{{.Name}}">{{.Name}}</td>
+          <td data-v="{{.Size}}">{{formatBytes .Size}}</td>
+          <td class="col-progress" data-v="{{printf "%.2f" .Progress}}">
             <div class="progress" role="progressbar" aria-valuenow="{{printf "%.0f" .Progress}}" aria-valuemin="0" aria-valuemax="100">
               <div class="progress-fill" style="width:{{printf "%.0f" .Progress}}%"></div>
             </div>
           </td>
-          <td>
+          <td data-v="{{.State}}">
             {{if .IsFinished}}
               <span class="badge badge-success">Done</span>
             {{else}}

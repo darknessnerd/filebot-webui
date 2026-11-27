@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"net/http"
 	"os"
@@ -22,6 +21,7 @@ import (
 	"github.com/darknessnerd/filebot-webui/internal/service/anidb"
 	"github.com/darknessnerd/filebot-webui/internal/service/auth"
 	"github.com/darknessnerd/filebot-webui/internal/service/deluge"
+	"github.com/darknessnerd/filebot-webui/internal/service/disk"
 	"github.com/darknessnerd/filebot-webui/internal/service/filebot"
 	"github.com/darknessnerd/filebot-webui/internal/service/plex"
 	"github.com/darknessnerd/filebot-webui/internal/service/tmdb"
@@ -53,29 +53,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Parse templates with helper funcs
-	funcMap := template.FuncMap{
-		"formatBytes": formatBytes,
-		"or": func(a, b string) string {
-			if a != "" {
-				return a
-			}
-			return b
-		},
-		"list": func(args ...string) []string { return args },
-	}
-	tmpFiles := []string{
-		"web/templates/base.html",
-		"web/templates/dashboard.html",
-		"web/templates/torrents.html",
-		"web/templates/filebot_form.html",
-		"web/templates/filebot_result.html",
-		"web/templates/filebot_not_found.html",
-	}
-	if cfg.Debug {
-		tmpFiles = append(tmpFiles, "web/templates/playground.html")
-	}
-	tmpl, err := template.New("").Funcs(funcMap).ParseFS(webFS, tmpFiles...)
+	tmpl, err := parseTemplates(cfg.Debug)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to parse templates")
 		os.Exit(1)
@@ -176,6 +154,8 @@ func main() {
 	torrentH := handler.NewTorrentHandler(delugeSvc, tmpl, log, cfg.Debug)
 	fileBotH := handler.NewFileBotHandler(fbExecutor, delugeSvc, plexSvc, tmpl, cfg.MediaRoot, hasTMDBProvider, log)
 	plexH := handler.NewPlexHandler(plexSvc, log)
+	diskSvc := disk.New(disk.ParseMounts(cfg.DiskPaths, cfg.MediaRoot))
+	diskH := handler.NewDiskHandler(diskSvc, tmpl, log)
 
 	mux := http.NewServeMux()
 
@@ -226,6 +206,7 @@ func main() {
 	mux.Handle("GET /torrents", authMiddleware(http.HandlerFunc(torrentH.List)))
 	mux.Handle("GET /filebot", authMiddleware(http.HandlerFunc(fileBotH.Form)))
 	mux.Handle("POST /filebot/execute", authMiddleware(http.HandlerFunc(fileBotH.Execute)))
+	mux.Handle("GET /disk", authMiddleware(http.HandlerFunc(diskH.Widget)))
 	mux.Handle("POST /plex/refresh", authMiddleware(http.HandlerFunc(plexH.Refresh)))
 
 	addr := cfg.ServerHost + ":" + cfg.ServerPort
@@ -260,17 +241,4 @@ func main() {
 	if err := srv.Shutdown(shutCtx); err != nil {
 		log.Error().Err(err).Msg("graceful shutdown failed")
 	}
-}
-
-func formatBytes(b int64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }

@@ -1,0 +1,89 @@
+<div style="padding-bottom:12px" x-data="{
+  key: '', dir: 1,
+  sortBy(k, i, num) {
+    this.dir = this.key === k ? -this.dir : 1;
+    this.key = k;
+    const body = this.$refs.tbody, d = this.dir;
+    const val = r => r.children[i].dataset.v;
+    [...body.rows].sort((a, b) => {
+      const x = val(a), y = val(b);
+      return d * (num ? x - y : x.localeCompare(y, undefined, {numeric: true, sensitivity: 'base'}));
+    }).forEach(r => body.appendChild(r));
+  }
+}">
+  <div class="table-wrap">
+    <table class="torrent-table">
+      <thead>
+        <tr>
+          <th>
+            <label class="check-label">
+              <input type="checkbox"
+                @change="
+                  $store.torrentPicks.selected = $event.target.checked ? ['abc123','def456',] : [];
+                  window.Log && window.Log.debug('torrent: select-all ' + ($event.target.checked ? 'checked' : 'cleared'), { store: $store.torrentPicks.selected.slice() });
+                ">
+            </label>
+          </th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('name', 1, false)">Name <span x-show="key === 'name'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('size', 2, true)">Size <span x-show="key === 'size'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('progress', 3, true)">Progress <span x-show="key === 'progress'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
+          <th class="sortable" style="cursor:pointer;user-select:none" @click="sortBy('state', 4, false)">State <span x-show="key === 'state'" x-text="dir === 1 ? '▲' : '▼'"></span></th>
+        </tr>
+      </thead>
+      <tbody x-ref="tbody">
+        <tr>
+          <td class="center">
+            <label class="check-label">
+              <input type="checkbox" value="abc123" x-model="$store.torrentPicks.selected"
+                @change="window.Log && window.Log.debug(($event.target.checked ? '☑' : '☐') + ' torrent: abc123  The.Matrix.1999.1080p.BluRay', { store: $store.torrentPicks.selected.slice() })">
+            </label>
+          </td>
+          <td class="col-name" data-v="The.Matrix.1999.1080p.BluRay" title="The.Matrix.1999.1080p.BluRay">The.Matrix.1999.1080p.BluRay</td>
+          <td data-v="8589934592">8.0 GB</td>
+          <td class="col-progress" data-v="100.00">
+            <div class="progress" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-fill" style="width:100%"></div>
+            </div>
+          </td>
+          <td data-v="Seeding">
+              <span class="badge badge-success">Done</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="center">
+            <label class="check-label">
+              <input type="checkbox" value="def456" x-model="$store.torrentPicks.selected"
+                @change="window.Log && window.Log.debug(($event.target.checked ? '☑' : '☐') + ' torrent: def456  Breaking.Bad.S01E01.1080p', { store: $store.torrentPicks.selected.slice() })">
+            </label>
+          </td>
+          <td class="col-name" data-v="Breaking.Bad.S01E01.1080p" title="Breaking.Bad.S01E01.1080p">Breaking.Bad.S01E01.1080p</td>
+          <td data-v="2147483648">2.0 GB</td>
+          <td class="col-progress" data-v="42.40">
+            <div class="progress" role="progressbar" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-fill" style="width:42%"></div>
+            </div>
+          </td>
+          <td data-v="Downloading">
+              <span class="badge badge-info">Downloading</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+    <button
+      class="btn btn-primary"
+      :disabled="$store.torrentPicks.selected.length === 0"
+      @click="
+        const params = new URLSearchParams();
+        $store.torrentPicks.selected.forEach(id => params.append('torrent_ids', id));
+        htmx.ajax('GET', '/filebot?' + params.toString(), {target: '#filebot-slot', swap: 'innerHTML'});
+        const dash = document.querySelector('.dashboard');
+        if (dash) dash.dispatchEvent(new CustomEvent('open-drawer'));
+      "
+    >
+      <span class="nf nf-fa-magic" aria-hidden="true"></span> Process with FileBot
+      <span x-show="$store.torrentPicks.selected.length > 0" x-text="'(' + $store.torrentPicks.selected.length + ')'" style="opacity:.8"></span>
+    </button>
+  </div>
+</div>

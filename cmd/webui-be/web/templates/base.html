@@ -29,6 +29,7 @@
       {{if .User.PlexAvatar}}
         <img class="nav-avatar" src="{{.User.PlexAvatar}}" alt="avatar">
       {{end}}
+      <div id="disk-widget" class="disk-widget" hx-get="/disk" hx-trigger="load, every 60s" hx-swap="innerHTML"></div>
       <span class="nav-username">{{.User.PlexUsername}}</span>
       <button class="btn btn-ghost btn-sm"
         hx-post="/plex/refresh"

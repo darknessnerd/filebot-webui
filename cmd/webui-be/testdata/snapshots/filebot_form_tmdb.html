@@ -1,0 +1,105 @@
+<div class="card filebot-card" x-data="{
+  action: 'move',
+  db: 'TheMovieDB',
+  conflict: 'skip',
+  running: false,
+  settingsOpen: true,
+  hasResult: false,
+  resultOpen: true,
+  onResult() {
+    this.hasResult = true;
+    this.resultOpen = true;
+    if (window.matchMedia('(max-width: 600px)').matches) this.settingsOpen = false;
+    this.$nextTick(() => document.getElementById('filebot-result').scrollIntoView({behavior: 'smooth', block: 'start'}));
+  }
+}">
+  <div class="card-header">
+    <span class="card-title">FileBot</span>
+    <span class="badge badge-info">2 torrent(s)</span>
+  </div>
+  <div class="card-body filebot-body">
+    <form
+      id="filebot-form"
+      hx-post="/filebot/execute"
+      hx-target="#filebot-result"
+      hx-swap="innerHTML"
+      hx-indicator="#htmx-indicator"
+      @htmx:before-request="running = true"
+      @htmx:after-request="running = false"
+    >
+      <input type="hidden" name="torrent_ids" value="abc123">
+      <input type="hidden" name="torrent_ids" value="def456">
+      <input type="hidden" name="source_paths" value="/downloads/The.Matrix.1999.1080p.BluRay">
+      <input type="hidden" name="source_paths" value="/downloads/Breaking.Bad.S01E01.1080p">
+      <button type="button" class="collapse-head" @click="settingsOpen = !settingsOpen" :aria-expanded="settingsOpen">
+        <span class="collapse-title">Settings</span>
+        <span class="collapse-summary" x-show="!settingsOpen" x-text="db + ' · ' + action + ' · ' + conflict"></span>
+        <span class="collapse-chevron" :class="settingsOpen ? 'open' : ''" aria-hidden="true">▾</span>
+      </button>
+      <div x-show="settingsOpen" x-transition.opacity>
+      <div class="form-group">
+        <label>Database</label>
+        <select name="db" x-model="db">
+          <option value="TheMovieDB" selected>TheMovieDB — Movies</option>
+          <option value="TheMovieDB::TV" >TheMovieDB::TV — TV Shows</option>
+          <option value="AniDB" >AniDB — Anime</option>
+        </select>
+      </div>
+      <div class="form-row">
+      <div class="form-group">
+        <label>Action</label>
+        <select name="action" x-model="action">
+          <option value="move" selected>move</option>
+          <option value="copy" >copy</option>
+          <option value="symlink" >symlink</option>
+          <option value="hardlink" >hardlink</option>
+          <option value="test" >test</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Conflict</label>
+        <select name="conflict" x-model="conflict">
+          <option value="skip" selected>skip</option>
+          <option value="replace" >replace</option>
+          <option value="auto" >auto</option>
+          <option value="index" >index</option>
+          <option value="fail" >fail</option>
+        </select>
+      </div>
+      </div>
+      <div class="form-group">
+        <label>Query override</label>
+        <input type="text" name="query" value="" placeholder="Optional (AniDB: title or aid:12345)">
+        <small style="color:var(--muted);font-size:.75rem">AniDB: use <code>aid:&lt;id&gt;</code> for exact match, or a title when <code>ANIDB_TITLES_FILE</code> is configured.</small>
+      </div>
+      <div class="form-group">
+        <label>Output</label>
+        <input type="text" name="output" value="/media" readonly style="opacity:.7">
+      </div>
+      <div class="form-group" style="flex-direction:row;align-items:center">
+        <label class="checkbox-row">
+          <input type="checkbox" name="recursive" value="true" >
+          Recursive (-r)
+        </label>
+      </div>
+      </div>
+    </form>
+    <button type="button" class="collapse-head" x-show="hasResult" x-cloak @click="resultOpen = !resultOpen" :aria-expanded="resultOpen">
+      <span class="collapse-title">Result</span>
+      <span class="collapse-chevron" :class="resultOpen ? 'open' : ''" aria-hidden="true">▾</span>
+    </button>
+    <div id="filebot-result" class="filebot-result" aria-live="polite" x-show="resultOpen"
+      @htmx:after-swap="onResult()"></div>
+    <div class="form-actions">
+      <button type="submit" form="filebot-form" class="btn btn-primary" :disabled="running">
+        <span class="spinner" x-show="running" style="width:14px;height:14px;border-width:2px"></span>
+        <span x-show="!running"><span class="nf nf-fa-play" aria-hidden="true"></span> Execute</span>
+        <span x-show="running">Running…</span>
+      </button>
+      <button type="button" class="btn btn-ghost" :disabled="running"
+        @click="htmx.ajax('GET', '/', {target: '#filebot-slot', swap: 'innerHTML'}); document.querySelector('.dashboard')?.dispatchEvent(new CustomEvent('close-drawer'))">
+        <span class="nf nf-fa-close" aria-hidden="true"></span> Cancel
+      </button>
+    </div>
+  </div>
+</div>
